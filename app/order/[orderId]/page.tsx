@@ -61,8 +61,8 @@ export default function OrderStatusPage() {
           filter: `id=eq.${orderId}`,
         },
         (payload) => {
-          const newRow = payload.new as UpdatableOrder;
-          setOrder((prev) => (prev ? { ...prev, ...newRow } : prev));
+          const newRow = payload.new as Partial<OrderWithItems>;
+          setOrder((prev) => (prev ? { ...prev, ...newRow } as OrderWithItems : prev));
         }
       )
       .subscribe();

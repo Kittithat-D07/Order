@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/lib/store/cart";
@@ -10,6 +10,18 @@ import { CartDrawer } from "@/components/customer/CartDrawer";
 import { ShoppingBag, ChefHat, Loader2 } from "lucide-react";
 
 export default function MenuPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin" size={32} />
+      </div>
+    }>
+      <MenuContent />
+    </Suspense>
+  );
+}
+
+function MenuContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("table");

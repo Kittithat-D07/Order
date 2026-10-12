@@ -369,7 +369,7 @@ function MenuContent() {
                     style={isActive ? { background: COLORS.terracotta } : {}}
                   >
                     <span className="text-base">
-                      {cat.icon ?? getCategoryEmoji(cat.name)}
+                      {getCategoryEmoji(cat.name)}
                     </span>
                     <span>{cat.name}</span>
                   </motion.button>
@@ -674,7 +674,7 @@ function CategorySection({
           className="text-lg font-bold flex items-center gap-2"
           style={{ color: COLORS.charcoal }}
         >
-          <span className="text-xl">{category.icon ?? getCategoryEmoji(category.name)}</span>
+          <span className="text-xl">{getCategoryEmoji(category.name)}</span>
           <span>{category.name}</span>
           <span className="text-xs text-stone-400 font-normal">({items.length})</span>
         </h2>
@@ -728,7 +728,7 @@ function ListItem({
             <ChefHat size={26} className="text-stone-300" />
           </div>
         )}
-        {item.is_recommended && (
+        {(item as any).is_recommended && (
           <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-stone-900 text-[8px] font-bold">
             ⭐ แนะนำ
           </div>

@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { KitchenView } from "@/components/staff/KitchenView";
-import { createClient } from "@/lib/supabase/client";
-import { LogOut, ChefHat, Flame, Sparkles, CheckCircle2 } from "lucide-react";
+import { LogOut, ChefHat, Flame, Sparkles } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { Button } from "@/components/ui/button";
 
@@ -72,20 +70,6 @@ export default function KitchenPage() {
             </div>
           </BlurFade>
           <div className="flex items-center gap-2">
-            <Link href="/kitchen/done">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
-                >
-                  <CheckCircle2 size={14} className="mr-1.5" /> ดูที่เสร็จแล้ว
-                </Button>
-              </motion.div>
-            </Link>
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
-import { ChefHat, Check, Clock, Utensils, CheckCircle2 } from "lucide-react";
+import { ChefHat, Check, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
@@ -266,9 +266,9 @@ function OrderCard({
                 </p>
               )}
 
-              {/* Action buttons - แสดงเฉพาะ active mode */}
-              {mode === "active" ? (
-                <div className="grid grid-cols-3 gap-1.5 mt-2">
+              {/* Action buttons - ครัวกดได้แค่ 2 ปุ่ม */}
+              {mode === "active" && (
+                <div className="grid grid-cols-2 gap-1.5 mt-2">
                   <button
                     onClick={() => onUpdateItem(item.id, "preparing")}
                     disabled={item.status === "preparing"}
@@ -293,23 +293,6 @@ function OrderCard({
                     <Check size={12} />
                     รอเสริฟ
                   </button>
-                  <button
-                    onClick={() => onUpdateItem(item.id, "served")}
-                    disabled={item.status === "served"}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
-                      item.status === "served"
-                        ? "bg-blue-500 text-white shadow-md"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                    }`}
-                  >
-                    <Utensils size={12} />
-                    สำเร็จ
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-2 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-200">
-                  <CheckCircle2 size={12} />
-                  เสร็จแล้ว
                 </div>
               )}
             </div>

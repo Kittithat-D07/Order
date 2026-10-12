@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { LogOut, ChefHat, Utensils, Settings, Sparkles, BarChart3, LayoutGrid, Pizza } from "lucide-react";
@@ -9,6 +10,7 @@ import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 
 export default function AdminPage() {
+  const router = useRouter();
   const { session, hydrated, logout, quickLogin } = useStaffSession();
   const [authed, setAuthed] = useState(false);
 
@@ -98,7 +100,10 @@ export default function AdminPage() {
               transition={{ delay: 0.5 }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={logout}
+              onClick={() => {
+                logout();
+                router.push("/");
+              }}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition flex items-center gap-1.5"
             >
               <LogOut size={14} /> ออก

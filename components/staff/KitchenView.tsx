@@ -3,18 +3,24 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
-import { formatDateTime, formatPrice } from "@/lib/utils";
-import { ChefHat, Check, Clock, Volume2 } from "lucide-react";
+import { formatDateTime } from "@/lib/utils";
+import { ChefHat, Check, Clock, Volume2, Utensils } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function KitchenView() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
-  const [filter, setFilter] = useState<"new" | "doing" | "ready">("new");
+  const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
     loadOrders();
     const channel = supabase
       .channel("kitchen-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => loadOrders()
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
@@ -34,17 +40,18 @@ export function KitchenView() {
       .order("created_at", { ascending: false });
 
     if (data) {
-      // กรอง: เฉพาะ order ที่มี item ที่ยังไม่ served
+      // เฉพาะ order ที่ยังไม่ served/cancelled
       const active = (data as any as OrderWithItems[]).filter((o) =>
-        o.order_items?.some((it) => it.status !== "served" && it.status !== "cancelled")
+        o.order_items?.some(
+          (it) => it.status !== "served" && it.status !== "cancelled"
+        )
       );
       setOrders(active);
     }
+    setLoading(false);
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
-    const supabase = createClient();
-    // อัพเดท order_item
     const { data: item } = await supabase
       .from("order_items")
       .update({ status: newStatus })
@@ -54,7 +61,7 @@ export function KitchenView() {
 
     if (!item) return;
 
-    // โหลด order_items ทั้งหมดของ order นี้ เพื่อคำนวณ order.status
+    // คำนวณ order status
     const { data: items } = await supabase
       .from("order_items")
       .select("status")
@@ -62,12 +69,15 @@ export function KitchenView() {
 
     if (!items) return;
 
-    // คำนวณ order status
-    const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
-    const allReady = items.every(
-      (i) => i.status === "ready" || i.status === "served" || i.status === "cancelled"
+    const allServed = items.every(
+      (i) => i.status === "served" || i.status === "cancelled"
     );
-    const anyPreparing = items.some((i) => i.status === "preparing" || i.status === "ready" || i.status === "served");
+    const anyPreparing = items.some(
+      (i) =>
+        i.status === "preparing" ||
+        i.status === "ready" ||
+        i.status === "served"
+    );
 
     let orderStatus: "pending" | "preparing" | "served" = "pending";
     if (allServed) {
@@ -76,150 +86,223 @@ export function KitchenView() {
       orderStatus = "preparing";
     }
 
-    // อัพเดท orders.status (trigger realtime ให้ลูกค้าเห็น)
     await supabase
       .from("orders")
       .update({ status: orderStatus })
       .eq("id", item.order_id);
   };
 
-  // แยก items ตาม filter
-  const filteredItems = orders.flatMap((o) =>
-    (o.order_items ?? [])
-      .filter((it) => {
-        if (filter === "new") return it.status === "pending";
-        if (filter === "doing") return it.status === "preparing";
-        if (filter === "ready") return it.status === "ready";
-        return false;
-      })
-      .map((it) => ({ ...it, order: o }))
-  );
-
-  const counts = {
-    new: orders.flatMap((o) => o.order_items ?? []).filter((it) => it.status === "pending").length,
-    doing: orders.flatMap((o) => o.order_items ?? []).filter((it) => it.status === "preparing").length,
-    ready: orders.flatMap((o) => o.order_items ?? []).filter((it) => it.status === "ready").length,
+  const getItemStatus = (status: string): "new" | "doing" | "ready" => {
+    if (status === "pending") return "new";
+    if (status === "preparing") return "doing";
+    if (status === "ready") return "ready";
+    return "new";
   };
 
   return (
-    <div className="p-4">
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto">
-        <FilterTab active={filter === "new"} onClick={() => setFilter("new")} icon={Clock} label="รอครัว" count={counts.new} color="red" />
-        <FilterTab active={filter === "doing"} onClick={() => setFilter("doing")} icon={ChefHat} label="กำลังทำ" count={counts.doing} color="amber" />
-        <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} icon={Check} label="พร้อมเสิร์ฟ" count={counts.ready} color="green" />
+    <div className="p-4 max-w-2xl mx-auto">
+      {/* Header count */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
+          <ChefHat className="w-5 h-5 text-orange-500" />
+          ออร์เดอร์ที่กำลังทำ
+        </h2>
+        <span className="text-xs text-stone-500">
+          {orders.length} ออร์เดอร์
+        </span>
       </div>
 
-      {/* Items grid */}
-      {filteredItems.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-20 text-stone-400">
+          <p>กำลังโหลด...</p>
+        </div>
+      ) : orders.length === 0 ? (
         <div className="text-center py-20 text-stone-400">
           <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
-          <p className="text-sm">ไม่มีออร์เดอร์ในหมวดนี้</p>
+          <p className="text-sm">ยังไม่มีออร์เดอร์</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredItems.map((it) => {
-            const ageMin = Math.floor((Date.now() - new Date(it.order.created_at).getTime()) / 60000);
-            const isOld = ageMin > 10;
-            return (
-              <div
-                key={it.id}
-                className={`bg-white rounded-xl border-2 overflow-hidden shadow-sm ${
-                  isOld ? "border-red-300" : "border-stone-200"
-                }`}
-              >
-                <div className={`px-3 py-2 flex items-center justify-between ${isOld ? "bg-red-50" : "bg-stone-50"}`}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-stone-900 text-white flex items-center justify-center text-xs font-bold">
-                      {it.order.tables?.table_number ?? "?"}
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-stone-500 font-mono">#{it.order.id.slice(0, 6)}</p>
-                      <p className={`text-[10px] font-bold ${isOld ? "text-red-600" : "text-stone-600"}`}>
-                        ⏱ {ageMin} นาทีที่แล้ว
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-stone-400">{formatDateTime(it.order.created_at)}</p>
-                </div>
-
-                <div className="p-3">
-                  <p className="font-bold text-stone-800 text-base mb-1">
-                    <span className="text-orange-600">{it.quantity}×</span> {it.menu_items?.name}
-                  </p>
-                  {it.note && (
-                    <p className="text-xs bg-amber-50 text-amber-800 p-2 rounded-lg mb-2">
-                      💬 {it.note}
-                    </p>
-                  )}
-
-                  {filter === "new" && (
-                    <button
-                      onClick={() => updateItem(it.id, "preparing")}
-                      className="w-full py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-95"
-                    >
-                      <ChefHat size={16} /> เริ่มทำ
-                    </button>
-                  )}
-                  {filter === "doing" && (
-                    <button
-                      onClick={() => updateItem(it.id, "ready")}
-                      className="w-full py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-bold flex items-center justify-center gap-2 active:scale-95"
-                    >
-                      <Check size={16} /> พร้อมเสิร์ฟ
-                    </button>
-                  )}
-                  {filter === "ready" && (
-                    <div className="w-full py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-bold flex items-center justify-center gap-2">
-                      <Volume2 size={16} /> รอเสริฟ์นำไป
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-3">
+          <AnimatePresence>
+            {orders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onUpdateItem={updateItem}
+                getItemStatus={getItemStatus}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>
   );
 }
 
-function FilterTab({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  count,
-  color,
+function OrderCard({
+  order,
+  onUpdateItem,
+  getItemStatus,
 }: {
-  active: boolean;
-  onClick: () => void;
-  icon: any;
-  label: string;
-  count: number;
-  color: "red" | "amber" | "green";
+  order: OrderWithItems;
+  onUpdateItem: (id: string, status: OrderItemStatus) => void;
+  getItemStatus: (s: string) => "new" | "doing" | "ready";
 }) {
-  const colorMap = {
-    red: "from-red-500 to-pink-500",
-    amber: "from-amber-500 to-orange-500",
-    green: "from-green-500 to-emerald-500",
+  const ageMin = Math.floor(
+    (Date.now() - new Date(order.created_at).getTime()) / 60000
+  );
+  const isOld = ageMin > 10;
+
+  // แยก items ตามสถานะ
+  const itemsByStatus = {
+    new: (order.order_items ?? []).filter((it) => it.status === "pending"),
+    doing: (order.order_items ?? []).filter((it) => it.status === "preparing"),
+    ready: (order.order_items ?? []).filter((it) => it.status === "ready"),
   };
+
+  const totalItems = (order.order_items ?? []).length;
+  const doneItems = itemsByStatus.ready.length;
+
   return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition whitespace-nowrap ${
-        active
-          ? `bg-gradient-to-r ${colorMap[color]} text-white shadow-md`
-          : "bg-white text-stone-600 border border-stone-200 hover:border-stone-300"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className={`bg-white rounded-2xl border-2 overflow-hidden shadow-sm ${
+        isOld ? "border-red-300" : "border-stone-200"
       }`}
     >
-      <Icon size={14} />
-      {label}
-      {count > 0 && (
-        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${active ? "bg-white/20" : "bg-stone-100"}`}>
-          {count}
-        </span>
-      )}
-    </button>
+      {/* Header: โต๊ะ + เวลา */}
+      <div
+        className={`px-4 py-3 flex items-center justify-between ${
+          isOld ? "bg-red-50" : "bg-gradient-to-r from-orange-50 to-amber-50"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold">
+            {order.tables?.table_number ?? "?"}
+          </div>
+          <div>
+            <p className="text-xs text-stone-500 font-mono">
+              #{order.id.slice(0, 8)}
+            </p>
+            <p
+              className={`text-xs font-bold ${
+                isOld ? "text-red-600" : "text-stone-700"
+              }`}
+            >
+              ⏱ {ageMin} นาทีที่แล้ว
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-stone-400">
+            {formatDateTime(order.created_at)}
+          </p>
+          <p className="text-xs text-stone-600 font-medium">
+            {doneItems}/{totalItems} เสร็จ
+          </p>
+        </div>
+      </div>
+
+      {/* Items list */}
+      <div className="p-4 space-y-3">
+        {(order.order_items ?? []).map((item) => {
+          const status = getItemStatus(item.status);
+          return (
+            <div
+              key={item.id}
+              className="border border-stone-200 rounded-xl p-3"
+            >
+              {/* Item name + qty */}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="font-bold text-stone-800 text-base flex-1">
+                  <span className="text-orange-600">{item.quantity}×</span>{" "}
+                  {item.menu_items?.name}
+                </p>
+                <StatusBadge status={status} />
+              </div>
+
+              {/* Note */}
+              {item.note && (
+                <p className="text-xs bg-amber-50 text-amber-800 p-2 rounded-lg mb-2">
+                  💬 {item.note}
+                </p>
+              )}
+
+              {/* Action buttons */}
+              <div className="grid grid-cols-3 gap-1.5 mt-2">
+                <button
+                  onClick={() => onUpdateItem(item.id, "preparing")}
+                  disabled={item.status === "preparing"}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    item.status === "preparing"
+                      ? "bg-amber-500 text-white shadow-md"
+                      : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                  }`}
+                >
+                  <ChefHat size={12} />
+                  กำลังทำ
+                </button>
+                <button
+                  onClick={() => onUpdateItem(item.id, "ready")}
+                  disabled={item.status === "ready"}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    item.status === "ready"
+                      ? "bg-green-500 text-white shadow-md"
+                      : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  }`}
+                >
+                  <Check size={12} />
+                  รอเสริฟ
+                </button>
+                <button
+                  onClick={() => onUpdateItem(item.id, "served")}
+                  disabled={item.status === "served"}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    item.status === "served"
+                      ? "bg-blue-500 text-white shadow-md"
+                      : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                  }`}
+                >
+                  <Utensils size={12} />
+                  สำเร็จ
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+function StatusBadge({ status }: { status: "new" | "doing" | "ready" }) {
+  const map = {
+    new: {
+      label: "รอครัว",
+      className: "bg-red-100 text-red-700 border-red-200",
+      icon: Clock,
+    },
+    doing: {
+      label: "กำลังทำ",
+      className: "bg-amber-100 text-amber-700 border-amber-200",
+      icon: ChefHat,
+    },
+    ready: {
+      label: "พร้อมเสริฟ",
+      className: "bg-green-100 text-green-700 border-green-200",
+      icon: Check,
+    },
+  };
+  const s = map[status];
+  const Icon = s.icon;
+  return (
+    <span
+      className={`text-[10px] font-bold px-2 py-1 rounded-full border flex items-center gap-1 ${s.className}`}
+    >
+      <Icon size={10} />
+      {s.label}
+    </span>
   );
 }

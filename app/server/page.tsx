@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { ServerView } from "@/components/staff/ServerView";
 import { LogOut, Utensils, Sparkles, Star } from "lucide-react";
@@ -9,6 +10,7 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { Button } from "@/components/ui/button";
 
 export default function ServerPage() {
+  const router = useRouter();
   const { session, hydrated, logout, quickLogin } = useStaffSession();
   const [authed, setAuthed] = useState(false);
 
@@ -72,7 +74,10 @@ export default function ServerPage() {
             whileTap={{ scale: 0.95 }}
           >
             <Button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                router.push("/");
+              }}
               variant="secondary"
               size="sm"
               className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"

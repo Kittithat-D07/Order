@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { KitchenView } from "@/components/staff/KitchenView";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +11,7 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { Button } from "@/components/ui/button";
 
 export default function KitchenPage() {
+  const router = useRouter();
   const { session, hydrated, logout, quickLogin } = useStaffSession();
   const [authed, setAuthed] = useState(false);
 
@@ -73,7 +75,10 @@ export default function KitchenPage() {
             whileTap={{ scale: 0.95 }}
           >
             <Button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                router.push("/");
+              }}
               variant="secondary"
               size="sm"
               className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"

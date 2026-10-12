@@ -67,14 +67,17 @@ export function BlurFade({
 export function GradientBlob({
   className,
   delay = 0,
+  color = "",
 }: {
   className?: string;
   delay?: number;
+  color?: string;
 }) {
   return (
     <motion.div
       className={cn(
         "pointer-events-none absolute rounded-full blur-3xl opacity-50",
+        color,
         className
       )}
       animate={{

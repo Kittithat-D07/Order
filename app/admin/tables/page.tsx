@@ -74,10 +74,19 @@ export default function AdminTablesPage() {
   };
 
   const deleteTable = async (id: string) => {
-    if (!confirm("ลบโต๊ะนี้? ออร์เดอร์ทั้งหมดจะถูกลบด้วย")) return;
+    if (!confirm("ลบโต๊ะนี้?")) return;
     const supabase = createClient();
-    await supabase.from("tables").delete().eq("id", id);
-    load();
+
+    // ลบ orders ที่เกี่ยวข้องก่อน
+    await supabase.from("orders").delete().eq("table_id", id);
+
+    // ลบโต๊ะ
+    const { error } = await supabase.from("tables").delete().eq("id", id);
+    if (error) {
+      alert("ลบไม่สำเร็จ: " + error.message);
+    } else {
+      load();
+    }
   };
 
   const downloadQR = (table: Table) => {

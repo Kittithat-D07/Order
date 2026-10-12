@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
-import { ChefHat, Check, Clock, Volume2, Utensils } from "lucide-react";
+import { ChefHat, Check, Clock, Utensils, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export function KitchenView() {
+export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -15,7 +15,7 @@ export function KitchenView() {
   useEffect(() => {
     loadOrders();
     const channel = supabase
-      .channel("kitchen-orders")
+      .channel(`kitchen-orders-${mode}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
@@ -40,13 +40,24 @@ export function KitchenView() {
       .order("created_at", { ascending: false });
 
     if (data) {
-      // เฉพาะ order ที่ยังไม่ served/cancelled
-      const active = (data as any as OrderWithItems[]).filter((o) =>
-        o.order_items?.some(
-          (it) => it.status !== "served" && it.status !== "cancelled"
-        )
-      );
-      setOrders(active);
+      const all = data as any as OrderWithItems[];
+      // กรองตาม mode
+      const filtered = all.filter((o) => {
+        const items = o.order_items ?? [];
+        if (mode === "active") {
+          // ยังไม่ served (มี item ที่ยังไม่ served/cancelled)
+          return items.some(
+            (it) => it.status !== "served" && it.status !== "cancelled"
+          );
+        } else {
+          // done = served ทั้งหมด
+          return (
+            items.length > 0 &&
+            items.every((it) => it.status === "served" || it.status === "cancelled")
+          );
+        }
+      });
+      setOrders(filtered);
     }
     setLoading(false);
   };
@@ -104,8 +115,17 @@ export function KitchenView() {
       {/* Header count */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
-          <ChefHat className="w-5 h-5 text-orange-500" />
-          ออร์เดอร์ที่กำลังทำ
+          {mode === "active" ? (
+            <>
+              <ChefHat className="w-5 h-5 text-orange-500" />
+              ออร์เดอร์ที่กำลังทำ
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="w-5 h-5 text-blue-500" />
+              เสร็จแล้ว (เสริฟ์นำไปแล้ว)
+            </>
+          )}
         </h2>
         <span className="text-xs text-stone-500">
           {orders.length} ออร์เดอร์
@@ -118,8 +138,17 @@ export function KitchenView() {
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-20 text-stone-400">
-          <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
-          <p className="text-sm">ยังไม่มีออร์เดอร์</p>
+          {mode === "active" ? (
+            <>
+              <ChefHat size={48} className="mx-auto mb-3 opacity-50" />
+              <p className="text-sm">ยังไม่มีออร์เดอร์</p>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={48} className="mx-auto mb-3 opacity-50" />
+              <p className="text-sm">ยังไม่มีออร์เดอร์ที่เสร็จแล้ว</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -129,6 +158,7 @@ export function KitchenView() {
                 key={order.id}
                 order={order}
                 onUpdateItem={updateItem}
+                mode={mode}
                 getItemStatus={getItemStatus}
               />
             ))}
@@ -143,10 +173,12 @@ function OrderCard({
   order,
   onUpdateItem,
   getItemStatus,
+  mode = "active",
 }: {
   order: OrderWithItems;
   onUpdateItem: (id: string, status: OrderItemStatus) => void;
   getItemStatus: (s: string) => "new" | "doing" | "ready";
+  mode?: "active" | "done";
 }) {
   const ageMin = Math.floor(
     (Date.now() - new Date(order.created_at).getTime()) / 60000
@@ -169,13 +201,17 @@ function OrderCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       className={`bg-white rounded-2xl border-2 overflow-hidden shadow-sm ${
-        isOld ? "border-red-300" : "border-stone-200"
+        mode === "done" ? "border-blue-200" : isOld ? "border-red-300" : "border-stone-200"
       }`}
     >
       {/* Header: โต๊ะ + เวลา */}
       <div
         className={`px-4 py-3 flex items-center justify-between ${
-          isOld ? "bg-red-50" : "bg-gradient-to-r from-orange-50 to-amber-50"
+          mode === "done"
+            ? "bg-gradient-to-r from-blue-50 to-cyan-50"
+            : isOld
+            ? "bg-red-50"
+            : "bg-gradient-to-r from-orange-50 to-amber-50"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -230,45 +266,52 @@ function OrderCard({
                 </p>
               )}
 
-              {/* Action buttons */}
-              <div className="grid grid-cols-3 gap-1.5 mt-2">
-                <button
-                  onClick={() => onUpdateItem(item.id, "preparing")}
-                  disabled={item.status === "preparing"}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
-                    item.status === "preparing"
-                      ? "bg-amber-500 text-white shadow-md"
-                      : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
-                  }`}
-                >
-                  <ChefHat size={12} />
-                  กำลังทำ
-                </button>
-                <button
-                  onClick={() => onUpdateItem(item.id, "ready")}
-                  disabled={item.status === "ready"}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
-                    item.status === "ready"
-                      ? "bg-green-500 text-white shadow-md"
-                      : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  }`}
-                >
-                  <Check size={12} />
-                  รอเสริฟ
-                </button>
-                <button
-                  onClick={() => onUpdateItem(item.id, "served")}
-                  disabled={item.status === "served"}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
-                    item.status === "served"
-                      ? "bg-blue-500 text-white shadow-md"
-                      : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                  }`}
-                >
-                  <Utensils size={12} />
-                  สำเร็จ
-                </button>
-              </div>
+              {/* Action buttons - แสดงเฉพาะ active mode */}
+              {mode === "active" ? (
+                <div className="grid grid-cols-3 gap-1.5 mt-2">
+                  <button
+                    onClick={() => onUpdateItem(item.id, "preparing")}
+                    disabled={item.status === "preparing"}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                      item.status === "preparing"
+                        ? "bg-amber-500 text-white shadow-md"
+                        : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                    }`}
+                  >
+                    <ChefHat size={12} />
+                    กำลังทำ
+                  </button>
+                  <button
+                    onClick={() => onUpdateItem(item.id, "ready")}
+                    disabled={item.status === "ready"}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                      item.status === "ready"
+                        ? "bg-green-500 text-white shadow-md"
+                        : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                    }`}
+                  >
+                    <Check size={12} />
+                    รอเสริฟ
+                  </button>
+                  <button
+                    onClick={() => onUpdateItem(item.id, "served")}
+                    disabled={item.status === "served"}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                      item.status === "served"
+                        ? "bg-blue-500 text-white shadow-md"
+                        : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                    }`}
+                  >
+                    <Utensils size={12} />
+                    สำเร็จ
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-2 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-200">
+                  <CheckCircle2 size={12} />
+                  เสร็จแล้ว
+                </div>
+              )}
             </div>
           );
         })}

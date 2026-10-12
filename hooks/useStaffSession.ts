@@ -76,5 +76,5 @@ export function useStaffSession() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  return { session, hydrated, login, logout };
+  return { session, hydrated, login, quickLogin, logout };
 }

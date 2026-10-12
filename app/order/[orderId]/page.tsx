@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Sparkles,
   Receipt,
+  Bell,
   AlertCircle,
   Flame,
   Heart,

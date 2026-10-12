@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { OrderWithItems, Bill } from "@/lib/types";
+import { OrderWithItems, OrderItemStatus, Bill } from "@/lib/types";
 import { formatPrice, formatDateTime } from "@/lib/utils";
 import {
   Printer,
@@ -13,6 +13,10 @@ import {
   Clock,
   Receipt,
   Sparkles,
+  ChefHat,
+  Bell,
+  Utensils,
+  XCircle,
 } from "lucide-react";
 import {
   BlurFade,
@@ -24,6 +28,48 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// สี/label ของแต่ละสถานะ item
+const ITEM_STATUS_CONFIG: Record<
+  OrderItemStatus,
+  { label: string; color: string; bg: string; ring: string; icon: any }
+> = {
+  pending: {
+    label: "รอครัว",
+    color: "text-stone-500",
+    bg: "bg-stone-50",
+    ring: "ring-stone-200",
+    icon: Clock,
+  },
+  preparing: {
+    label: "กำลังทำ",
+    color: "text-orange-600",
+    bg: "bg-orange-50",
+    ring: "ring-orange-200",
+    icon: ChefHat,
+  },
+  ready: {
+    label: "พร้อมเสิร์ฟ",
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    ring: "ring-blue-200",
+    icon: Bell,
+  },
+  served: {
+    label: "เสิร์ฟแล้ว",
+    color: "text-green-600",
+    bg: "bg-green-50",
+    ring: "ring-green-200",
+    icon: CheckCircle2,
+  },
+  cancelled: {
+    label: "ยกเลิก",
+    color: "text-red-500",
+    bg: "bg-red-50",
+    ring: "ring-red-200",
+    icon: XCircle,
+  },
+};
+
 export default function BillPage() {
   const params = useParams<{ orderId: string }>();
   const router = useRouter();
@@ -33,24 +79,29 @@ export default function BillPage() {
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // โหลด order + items
+  const loadOrder = useCallback(async (silent = false) => {
+    const supabase = createClient();
+    const { data: orderData, error: orderErr } = await supabase
+      .from("orders")
+      .select("*, order_items(*, menu_items(*)), tables(*)")
+      .eq("id", orderId)
+      .single();
+
+    if (orderErr || !orderData) {
+      if (!silent) setError("ไม่พบออร์เดอร์");
+      return;
+    }
+    setOrder(orderData as OrderWithItems);
+  }, [orderId]);
 
   useEffect(() => {
     const supabase = createClient();
 
     const load = async () => {
-      const { data: orderData, error: orderErr } = await supabase
-        .from("orders")
-        .select("*, order_items(*, menu_items(*)), tables(*)")
-        .eq("id", orderId)
-        .single();
-
-      if (orderErr || !orderData) {
-        setError("ไม่พบออร์เดอร์");
-        setLoading(false);
-        return;
-      }
-      setOrder(orderData as OrderWithItems);
-
+      await loadOrder(true);
       const { data: billData, error: billErr } = await supabase
         .from("bills")
         .select("*")
@@ -65,8 +116,9 @@ export default function BillPage() {
 
     load();
 
+    // Realtime: orders table
     const orderChannel = supabase
-      .channel(`bill-order-${orderId}`)
+      .channel(`bill-order-${orderId}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -84,8 +136,30 @@ export default function BillPage() {
       )
       .subscribe();
 
+    // Realtime: order_items (filter by order_id)
+    const itemsChannel = supabase
+      .channel(`bill-items-${orderId}-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_items",
+        },
+        (payload) => {
+          const newItem = payload.new as { order_id?: string };
+          const oldItem = payload.old as { order_id?: string };
+          if (newItem?.order_id === orderId || oldItem?.order_id === orderId) {
+            console.log("🍜 Item updated → reload");
+            loadOrder(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Realtime: bills
     const billChannel = supabase
-      .channel(`bill-${orderId}`)
+      .channel(`bill-${orderId}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -102,11 +176,21 @@ export default function BillPage() {
       )
       .subscribe();
 
+    // Polling fallback
+    pollIntervalRef.current = setInterval(() => {
+      loadOrder(true);
+    }, 5000);
+
     return () => {
       supabase.removeChannel(orderChannel);
+      supabase.removeChannel(itemsChannel);
       supabase.removeChannel(billChannel);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
     };
-  }, [orderId]);
+  }, [orderId, loadOrder]);
 
   const handlePrint = async () => {
     if (bill && !bill.printed_at) {
@@ -154,6 +238,21 @@ export default function BillPage() {
     );
   }
 
+  // นับจำนวน item แต่ละสถานะ
+  const items = order.order_items ?? [];
+  const counts = {
+    pending: items.filter((i) => (i as any).status === "pending").length,
+    preparing: items.filter((i) => (i as any).status === "preparing").length,
+    ready: items.filter((i) => (i as any).status === "ready").length,
+    served: items.filter((i) => (i as any).status === "served").length,
+    cancelled: items.filter((i) => (i as any).status === "cancelled").length,
+  };
+  const allDone =
+    counts.pending === 0 &&
+    counts.preparing === 0 &&
+    counts.ready === 0 &&
+    counts.served > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 print:bg-white relative overflow-hidden">
       <style jsx global>{`
@@ -168,7 +267,6 @@ export default function BillPage() {
       <GradientBlob className="top-[40%] left-[-100px]" color="bg-orange-300/30" delay={2} />
       <GradientBlob className="bottom-[-100px] right-[20%]" color="bg-red-300/30" delay={4} />
 
-      {/* Floating */}
       <FloatingElement className="top-32 right-12" delay={0}>
         <Receipt className="w-6 h-6 text-amber-400/50" />
       </FloatingElement>
@@ -244,34 +342,88 @@ export default function BillPage() {
                 </div>
               </div>
 
-              {/* Items */}
+              {/* Items (with per-item status) */}
               <div className="mb-4">
                 <h2 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
                   <span className="w-1 h-4 rounded-full bg-gradient-to-b from-orange-500 to-amber-500" />
-                  รายการ
+                  รายการ ({items.length})
                 </h2>
+
+                {/* Status summary (no print) */}
+                <div className="no-print mb-3 grid grid-cols-4 gap-1.5 text-center">
+                  <div className={`py-1.5 rounded-lg text-[10px] font-semibold ${counts.pending > 0 ? "bg-stone-100 text-stone-600" : "bg-stone-50 text-stone-300"}`}>
+                    <Clock className="w-3 h-3 mx-auto mb-0.5" />
+                    {counts.pending} รอ
+                  </div>
+                  <div className={`py-1.5 rounded-lg text-[10px] font-semibold ${counts.preparing > 0 ? "bg-orange-100 text-orange-700" : "bg-stone-50 text-stone-300"}`}>
+                    <ChefHat className="w-3 h-3 mx-auto mb-0.5" />
+                    {counts.preparing} ทำ
+                  </div>
+                  <div className={`py-1.5 rounded-lg text-[10px] font-semibold ${counts.ready > 0 ? "bg-blue-100 text-blue-700" : "bg-stone-50 text-stone-300"}`}>
+                    <Bell className="w-3 h-3 mx-auto mb-0.5" />
+                    {counts.ready} ส่ง
+                  </div>
+                  <div className={`py-1.5 rounded-lg text-[10px] font-semibold ${counts.served > 0 ? "bg-green-100 text-green-700" : "bg-stone-50 text-stone-300"}`}>
+                    <CheckCircle2 className="w-3 h-3 mx-auto mb-0.5" />
+                    {counts.served} เสร็จ
+                  </div>
+                </div>
+
+                {/* All done banner */}
+                {allDone && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="no-print mb-3 p-2.5 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-xs font-semibold text-green-700">
+                      ทุกเมนูเสิร์ฟเรียบร้อยแล้ว 🎉
+                    </p>
+                  </motion.div>
+                )}
+
                 <div className="space-y-2">
-                  {order.order_items?.map((it, idx) => (
-                    <motion.div
-                      key={it.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 + idx * 0.05 }}
-                      className="flex justify-between text-sm"
-                    >
-                      <div className="flex-1">
-                        <p className="text-stone-800 font-medium">
-                          {it.menu_items?.name ?? "(เมนูถูกลบ)"}
-                        </p>
-                        <p className="text-xs text-stone-500">
-                          ฿{formatPrice(it.unit_price)} × {it.quantity}
-                        </p>
-                      </div>
-                      <span className="font-semibold text-stone-800">
-                        ฿{formatPrice(it.subtotal)}
-                      </span>
-                    </motion.div>
-                  ))}
+                  {items.map((it, idx) => {
+                    const status = ((it as any).status ?? "pending") as OrderItemStatus;
+                    const cfg = ITEM_STATUS_CONFIG[status] ?? ITEM_STATUS_CONFIG.pending;
+                    const ItemIcon = cfg.icon;
+                    return (
+                      <motion.div
+                        key={it.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + idx * 0.05 }}
+                        className={`flex justify-between items-center text-sm p-2.5 rounded-xl border ${cfg.bg} ${cfg.ring} ring-1 print:border-stone-200 print:bg-white`}
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          {/* Status icon */}
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${status === "preparing" || status === "ready" ? "animate-pulse" : ""} ${cfg.color} bg-white/70`}>
+                            <ItemIcon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-stone-800 font-medium text-sm truncate">
+                              {it.menu_items?.name ?? "(เมนูถูกลบ)"}
+                            </p>
+                            <div className="flex items-center gap-2 text-[11px] text-stone-500">
+                              <span>฿{formatPrice(it.unit_price)} × {it.quantity}</span>
+                              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${cfg.color} bg-white/60 print:bg-stone-100`}>
+                                {cfg.label}
+                              </span>
+                            </div>
+                            {it.note && (
+                              <p className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5 truncate">
+                                💬 {it.note}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-semibold text-stone-800 text-sm flex-shrink-0 ml-2">
+                          ฿{formatPrice(it.subtotal)}
+                        </span>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -326,6 +478,11 @@ export default function BillPage() {
             </Card>
           </BlurFade>
         )}
+
+        {/* Help info */}
+        <div className="no-print mt-3 text-center text-[10px] text-stone-400">
+          <p>หน้านี้อัปเดตอัตโนมัติทุก 5 วินาที • รอเมนูที่เหลือได้เลย</p>
+        </div>
       </div>
     </div>
   );

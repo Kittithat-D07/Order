@@ -163,7 +163,14 @@ function MenuContent() {
   };
 
   const quickAdd = (item: MenuItem) => {
-    addItem({ ...item, quantity: 1, note: "" });
+    addItem({
+      menu_item_id: item.id,
+      name: item.name,
+      price: item.price,
+      image_url: item.image_url ?? null,
+      quantity: 1,
+      note: "",
+    });
   };
 
   const handleCheckout = async () => {

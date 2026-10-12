@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { StaffLogin } from "@/components/staff/StaffLogin";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
-import { LogOut, ChefHat, Utensils, Settings, Sparkles, BarChart3 } from "lucide-react";
+import { LogOut, ChefHat, Utensils, Settings, Sparkles, BarChart3, LayoutGrid, Pizza } from "lucide-react";
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 
@@ -26,7 +26,9 @@ export default function AdminPage() {
   }
 
   const navItems = [
-    { href: "/kitchen", icon: ChefHat, label: "ครัว", color: "hover:bg-orange-50 hover:text-orange-700" },
+    { href: "/admin/tables", icon: LayoutGrid, label: "โต๊ะ", color: "hover:bg-orange-50 hover:text-orange-700" },
+    { href: "/admin/menu", icon: Pizza, label: "เมนู", color: "hover:bg-green-50 hover:text-green-700" },
+    { href: "/kitchen", icon: ChefHat, label: "ครัว", color: "hover:bg-amber-50 hover:text-amber-700" },
     { href: "/server", icon: Utensils, label: "เสริฟ์", color: "hover:bg-blue-50 hover:text-blue-700" },
     { href: "/admin/orders", icon: BarChart3, label: "ประวัติ", color: "hover:bg-purple-50 hover:text-purple-700" },
   ];

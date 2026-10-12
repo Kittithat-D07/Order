@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderCard } from "@/components/admin/OrderCard";
 import { OrderWithItems } from "@/lib/types";
-import { ChefHat, Utensils, Table as TableIcon, AlertCircle, RefreshCw } from "lucide-react";
+import { ChefHat, Utensils, Table as TableIcon, AlertCircle, RefreshCw, LayoutGrid, Pizza, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export function AdminDashboard() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -74,6 +75,38 @@ export function AdminDashboard() {
         <StatCard icon={Utensils} label="พร้อมเสิร์ฟ" value={stats.ready} color="blue" />
         <StatCard icon={TableIcon} label="ออร์เดอร์วันนี้" value={stats.today} color="green" />
         <StatCard icon={AlertCircle} label="รายได้วันนี้" value={`฿${stats.revenue.toLocaleString()}`} color="purple" />
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <Link href="/admin/tables" className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition text-center group">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
+            <LayoutGrid size={18} />
+          </div>
+          <p className="text-sm font-bold text-stone-800">จัดการโต๊ะ</p>
+          <p className="text-[10px] text-stone-500 mt-0.5">QR Code</p>
+        </Link>
+        <Link href="/admin/menu" className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition text-center group">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
+            <Pizza size={18} />
+          </div>
+          <p className="text-sm font-bold text-stone-800">จัดการเมนู</p>
+          <p className="text-[10px] text-stone-500 mt-0.5">รายการอาหาร</p>
+        </Link>
+        <Link href="/kitchen" className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition text-center group">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
+            <ChefHat size={18} />
+          </div>
+          <p className="text-sm font-bold text-stone-800">หน้าครัว</p>
+          <p className="text-[10px] text-stone-500 mt-0.5">รับออร์เดอร์</p>
+        </Link>
+        <Link href="/server" className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4 hover:scale-[1.02] active:scale-95 transition text-center group">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-white flex items-center justify-center mx-auto mb-2 shadow-md">
+            <Utensils size={18} />
+          </div>
+          <p className="text-sm font-bold text-stone-800">หน้าเสริฟ์</p>
+          <p className="text-[10px] text-stone-500 mt-0.5">เสิร์ฟอาหาร</p>
+        </Link>
       </div>
 
       {/* Section: Active */}

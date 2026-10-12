@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import { Table } from "@/lib/types";
@@ -19,9 +20,15 @@ import {
   Edit2,
   Save,
   Package,
+  Sparkles,
+  Grid3x3,
 } from "lucide-react";
 import Link from "next/link";
 import { generateQrToken } from "@/lib/utils";
+import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type ToastType = "success" | "error" | "info";
 interface Toast {
@@ -278,17 +285,41 @@ export default function AdminTablesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 animate-pulse" />
-        <p className="text-sm text-stone-500">กำลังโหลด...</p>
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 relative overflow-hidden flex flex-col items-center justify-center gap-3">
+        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
+        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-amber-300/30" delay={1} />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+        >
+          <QrCodeIcon className="text-white" size={28} />
+        </motion.div>
+        <div className="flex items-center gap-2">
+          <PulseDot color="bg-orange-500" />
+          <p className="text-sm text-stone-600 font-medium">กำลังโหลดโต๊ะ...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 bg-gradient-to-br from-amber-50/30 via-orange-50/30 to-red-50/30 relative overflow-hidden">
+      {/* Background blobs */}
+      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-orange-300/20" />
+      <GradientBlob className="top-[40%] left-[-100px]" color="bg-amber-300/20" delay={3} />
+      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-red-300/15" delay={5} />
+
+      {/* Floating */}
+      <FloatingElement className="top-32 right-12" delay={0}>
+        <Grid3x3 className="w-6 h-6 text-orange-400/40" />
+      </FloatingElement>
+      <FloatingElement className="bottom-32 left-12" delay={2}>
+        <Sparkles className="w-5 h-6 text-amber-400/40" />
+      </FloatingElement>
+
       {/* Header */}
-      <header className="sticky top-0 z-20 glass border-b border-stone-200/60">
+      <header className="sticky top-0 z-20 glass border-b border-stone-200/60 backdrop-blur-md bg-white/70">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"
@@ -401,15 +432,28 @@ export default function AdminTablesPage() {
             <p className="text-sm text-stone-500">ไม่พบโต๊ะที่ค้นหา</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.05 } },
+            }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          >
             {filteredTables.map((t) => {
               const url = `${baseUrl}/menu?table=${t.qr_token}`;
               const isSelected = selectedIds.has(t.id);
               const isEditing = editingId === t.id;
 
               return (
-                <div
+                <motion.div
                   key={t.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  whileHover={{ y: -4 }}
                   className={`card-interactive overflow-hidden transition-all ${
                     isSelected ? "ring-2 ring-orange-400 ring-offset-2" : ""
                   }`}
@@ -538,10 +582,10 @@ export default function AdminTablesPage() {
                       <Trash2 size={14} />
                     </button>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </main>
 

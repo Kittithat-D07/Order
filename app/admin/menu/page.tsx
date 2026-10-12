@@ -1,18 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { MenuItem, MenuCategory } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
-import { Plus, Edit2, Trash2, Save, X, ArrowLeft, ImageIcon } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  ArrowLeft,
+  ImageIcon,
+  Utensils,
+  Sparkles,
+  ChefHat,
+} from "lucide-react";
 import Link from "next/link";
+import {
+  BlurFade,
+  GradientBlob,
+  FloatingElement,
+  PulseDot,
+} from "@/components/ui/magic-effects";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // form state
   const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -88,212 +108,315 @@ export default function AdminMenuPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center">กำลังโหลด...</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-lime-50 relative overflow-hidden flex items-center justify-center">
+        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-emerald-300/30" />
+        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-green-300/30" delay={1} />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-2xl shadow-emerald-500/40"
+        >
+          <Utensils className="text-white" size={28} />
+        </motion.div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-stone-100">
-      <header className="bg-white border-b">
-        <div className="max-w-5xl mx-auto p-4 flex items-center gap-3">
-          <Link href="/admin" className="p-1 hover:bg-stone-100 rounded">
-            <ArrowLeft size={20} />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-green-50/30 to-lime-50/30 relative overflow-hidden">
+      {/* Background blobs */}
+      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-emerald-300/20" />
+      <GradientBlob className="top-[40%] left-[-100px]" color="bg-green-300/20" delay={3} />
+      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-lime-300/20" delay={5} />
+
+      {/* Floating */}
+      <FloatingElement className="top-32 right-12" delay={0}>
+        <Utensils className="w-6 h-6 text-emerald-400/40" />
+      </FloatingElement>
+      <FloatingElement className="bottom-32 left-12" delay={2}>
+        <Sparkles className="w-5 h-6 text-green-400/40" />
+      </FloatingElement>
+
+      <header className="sticky top-0 z-20 backdrop-blur-md bg-white/70 border-b border-emerald-200/50">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link
+            href="/admin"
+            className="w-9 h-9 rounded-lg hover:bg-emerald-100 flex items-center justify-center transition"
+          >
+            <ArrowLeft size={18} />
           </Link>
-          <h1 className="font-bold text-lg">จัดการเมนู</h1>
+          <BlurFade>
+            <div className="flex items-center gap-2.5 flex-1">
+              <motion.div
+                animate={{ y: [0, -3, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md shadow-emerald-500/30"
+              >
+                <ChefHat size={18} className="text-white" />
+              </motion.div>
+              <div>
+                <h1 className="font-bold text-base leading-tight flex items-center gap-2">
+                  จัดการเมนู
+                  <PulseDot color="bg-emerald-500" />
+                </h1>
+                <p className="text-xs text-stone-500">
+                  {items.length} เมนู · {categories.length} หมวด
+                </p>
+              </div>
+            </div>
+          </BlurFade>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto p-4 space-y-6">
         {/* Categories */}
-        <section className="bg-white rounded-lg p-4">
-          <h2 className="font-bold mb-3">หมวดเมนู</h2>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {categories.map((c) => (
-              <div
-                key={c.id}
-                className="px-3 py-1.5 rounded-full bg-stone-100 flex items-center gap-2 text-sm"
-              >
-                {c.name}
-                <button
-                  onClick={() => deleteCategory(c.id)}
-                  className="text-stone-400 hover:text-red-500"
-                >
-                  <X size={14} />
-                </button>
+        <BlurFade delay={0.1}>
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-4 sm:p-5">
+              <h2 className="font-bold mb-3 flex items-center gap-2">
+                <span className="w-1 h-5 rounded-full bg-gradient-to-b from-emerald-500 to-green-500" />
+                หมวดเมนู
+              </h2>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <AnimatePresence>
+                  {categories.map((c, idx) => (
+                    <motion.div
+                      key={c.id}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200 flex items-center gap-2 text-sm font-medium hover-lift"
+                    >
+                      {c.name}
+                      <button
+                        onClick={() => deleteCategory(c.id)}
+                        className="w-5 h-5 rounded-full hover:bg-emerald-200 text-emerald-700 hover:text-red-600 flex items-center justify-center transition"
+                      >
+                        <X size={12} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="เพิ่มหมวดใหม่..."
-              className="flex-1 px-3 py-2 border border-stone-300 rounded-lg"
-              onKeyDown={(e) => e.key === "Enter" && addCategory()}
-            />
-            <button
-              onClick={addCategory}
-              className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-        </section>
+              <div className="flex gap-2">
+                <input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="เพิ่มหมวดใหม่..."
+                  className="flex-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  onKeyDown={(e) => e.key === "Enter" && addCategory()}
+                />
+                <Button
+                  onClick={addCategory}
+                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </BlurFade>
 
         {/* Items */}
-        <section className="bg-white rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold">รายการอาหาร</h2>
-            <button
-              onClick={() =>
-                setEditingItem({
-                  category_id: categories[0]?.id,
-                  is_available: true,
-                  display_order: items.length,
-                })
-              }
-              disabled={categories.length === 0}
-              className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 disabled:bg-stone-300 text-white rounded-lg text-sm flex items-center gap-1"
-            >
-              <Plus size={14} /> เพิ่มเมนู
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {items.map((it) => (
-              <div
-                key={it.id}
-                className="flex items-center gap-3 p-3 border border-stone-200 rounded-lg"
-              >
-                <div className="w-12 h-12 bg-stone-100 rounded flex items-center justify-center shrink-0">
-                  {it.image_url ? (
-                    <img
-                      src={it.image_url}
-                      alt={it.name}
-                      className="w-full h-full object-cover rounded"
-                    />
-                  ) : (
-                    <ImageIcon size={20} className="text-stone-400" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{it.name}</p>
-                  <p className="text-xs text-stone-500">
-                    {categories.find((c) => c.id === it.category_id)?.name} ·{" "}
-                    {formatPrice(it.price)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => toggleAvailable(it)}
-                  className={`text-xs px-2 py-1 rounded ${
-                    it.is_available
-                      ? "bg-green-100 text-green-700"
-                      : "bg-stone-200 text-stone-600"
-                  }`}
+        <BlurFade delay={0.2}>
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold flex items-center gap-2">
+                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-emerald-500 to-green-500" />
+                  รายการอาหาร
+                </h2>
+                <Button
+                  onClick={() =>
+                    setEditingItem({
+                      category_id: categories[0]?.id,
+                      is_available: true,
+                      display_order: items.length,
+                    })
+                  }
+                  disabled={categories.length === 0}
+                  size="sm"
+                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
                 >
-                  {it.is_available ? "เปิดขาย" : "ปิด"}
-                </button>
-                <button
-                  onClick={() => setEditingItem(it)}
-                  className="p-1.5 hover:bg-stone-100 rounded"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button
-                  onClick={() => deleteItem(it.id)}
-                  className="p-1.5 hover:bg-stone-100 rounded text-red-500"
-                >
-                  <Trash2 size={14} />
-                </button>
+                  <Plus size={14} className="mr-1" /> เพิ่มเมนู
+                </Button>
               </div>
-            ))}
-          </div>
-        </section>
+
+              <div className="space-y-2">
+                <AnimatePresence>
+                  {items.map((it, idx) => (
+                    <motion.div
+                      key={it.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: idx * 0.03 }}
+                      whileHover={{ scale: 1.01 }}
+                      className="flex items-center gap-3 p-3 border border-stone-200 rounded-xl hover:border-emerald-300 hover:shadow-md transition-all"
+                    >
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-green-100 rounded-lg flex items-center justify-center shrink-0">
+                        {it.image_url ? (
+                          <img
+                            src={it.image_url}
+                            alt={it.name}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        ) : (
+                          <ImageIcon size={20} className="text-emerald-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{it.name}</p>
+                        <p className="text-xs text-stone-500">
+                          {categories.find((c) => c.id === it.category_id)?.name} ·{" "}
+                          <span className="font-semibold text-emerald-600">
+                            {formatPrice(it.price)}
+                          </span>
+                        </p>
+                      </div>
+                      <Badge
+                        variant={it.is_available ? "success" : "default"}
+                        className={`cursor-pointer ${
+                          it.is_available
+                            ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-green-200"
+                            : "bg-stone-100 text-stone-600"
+                        }`}
+                        onClick={() => toggleAvailable(it)}
+                      >
+                        {it.is_available ? "เปิดขาย" : "ปิด"}
+                      </Badge>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setEditingItem(it)}
+                        className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600"
+                      >
+                        <Edit2 size={14} />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => deleteItem(it.id)}
+                        className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"
+                      >
+                        <Trash2 size={14} />
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </CardContent>
+          </Card>
+        </BlurFade>
       </main>
 
       {/* Edit modal */}
-      {editingItem && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md space-y-3">
-            <h3 className="font-bold text-lg">
-              {editingItem.id ? "แก้ไขเมนู" : "เพิ่มเมนูใหม่"}
-            </h3>
-            <div>
-              <label className="text-sm text-stone-600">หมวด</label>
-              <select
-                value={editingItem.category_id ?? ""}
-                onChange={(e) =>
-                  setEditingItem({ ...editingItem, category_id: e.target.value })
-                }
-                className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm text-stone-600">ชื่อเมนู</label>
-              <input
-                value={editingItem.name ?? ""}
-                onChange={(e) =>
-                  setEditingItem({ ...editingItem, name: e.target.value })
-                }
-                className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-stone-600">คำอธิบาย</label>
-              <textarea
-                value={editingItem.description ?? ""}
-                onChange={(e) =>
-                  setEditingItem({ ...editingItem, description: e.target.value })
-                }
-                className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg"
-                rows={2}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-stone-600">ราคา (บาท)</label>
-              <input
-                type="number"
-                value={editingItem.price ?? ""}
-                onChange={(e) =>
-                  setEditingItem({ ...editingItem, price: Number(e.target.value) })
-                }
-                className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-stone-600">URL รูปภาพ (ถ้ามี)</label>
-              <input
-                value={editingItem.image_url ?? ""}
-                onChange={(e) =>
-                  setEditingItem({ ...editingItem, image_url: e.target.value })
-                }
-                className="w-full mt-1 px-3 py-2 border border-stone-300 rounded-lg"
-                placeholder="https://..."
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setEditingItem(null)}
-                className="px-4 py-2 border border-stone-300 rounded-lg"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={saveItem}
-                disabled={!editingItem.name || !editingItem.price}
-                className="px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:bg-stone-300 text-white rounded-lg flex items-center gap-1"
-              >
-                <Save size={14} /> บันทึก
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {editingItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
+                  {editingItem.id ? (
+                    <Edit2 className="w-5 h-5 text-white" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <h3 className="font-bold text-lg">
+                  {editingItem.id ? "แก้ไขเมนู" : "เพิ่มเมนูใหม่"}
+                </h3>
+              </div>
+
+              <div>
+                <label className="text-sm text-stone-600 font-medium">หมวด</label>
+                <select
+                  value={editingItem.category_id ?? ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, category_id: e.target.value })
+                  }
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-stone-600 font-medium">ชื่อเมนู</label>
+                <input
+                  value={editingItem.name ?? ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, name: e.target.value })
+                  }
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-stone-600 font-medium">คำอธิบาย</label>
+                <textarea
+                  value={editingItem.description ?? ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, description: e.target.value })
+                  }
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-stone-600 font-medium">ราคา (บาท)</label>
+                <input
+                  type="number"
+                  value={editingItem.price ?? ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, price: Number(e.target.value) })
+                  }
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-stone-600 font-medium">
+                  URL รูปภาพ (ถ้ามี)
+                </label>
+                <input
+                  value={editingItem.image_url ?? ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, image_url: e.target.value })
+                  }
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setEditingItem(null)}>
+                  ยกเลิก
+                </Button>
+                <Button
+                  onClick={saveItem}
+                  disabled={!editingItem.name || !editingItem.price}
+                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
+                >
+                  <Save size={14} className="mr-1" /> บันทึก
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

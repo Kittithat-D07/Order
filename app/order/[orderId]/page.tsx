@@ -17,9 +17,13 @@ import {
   ArrowLeft,
   Sparkles,
   Receipt,
+  AlertCircle,
+  Flame,
+  Heart,
 } from "lucide-react";
-import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
+import { BlurFade, GradientBlob, FloatingElement, PulseDot, Shimmer } from "@/components/ui/magic-effects";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_ICONS: Record<OrderStatus, any> = {
@@ -160,25 +164,47 @@ export default function OrderStatusPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-          <Loader2 className="animate-spin text-white" size={24} />
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-hidden flex flex-col items-center justify-center gap-4">
+        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
+        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-amber-300/30" delay={1} />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+        >
+          <Loader2 className="text-white" size={28} />
+        </motion.div>
+        <div className="flex items-center gap-2">
+          <PulseDot color="bg-orange-500" />
+          <p className="text-sm text-stone-600 font-medium">กำลังโหลดออร์เดอร์...</p>
         </div>
-        <p className="text-sm text-stone-500">กำลังโหลด...</p>
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center animate-scale-in">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-100 flex items-center justify-center">
-            <XCircle size={32} className="text-red-600" />
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 relative overflow-hidden flex items-center justify-center p-6">
+        <GradientBlob className="top-[-100px] right-[-100px]" color="bg-red-300/30" />
+        <GradientBlob className="bottom-[-100px] left-[-100px]" color="bg-orange-300/30" delay={1} />
+        <BlurFade>
+          <div className="max-w-sm text-center">
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-2xl shadow-red-500/40"
+            >
+              <AlertCircle size={36} className="text-white" />
+            </motion.div>
+            <p className="text-stone-800 font-bold text-lg mb-2">เกิดข้อผิดพลาด</p>
+            <p className="text-stone-600 text-sm mb-6">{error ?? "ไม่พบออร์เดอร์"}</p>
+            <Link href="/menu?table=t01-demo-aaaa">
+              <Button className="bg-gradient-to-r from-orange-500 to-amber-500">
+                <ArrowLeft size={14} className="mr-2" /> กลับไปสั่งอาหาร
+              </Button>
+            </Link>
           </div>
-          <p className="text-stone-800 font-semibold mb-1">เกิดข้อผิดพลาด</p>
-          <p className="text-stone-600 text-sm">{error ?? "ไม่พบออร์เดอร์"}</p>
-        </div>
+        </BlurFade>
       </div>
     );
   }
@@ -202,6 +228,17 @@ export default function OrderStatusPage() {
         className="w-72 h-72 bg-gradient-to-br from-rose-200 to-orange-200 bottom-0 right-0"
         delay={6}
       />
+
+      {/* Floating decorations */}
+      <FloatingElement className="top-32 right-8" delay={0}>
+        <Flame className="w-6 h-6 text-orange-400/50" />
+      </FloatingElement>
+      <FloatingElement className="top-1/2 left-4" delay={2}>
+        <Heart className="w-5 h-5 text-rose-400/50" />
+      </FloatingElement>
+      <FloatingElement className="bottom-32 right-12" delay={4}>
+        <Sparkles className="w-5 h-5 text-amber-400/50" />
+      </FloatingElement>
 
       {/* Hero Header */}
       <motion.div

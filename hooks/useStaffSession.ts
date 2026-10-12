@@ -27,6 +27,24 @@ export function useStaffSession() {
     setHydrated(true);
   }, []);
 
+  // Login แบบเลือก role แล้วเข้าได้เลย (ไม่ต้องใส่ PIN)
+  const quickLogin = (role: StaffRole) => {
+    const names: Record<StaffRole, string> = {
+      kitchen: "พนักงานครัว",
+      server: "พนักงานเสิร์ฟ",
+      admin: "ผู้จัดการ",
+    };
+    const newSession: StaffSession = {
+      role,
+      displayName: names[role],
+      loggedInAt: new Date().toISOString(),
+    };
+    setSessionState(newSession);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+    return { ok: true };
+  };
+
+  // Login แบบเดิม (เช็ค PIN)
   const login = async (role: StaffRole, pin: string) => {
     const supabase = createClient();
     const { data, error } = await supabase

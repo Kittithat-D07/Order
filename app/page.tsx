@@ -20,6 +20,7 @@ import {
   Shimmer,
 } from "@/components/ui/magic-effects";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const staffRoles = [
   {

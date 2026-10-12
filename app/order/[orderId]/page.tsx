@@ -66,6 +66,139 @@ const STATUS_CONFIG: Record<
   },
 };
 
+// Per-item status config (4 สถานะหลัก + cancelled)
+const ITEM_STATUS_CONFIG: Record<
+  "pending" | "preparing" | "ready" | "served" | "cancelled",
+  { label: string; sublabel: string; bg: string; ring: string; color: string; dot: string; icon: any }
+> = {
+  pending: {
+    label: "รอครัว",
+    sublabel: "ยังไม่เริ่มทำ",
+    bg: "bg-stone-50",
+    ring: "ring-stone-200",
+    color: "text-stone-600",
+    dot: "bg-stone-400",
+    icon: Clock,
+  },
+  preparing: {
+    label: "กำลังทำ",
+    sublabel: "เชฟกำลังปรุงอยู่",
+    bg: "bg-gradient-to-r from-orange-50 to-amber-50",
+    ring: "ring-orange-300",
+    color: "text-orange-700",
+    dot: "bg-orange-500",
+    icon: ChefHat,
+  },
+  ready: {
+    label: "พร้อมเสิร์ฟ",
+    sublabel: "รอเสริฟ์นำไปเสิร์ฟ",
+    bg: "bg-gradient-to-r from-blue-50 to-sky-50",
+    ring: "ring-blue-300",
+    color: "text-blue-700",
+    dot: "bg-blue-500",
+    icon: Bell,
+  },
+  served: {
+    label: "เสร็จแล้ว",
+    sublabel: "เสิร์ฟเรียบร้อย",
+    bg: "bg-gradient-to-r from-green-50 to-emerald-50",
+    ring: "ring-green-300",
+    color: "text-green-700",
+    dot: "bg-green-500",
+    icon: CheckCircle2,
+  },
+  cancelled: {
+    label: "ยกเลิก",
+    sublabel: "เมนูนี้ถูกยกเลิก",
+    bg: "bg-red-50",
+    ring: "ring-red-200",
+    color: "text-red-500",
+    dot: "bg-red-400",
+    icon: XCircle,
+  },
+};
+
+// Component: แสดงสถานะแต่ละเมนู (4 ขั้น)
+function ItemStatusRow({ item, status }: { item: any; status: keyof typeof ITEM_STATUS_CONFIG }) {
+  const cfg = ITEM_STATUS_CONFIG[status] ?? ITEM_STATUS_CONFIG.pending;
+  const Icon = cfg.icon;
+  const isActive = status === "preparing" || status === "ready";
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      className={`relative overflow-hidden p-3 rounded-2xl ring-1 ${cfg.ring} ${cfg.bg}`}
+    >
+      {/* Pulse animation สำหรับสถานะที่ยังไม่เสร็จ */}
+      {isActive && (
+        <motion.div
+          className={`absolute top-2 right-2 w-2 h-2 rounded-full ${cfg.dot}`}
+          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+      )}
+
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div className={`w-10 h-10 rounded-xl bg-white/80 flex items-center justify-center shadow-sm flex-shrink-0 ${isActive ? "animate-pulse" : ""}`}>
+          <Icon className={`w-5 h-5 ${cfg.color}`} />
+        </div>
+
+        {/* Name + status */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-stone-800 truncate">
+            {item.menu_items?.name ?? "(เมนูถูกลบ)"}
+            <span className="text-stone-500 font-normal ml-1">× {item.quantity}</span>
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={`text-[11px] font-bold ${cfg.color}`}>
+              {cfg.label}
+            </span>
+            <span className="text-stone-400 text-[10px]">·</span>
+            <span className="text-[10px] text-stone-500">{cfg.sublabel}</span>
+          </div>
+        </div>
+
+        {/* Status badge */}
+        {status === "served" && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0"
+          >
+            <CheckCircle2 className="w-4 h-4 text-white" />
+          </motion.div>
+        )}
+      </div>
+
+      {/* Mini progress bar 4 steps */}
+      <div className="mt-2.5 flex items-center gap-0.5">
+        {(["pending", "preparing", "ready", "served"] as const).map((s, i) => {
+          const order = ["pending", "preparing", "ready", "served"];
+          const currentIdx = order.indexOf(status);
+          const thisIdx = i;
+          const isPast = thisIdx < currentIdx;
+          const isCurrent = thisIdx === currentIdx;
+          const isUpcoming = thisIdx > currentIdx;
+          return (
+            <div
+              key={s}
+              className={`flex-1 h-1 rounded-full transition-all ${
+                isPast ? "bg-green-400" :
+                isCurrent ? (isActive ? "bg-gradient-to-r from-orange-400 to-amber-400 animate-pulse" : "bg-orange-400") :
+                "bg-stone-200"
+              }`}
+            />
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function OrderStatusPage() {
   const params = useParams<{ orderId: string }>();
   const orderId = params.orderId;
@@ -475,6 +608,31 @@ export default function OrderStatusPage() {
                     />
                   )}
                 </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Per-item Status Cards (รอ/กำลังทำ/พร้อมเสิร์ฟ/เสร็จ) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="card p-4 mb-4"
+        >
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-sm">
+            <Flame size={15} className="text-orange-500" />
+            สถานะอาหารแต่ละอย่าง
+            <span className="ml-auto text-[10px] font-normal text-stone-500">
+              {order.order_items?.length ?? 0} เมนู
+            </span>
+          </h3>
+          <div className="space-y-2">
+            {order.order_items?.map((it) => {
+              const itemStatus = ((it as any).status ?? "pending") as
+                | "pending" | "preparing" | "ready" | "served" | "cancelled";
+              return (
+                <ItemStatusRow key={it.id} item={it} status={itemStatus} />
               );
             })}
           </div>

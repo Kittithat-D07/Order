@@ -4,40 +4,45 @@ import { ChefHat, Utensils, Table as TableIcon, History } from "lucide-react";
 
 export default function AdminPage() {
   return (
-    <div className="min-h-screen bg-stone-100">
-      <header className="bg-white border-b">
-        <div className="max-w-6xl mx-auto p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ChefHat className="text-brand-500" size={24} />
-            <div>
-              <h1 className="font-bold text-lg">แดชบอร์ดร้านอาหาร</h1>
-              <p className="text-xs text-stone-500">จัดการออร์เดอร์แบบเรียลไทม์</p>
-            </div>
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-20 glass border-b border-stone-200/60">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                <ChefHat size={18} className="text-white" strokeWidth={2.2} />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="font-bold text-base leading-tight">แดชบอร์ด</h1>
+                <p className="text-xs text-stone-500">จัดการออร์เดอร์เรียลไทม์</p>
+              </div>
+            </Link>
+            <nav className="flex gap-1 bg-stone-100/80 p-1 rounded-xl">
+              <Link
+                href="/admin/menu"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-white hover:shadow-sm transition flex items-center gap-1.5"
+              >
+                <Utensils size={14} /> เมนู
+              </Link>
+              <Link
+                href="/admin/tables"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-white hover:shadow-sm transition flex items-center gap-1.5"
+              >
+                <TableIcon size={14} /> โต๊ะ
+              </Link>
+              <Link
+                href="/admin/orders"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-white hover:shadow-sm transition flex items-center gap-1.5"
+              >
+                <History size={14} /> ประวัติ
+              </Link>
+            </nav>
           </div>
-          <nav className="flex gap-1 text-sm">
-            <Link
-              href="/admin/menu"
-              className="px-3 py-1.5 rounded hover:bg-stone-100 flex items-center gap-1"
-            >
-              <Utensils size={14} /> เมนู
-            </Link>
-            <Link
-              href="/admin/tables"
-              className="px-3 py-1.5 rounded hover:bg-stone-100 flex items-center gap-1"
-            >
-              <TableIcon size={14} /> โต๊ะ
-            </Link>
-            <Link
-              href="/admin/orders"
-              className="px-3 py-1.5 rounded hover:bg-stone-100 flex items-center gap-1"
-            >
-              <History size={14} /> ประวัติ
-            </Link>
-          </nav>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4">
+      <main className="max-w-6xl mx-auto px-4 py-5">
         <OrderBoard />
       </main>
     </div>

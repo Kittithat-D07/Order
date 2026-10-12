@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,9 @@ import {
   AlertCircle,
   Flame,
   Heart,
+  Wifi,
+  WifiOff,
+  RefreshCw,
 } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot, Shimmer } from "@/components/ui/magic-effects";
 import { Button } from "@/components/ui/button";
@@ -72,38 +75,43 @@ export default function OrderStatusPage() {
   const [requestingBill, setRequestingBill] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const channelRef = useRef<any>(null);
+  const billChannelRef = useRef<any>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  // Function to fetch latest order data
+  const fetchOrder = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    const supabase = createClient();
+    const { data, error: fetchErr } = await supabase
+      .from("orders")
+      .select("*, order_items(*, menu_items(*)), tables(*)")
+      .eq("id", orderId)
+      .single();
+
+    if (fetchErr || !data) {
+      if (!silent) setError("ไม่พบออร์เดอร์");
+    } else {
+      setOrder(data as OrderWithItems);
+      setLastUpdate(new Date());
+    }
+    if (!silent) setIsRefreshing(false);
+  };
+
+  // Function to setup realtime subscriptions
+  const setupRealtime = () => {
     const supabase = createClient();
 
-    const load = async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*, menu_items(*)), tables(*)")
-        .eq("id", orderId)
-        .single();
+    // Clean up old channels
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
 
-      if (error || !data) {
-        setError("ไม่พบออร์เดอร์");
-      } else {
-        setOrder(data as OrderWithItems);
-      }
-
-      // โหลดบิล (ถ้ามี)
-      const { data: billData } = await supabase
-        .from("bills")
-        .select("*")
-        .eq("order_id", orderId)
-        .maybeSingle();
-      if (billData) setBill(billData as Bill);
-
-      setLoading(false);
-    };
-
-    load();
-
+    // Order updates
     const channel = supabase
-      .channel(`order-${orderId}`)
+      .channel(`order-${orderId}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -113,17 +121,44 @@ export default function OrderStatusPage() {
           filter: `id=eq.${orderId}`,
         },
         (payload) => {
+          console.log("📦 Order updated:", payload.new);
           const newRow = payload.new as Partial<OrderWithItems>;
           setOrder((prev) =>
             prev ? ({ ...prev, ...newRow } as OrderWithItems) : prev
           );
+          setLastUpdate(new Date());
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "order_items",
+        },
+        (payload) => {
+          console.log("🍜 Order item updated:", payload.new);
+          // Refresh full order to get updated items
+          fetchOrder(true);
+        }
+      )
+      .subscribe((status) => {
+        console.log("🔌 Realtime status:", status);
+        if (status === "SUBSCRIBED") {
+          setIsConnected(true);
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          setIsConnected(false);
+          // Try to reconnect after 3s
+          setTimeout(() => {
+            console.log("🔄 Reconnecting...");
+            setupRealtime();
+          }, 3000);
+        }
+      });
 
-    // Subscribe to bill
+    // Bill updates
     const billChannel = supabase
-      .channel(`order-bill-${orderId}`)
+      .channel(`order-bill-${orderId}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -135,14 +170,43 @@ export default function OrderStatusPage() {
         (payload) => {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             setBill(payload.new as Bill);
+            setLastUpdate(new Date());
           }
         }
       )
       .subscribe();
 
+    channelRef.current = channel;
+    billChannelRef.current = billChannel;
+  };
+
+  useEffect(() => {
+    // Initial load
+    const load = async () => {
+      await fetchOrder(true);
+      const supabase = createClient();
+      const { data: billData } = await supabase
+        .from("bills")
+        .select("*")
+        .eq("order_id", orderId)
+        .maybeSingle();
+      if (billData) setBill(billData as Bill);
+      setLoading(false);
+    };
+
+    load();
+    setupRealtime();
+
+    // Polling fallback every 10s
+    pollIntervalRef.current = setInterval(() => {
+      fetchOrder(true);
+    }, 10000);
+
     return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(billChannel);
+      const supabase = createClient();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [orderId]);
 
@@ -278,6 +342,48 @@ export default function OrderStatusPage() {
           <div className="mt-3 inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
             <Clock size={12} />
             {formatDateTime(order.created_at)}
+          </div>
+
+          {/* Realtime Status + Refresh */}
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isConnected ? "online" : "offline"}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                  isConnected
+                    ? "bg-green-500/30 text-white"
+                    : "bg-red-500/30 text-white"
+                }`}
+              >
+                {isConnected ? (
+                  <>
+                    <Wifi size={10} />
+                    <span>Live</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff size={10} />
+                    <span>Reconnect...</span>
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => fetchOrder()}
+              disabled={isRefreshing}
+              className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition disabled:opacity-50"
+              title="รีเฟรช"
+            >
+              <RefreshCw
+                size={12}
+                className={isRefreshing ? "animate-spin" : ""}
+              />
+            </motion.button>
           </div>
         </div>
       </motion.div>

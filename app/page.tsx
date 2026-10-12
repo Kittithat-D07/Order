@@ -4,13 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ChefHat,
-  QrCode,
   Sparkles,
   ArrowRight,
   Smartphone,
-  Zap,
-  Monitor,
-  Utensils,
   Settings,
   Star,
   Flame,
@@ -20,12 +16,8 @@ import {
   BlurFade,
   GradientBlob,
   FloatingElement,
-  PulseDot,
-  Shimmer,
 } from "@/components/ui/magic-effects";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 const staffRoles = [
   {
@@ -52,12 +44,6 @@ const staffRoles = [
     gradient: "from-stone-800 to-stone-900",
     shadow: "shadow-stone-700/30",
   },
-];
-
-const features = [
-  { icon: QrCode, label: "QR ต่อโต๊ะ", color: "from-orange-100 to-amber-100", text: "text-orange-600" },
-  { icon: Zap, label: "เรียลไทม์", color: "from-amber-100 to-yellow-100", text: "text-amber-600" },
-  { icon: Monitor, label: "3 หน้าจอ", color: "from-blue-100 to-cyan-100", text: "text-blue-600" },
 ];
 
 export default function HomePage() {
@@ -223,35 +209,10 @@ export default function HomePage() {
           </div>
         </BlurFade>
 
-        {/* Features */}
-        <BlurFade delay={0.7}>
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {features.map((f, idx) => {
-              const Icon = f.icon;
-              return (
-                <motion.div
-                  key={f.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 + idx * 0.1 }}
-                >
-                  <Card className="text-center p-3 border-0 shadow-sm hover:shadow-md hover-lift">
-                    <motion.div
-                      whileHover={{ scale: 1.1, rotate: 10 }}
-                      className={`w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center`}
-                    >
-                      <Icon size={18} className={f.text} />
-                    </motion.div>
-                    <p className="text-xs font-medium text-stone-700">{f.label}</p>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </BlurFade>
+        {/* Features removed */}
 
         {/* Demo link */}
-        <BlurFade delay={0.9}>
+        <BlurFade delay={0.7}>
           <Link href="/demo" className="block mb-6">
             <Card className="border-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-rose-500/10 hover:from-purple-500/20 hover:via-pink-500/20 hover:to-rose-500/20 transition-all">
               <CardContent className="p-3 flex items-center justify-center gap-2">
@@ -261,21 +222,6 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </Link>
-        </BlurFade>
-
-        {/* Footer */}
-        <BlurFade delay={1.0}>
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full shadow-sm">
-              <PulseDot color="bg-green-500" />
-              <p className="text-xs text-stone-600">
-                <span className="font-mono text-stone-700">1234</span> ครัว ·
-                <span className="font-mono text-stone-700 ml-1">5678</span> เสริฟ์ ·
-                <span className="font-mono text-stone-700 ml-1">0000</span> แอดมิน
-              </p>
-            </div>
-            <p className="text-xs text-stone-400">v1.0 · ระบบสั่งอาหารผ่าน QR · ✨ Magic UI</p>
-          </div>
         </BlurFade>
       </main>
     </div>

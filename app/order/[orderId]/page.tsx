@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -81,6 +81,7 @@ export default function OrderStatusPage() {
   const channelRef = useRef<any>(null);
   const billChannelRef = useRef<any>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const orderStatusRef = useRef<string | null>(null);
 
   // Function to fetch latest order data
   const fetchOrder = async (silent = false) => {
@@ -95,8 +96,17 @@ export default function OrderStatusPage() {
     if (fetchErr || !data) {
       if (!silent) setError("ไม่พบออร์เดอร์");
     } else {
-      setOrder(data as OrderWithItems);
+      const newOrder = data as OrderWithItems;
+      setOrder(newOrder);
       setLastUpdate(new Date());
+      // Track status changes for vibration
+      if (orderStatusRef.current && orderStatusRef.current !== newOrder.status) {
+        console.log("🔔 Status changed (polling):", orderStatusRef.current, "→", newOrder.status);
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(200);
+        }
+      }
+      orderStatusRef.current = newOrder.status;
     }
     if (!silent) setIsRefreshing(false);
   };
@@ -197,16 +207,36 @@ export default function OrderStatusPage() {
     load();
     setupRealtime();
 
-    // Polling fallback every 10s
+    // Polling fallback - ดึงทุก 5 วิ (กันเหนียว realtime ไม่ทำงาน)
     pollIntervalRef.current = setInterval(() => {
+      console.log("🔄 Polling...");
       fetchOrder(true);
-    }, 10000);
+    }, 5000);
+
+    // Visibility change - refresh เมื่อกลับมาดู
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("👁️ Tab visible - refreshing");
+        fetchOrder(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       const supabase = createClient();
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
-      if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      if (billChannelRef.current) {
+        supabase.removeChannel(billChannelRef.current);
+        billChannelRef.current = null;
+      }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [orderId]);
 

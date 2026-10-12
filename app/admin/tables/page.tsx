@@ -234,7 +234,7 @@ export default function AdminTablesPage() {
                       <Download size={14} /> ดาวน์โหลด
                     </button>
                     <button
-                      onClick={() => deleteTable(t)}
+                      onClick={() => deleteTable(t.id)}
                       className="w-11 h-auto rounded-xl border border-stone-200 hover:bg-red-50 hover:border-red-200 text-stone-500 hover:text-red-600 flex items-center justify-center transition active:scale-95"
                       title="ลบโต๊ะ"
                     >

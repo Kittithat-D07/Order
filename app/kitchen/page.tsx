@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useStaffSession } from "@/hooks/useStaffSession";
-import { StaffLogin } from "@/components/staff/StaffLogin";
 import { KitchenView } from "@/components/staff/KitchenView";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, ChefHat, Flame, Sparkles } from "lucide-react";
@@ -11,20 +10,23 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { Button } from "@/components/ui/button";
 
 export default function KitchenPage() {
-  const { session, hydrated, logout } = useStaffSession();
+  const { session, hydrated, logout, quickLogin } = useStaffSession();
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    if (hydrated && session && session.role === "kitchen") {
-      setAuthed(true);
+    if (hydrated) {
+      if (session && session.role === "kitchen") {
+        setAuthed(true);
+      } else {
+        // เข้าหน้านี้ได้เลยโดยไม่ต้อง login
+        quickLogin("kitchen");
+        setAuthed(true);
+      }
     }
-  }, [hydrated, session]);
+  }, [hydrated, session, quickLogin]);
 
   if (!hydrated) return null;
-
-  if (!authed) {
-    return <StaffLogin onSuccess={() => setAuthed(true)} />;
-  }
+  if (!authed) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-hidden">

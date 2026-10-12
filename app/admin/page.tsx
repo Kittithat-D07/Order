@@ -3,27 +3,29 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useStaffSession } from "@/hooks/useStaffSession";
-import { StaffLogin } from "@/components/staff/StaffLogin";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { LogOut, ChefHat, Utensils, Settings, Sparkles, BarChart3, LayoutGrid, Pizza } from "lucide-react";
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 
 export default function AdminPage() {
-  const { session, hydrated, logout } = useStaffSession();
+  const { session, hydrated, logout, quickLogin } = useStaffSession();
   const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    if (hydrated && session && (session.role === "admin" || session.role === "server")) {
-      setAuthed(true);
+    if (hydrated) {
+      if (session && (session.role === "admin" || session.role === "server")) {
+        setAuthed(true);
+      } else {
+        // เข้าหน้านี้ได้เลยโดยไม่ต้อง login
+        quickLogin("admin");
+        setAuthed(true);
+      }
     }
-  }, [hydrated, session]);
+  }, [hydrated, session, quickLogin]);
 
   if (!hydrated) return null;
-
-  if (!authed) {
-    return <StaffLogin onSuccess={() => setAuthed(true)} />;
-  }
+  if (!authed) return null;
 
   const navItems = [
     { href: "/admin/tables", icon: LayoutGrid, label: "โต๊ะ", color: "hover:bg-orange-50 hover:text-orange-700" },

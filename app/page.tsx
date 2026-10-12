@@ -17,6 +17,7 @@ import {
   BlurFade,
   GradientBlob,
   FloatingElement,
+  Shimmer,
 } from "@/components/ui/magic-effects";
 import { Card, CardContent } from "@/components/ui/card";
 

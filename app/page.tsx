@@ -11,6 +11,7 @@ import {
   Star,
   Flame,
   Heart,
+  Utensils,
 } from "lucide-react";
 import {
   BlurFade,

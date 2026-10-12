@@ -43,7 +43,44 @@ export function KitchenView() {
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
-    await supabase.from("order_items").update({ status: newStatus }).eq("id", itemId);
+    const supabase = createClient();
+    // อัพเดท order_item
+    const { data: item } = await supabase
+      .from("order_items")
+      .update({ status: newStatus })
+      .eq("id", itemId)
+      .select("order_id")
+      .single();
+
+    if (!item) return;
+
+    // โหลด order_items ทั้งหมดของ order นี้ เพื่อคำนวณ order.status
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("status")
+      .eq("order_id", item.order_id);
+
+    if (!items) return;
+
+    // คำนวณ order status
+    const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
+    const allReady = items.every(
+      (i) => i.status === "ready" || i.status === "served" || i.status === "cancelled"
+    );
+    const anyPreparing = items.some((i) => i.status === "preparing" || i.status === "ready" || i.status === "served");
+
+    let orderStatus: "pending" | "preparing" | "served" = "pending";
+    if (allServed) {
+      orderStatus = "served";
+    } else if (anyPreparing) {
+      orderStatus = "preparing";
+    }
+
+    // อัพเดท orders.status (trigger realtime ให้ลูกค้าเห็น)
+    await supabase
+      .from("orders")
+      .update({ status: orderStatus })
+      .eq("id", item.order_id);
   };
 
   // แยก items ตาม filter

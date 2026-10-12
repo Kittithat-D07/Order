@@ -58,14 +58,44 @@ export function ServerView() {
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
-    await supabase
+    const supabase = createClient();
+    // อัพเดท order_item
+    const { data: item } = await supabase
       .from("order_items")
       .update({
         status: newStatus,
         served_by: newStatus === "served" ? serverName : null,
         served_at: newStatus === "served" ? new Date().toISOString() : null,
       })
-      .eq("id", itemId);
+      .eq("id", itemId)
+      .select("order_id")
+      .single();
+
+    if (!item) return;
+
+    // คำนวณ order status
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("status")
+      .eq("order_id", item.order_id);
+
+    if (!items) return;
+
+    const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
+    const anyPreparing = items.some((i) => i.status === "preparing" || i.status === "ready" || i.status === "served");
+
+    let orderStatus: "pending" | "preparing" | "served" = "pending";
+    if (allServed) {
+      orderStatus = "served";
+    } else if (anyPreparing) {
+      orderStatus = "preparing";
+    }
+
+    // อัพเดท orders.status (trigger realtime ให้ลูกค้าเห็น)
+    await supabase
+      .from("orders")
+      .update({ status: orderStatus })
+      .eq("id", item.order_id);
   };
 
   const claimOrder = async (orderId: string) => {

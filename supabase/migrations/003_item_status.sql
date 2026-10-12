@@ -16,8 +16,17 @@ ADD COLUMN IF NOT EXISTS served_at TIMESTAMPTZ;
 -- 3. Index
 CREATE INDEX IF NOT EXISTS idx_order_items_status ON public.order_items(status);
 
--- 4. Realtime สำหรับ order_items
-ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
+-- 4. Realtime สำหรับ order_items (ข้ามถ้าเพิ่มไปแล้ว)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND tablename = 'order_items'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
+  END IF;
+END $$;
 
 -- 5. View: นับสถานะของแต่ละ order
 DROP VIEW IF EXISTS public.order_status_summary;

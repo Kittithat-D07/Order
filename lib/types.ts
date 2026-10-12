@@ -1,5 +1,7 @@
 export type OrderStatus = "pending" | "preparing" | "served" | "cancelled";
 
+export type OrderItemStatus = "pending" | "preparing" | "ready" | "served" | "cancelled";
+
 export interface Table {
   id: string;
   table_number: string;
@@ -44,6 +46,9 @@ export interface OrderItem {
   unit_price: number;
   note: string | null;
   subtotal: number;
+  status: OrderItemStatus;
+  served_by: string | null;
+  served_at: string | null;
 }
 
 export interface OrderWithItems extends Order {

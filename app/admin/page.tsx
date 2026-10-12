@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { OrderBoard } from "@/components/admin/OrderBoard";
+import { ServerNamePicker } from "@/components/admin/ServerNamePicker";
 import { ChefHat, Utensils, Table as TableIcon, History } from "lucide-react";
 
 export default function AdminPage() {
@@ -38,6 +39,9 @@ export default function AdminPage() {
                 <History size={14} /> ประวัติ
               </Link>
             </nav>
+            <div className="flex items-center gap-2">
+              <ServerNamePicker />
+            </div>
           </div>
         </div>
       </header>

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/lib/store/cart";
 import { MenuItem, MenuCategory, Table } from "@/lib/types";
@@ -13,7 +14,15 @@ import {
   ShoppingBag,
   AlertCircle,
   Search,
+  Sparkles,
+  Flame,
 } from "lucide-react";
+import {
+  BlurFade,
+  GradientBlob,
+  FloatingElement,
+} from "@/components/ui/magic-effects";
+import { PulseDot } from "@/components/ui/magic-effects";
 
 export default function MenuPage() {
   return (
@@ -25,11 +34,20 @@ export default function MenuPage() {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-        <Loader2 className="animate-spin text-white" size={24} />
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-hidden flex flex-col items-center justify-center gap-3">
+      <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
+      <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-amber-300/30" delay={1} />
+      <motion.div
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+      >
+        <ChefHat className="text-white" size={28} />
+      </motion.div>
+      <div className="flex items-center gap-2">
+        <PulseDot color="bg-orange-500" />
+        <p className="text-sm text-stone-600 font-medium">กำลังโหลดเมนู...</p>
       </div>
-      <p className="text-sm text-stone-500">กำลังโหลดเมนู...</p>
     </div>
   );
 }
@@ -55,7 +73,7 @@ function MenuContent() {
   const totalCount = useCart((s) => s.totalItems());
   const clearCart = useCart((s) => s.clear);
 
-  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     if (!token) {
@@ -175,22 +193,43 @@ function MenuContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-sm text-center animate-scale-in">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-100 flex items-center justify-center">
-            <AlertCircle size={32} className="text-red-600" />
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 relative overflow-hidden flex items-center justify-center p-6">
+        <GradientBlob className="top-[-100px] right-[-100px]" color="bg-red-300/30" />
+        <GradientBlob className="bottom-[-100px] left-[-100px]" color="bg-orange-300/30" delay={1} />
+        <BlurFade>
+          <div className="max-w-sm text-center">
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-2xl shadow-red-500/40"
+            >
+              <AlertCircle size={36} className="text-white" />
+            </motion.div>
+            <p className="text-stone-800 font-bold text-lg mb-2">เกิดข้อผิดพลาด</p>
+            <p className="text-stone-600 text-sm">{error}</p>
           </div>
-          <p className="text-stone-800 font-semibold mb-2">เกิดข้อผิดพลาด</p>
-          <p className="text-stone-600 text-sm">{error}</p>
-        </div>
+        </BlurFade>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-32 bg-gradient-to-br from-orange-50/30 via-amber-50/30 to-stone-50 relative">
+      {/* Background gradient blobs */}
+      <GradientBlob className="top-[10%] right-[-150px]" color="bg-orange-300/20" />
+      <GradientBlob className="top-[40%] left-[-150px]" color="bg-amber-300/20" delay={3} />
+      <GradientBlob className="bottom-[20%] right-[20%]" color="bg-red-300/15" delay={5} />
+
+      {/* Floating decorations */}
+      <FloatingElement className="top-32 right-8" delay={0}>
+        <Sparkles className="w-6 h-6 text-orange-400/40" />
+      </FloatingElement>
+      <FloatingElement className="top-1/2 left-4" delay={2}>
+        <Flame className="w-5 h-5 text-red-400/40" />
+      </FloatingElement>
+
       {/* Header */}
-      <header className="sticky top-0 z-30 glass">
+      <header className="sticky top-0 z-30 glass backdrop-blur-md bg-white/80">
         <div className="max-w-3xl mx-auto px-4 pt-4 pb-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
@@ -257,90 +296,145 @@ function MenuContent() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-4">
-        {categories.length === 0 && (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-stone-100 flex items-center justify-center">
-              <ChefHat size={28} className="text-stone-400" />
-            </div>
-            <p className="text-stone-500">ยังไม่มีเมนูในระบบ</p>
-          </div>
-        )}
-
-        {searchQuery ? (
-          // Search results
-          <section>
-            <p className="text-sm text-stone-500 mb-3">
-              ผลลัพธ์ "{searchQuery}" ({filteredItems.length} รายการ)
-            </p>
-            {filteredItems.length === 0 ? (
-              <p className="text-center text-stone-400 py-12">ไม่พบเมนูที่ค้นหา</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredItems.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
-                ))}
+        <AnimatePresence mode="popLayout">
+          {categories.length === 0 && (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-20"
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center">
+                <ChefHat size={28} className="text-stone-400" />
               </div>
-            )}
-          </section>
-        ) : (
-          // Categories
-          categories.map((cat) => {
-            const catItems = items.filter((i) => i.category_id === cat.id);
-            if (catItems.length === 0) return null;
-            return (
-              <section
-                key={cat.id}
-                ref={(el) => {
-                  categoryRefs.current[cat.id] = el;
-                }}
-                className="mb-8"
-              >
-                <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-orange-500 to-amber-500" />
-                  {cat.name}
-                </h2>
+              <p className="text-stone-500">ยังไม่มีเมนูในระบบ</p>
+            </motion.div>
+          )}
+
+          {searchQuery ? (
+            <motion.section
+              key="search"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <p className="text-sm text-stone-500 mb-3">
+                ผลลัพธ์ "<span className="font-semibold text-orange-600">{searchQuery}</span>" ({filteredItems.length} รายการ)
+              </p>
+              {filteredItems.length === 0 ? (
+                <p className="text-center text-stone-400 py-12">ไม่พบเมนูที่ค้นหา</p>
+              ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {catItems.map((item) => (
-                    <MenuItemCard key={item.id} item={item} />
+                  {filteredItems.map((item, idx) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                    >
+                      <MenuItemCard item={item} />
+                    </motion.div>
                   ))}
                 </div>
-              </section>
-            );
-          })
-        )}
+              )}
+            </motion.section>
+          ) : (
+            categories.map((cat, catIdx) => {
+              const catItems = items.filter((i) => i.category_id === cat.id);
+              if (catItems.length === 0) return null;
+              return (
+                <BlurFade key={cat.id} delay={catIdx * 0.1}>
+                  <section
+                    ref={(el) => {
+                      categoryRefs.current[cat.id] = el;
+                    }}
+                    className="mb-8"
+                  >
+                    <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+                      <motion.span
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: 1 }}
+                        transition={{ delay: catIdx * 0.1 + 0.2 }}
+                        className="w-1 h-6 rounded-full bg-gradient-to-b from-orange-500 to-amber-500 origin-top"
+                      />
+                      <span className="bg-gradient-to-r from-stone-800 to-stone-600 bg-clip-text text-transparent">
+                        {cat.name}
+                      </span>
+                      <span className="text-xs text-stone-400 font-normal">({catItems.length})</span>
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {catItems.map((item, idx) => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: catIdx * 0.1 + idx * 0.05 + 0.1 }}
+                        >
+                          <MenuItemCard item={item} />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </section>
+                </BlurFade>
+              );
+            })
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Cart Bar */}
-      {totalCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 safe-bottom">
-          <div className="max-w-3xl mx-auto p-3">
-            <div className="glass rounded-2xl shadow-lg p-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 pl-1">
-                <div className="relative">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-                    <ShoppingBag size={20} className="text-white" />
+      <AnimatePresence>
+        {totalCount > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-20 safe-bottom"
+          >
+            <div className="max-w-3xl mx-auto p-3">
+              <div className="relative overflow-hidden rounded-2xl shadow-2xl shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 p-[2px]">
+                <div className="bg-white rounded-[14px] p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 pl-1">
+                    <div className="relative">
+                      <motion.div
+                        animate={{ scale: [1, 1.05, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg"
+                      >
+                        <ShoppingBag size={20} className="text-white" />
+                      </motion.div>
+                      <motion.span
+                        key={totalCount}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-white text-orange-600 text-[10px] font-bold flex items-center justify-center shadow-md border-2 border-orange-500"
+                      >
+                        {totalCount}
+                      </motion.span>
+                    </div>
+                    <div>
+                      <p className="text-xs text-stone-500">รวมทั้งหมด</p>
+                      <p className="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-500 bg-clip-text text-transparent leading-none mt-0.5">
+                        ฿{cartTotal.toFixed(0)}
+                      </p>
+                    </div>
                   </div>
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-white text-orange-600 text-[10px] font-bold flex items-center justify-center shadow-sm">
-                    {totalCount}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-stone-500">รวมทั้งหมด</p>
-                  <p className="text-lg font-bold text-stone-900 leading-none mt-0.5">
-                    ฿{cartTotal.toFixed(0)}
-                  </p>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => setCartOpen(true)}
+                    className="px-5 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-shadow"
+                  >
+                    ดูตะกร้า →
+                  </motion.button>
                 </div>
               </div>
-              <button
-                onClick={() => setCartOpen(true)}
-                className="btn-primary px-5 py-3 rounded-xl text-sm"
-              >
-                ดูตะกร้า
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <CartDrawer
         open={cartOpen}

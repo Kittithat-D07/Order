@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { OrderWithItems, OrderItemStatus } from "@/lib/types";
+import { OrderWithItems, OrderItemStatus, Bill } from "@/lib/types";
 import { formatDateTime, formatPrice } from "@/lib/utils";
 import { useStaffSession } from "@/hooks/useStaffSession";
-import { Utensils, Bell, Check, Volume2, Clock, X } from "lucide-react";
+import { Utensils, Bell, Check, Volume2, Clock, X, Receipt } from "lucide-react";
 
 export function ServerView() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
-  const [filter, setFilter] = useState<"ready" | "active" | "completed">("ready");
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [filter, setFilter] = useState<"ready" | "active" | "completed" | "bills">("ready");
   const [serverName, setServerName] = useState("");
   const supabase = createClient();
   const { session } = useStaffSession();
@@ -17,12 +19,18 @@ export function ServerView() {
   useEffect(() => {
     setServerName(session?.displayName ?? "");
     loadOrders();
+    loadBills();
     const channel = supabase
       .channel("server-orders")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
         () => loadOrders()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bills" },
+        () => loadBills()
       )
       .subscribe();
     return () => {
@@ -39,6 +47,14 @@ export function ServerView() {
     if (data) {
       setOrders(data as any as OrderWithItems[]);
     }
+  };
+
+  const loadBills = async () => {
+    const { data } = await supabase
+      .from("bills")
+      .select("*")
+      .order("requested_at", { ascending: false });
+    if (data) setBills(data as Bill[]);
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
@@ -88,6 +104,7 @@ export function ServerView() {
     ready: orders.flatMap((o) => o.order_items ?? []).filter((it) => it.status === "ready").length,
     active: orders.flatMap((o) => o.order_items ?? []).filter((it) => ["pending", "preparing"].includes(it.status)).length,
     completed: orders.flatMap((o) => o.order_items ?? []).filter((it) => it.status === "served").length,
+    bills: bills.length,
   };
 
   return (
@@ -108,10 +125,56 @@ export function ServerView() {
         <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} icon={Bell} label="พร้อมเสิร์ฟ" count={counts.ready} color="blue" />
         <FilterTab active={filter === "active"} onClick={() => setFilter("active")} icon={Clock} label="กำลังทำ" count={counts.active} color="amber" />
         <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} icon={Check} label="เสร็จแล้ว" count={counts.completed} color="green" />
+        <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} icon={Receipt} label="บิล" count={counts.bills} color="orange" />
       </div>
 
-      {/* Table groups */}
-      {Object.keys(groupedByTable).length === 0 ? (
+      {/* Bills View OR Table groups */}
+      {filter === "bills" ? (
+        <div className="space-y-3">
+          {bills.length === 0 ? (
+            <div className="text-center py-20 text-stone-400">
+              <Receipt size={48} className="mx-auto mb-3 opacity-50" />
+              <p className="text-sm">ยังไม่มีลูกค้าขอบิล</p>
+            </div>
+          ) : (
+            bills.map((bill) => {
+              const order = orders.find((o) => o.id === bill.order_id);
+              return (
+                <Link
+                  key={bill.id}
+                  href={`/bill/${bill.order_id}`}
+                  target="_blank"
+                  className="block bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-4 border-2 border-orange-200 hover:border-orange-400 transition"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono font-bold text-orange-700 text-lg">
+                      🧾 {bill.bill_number}
+                    </span>
+                    <span className="text-xs text-stone-500">
+                      {formatDateTime(bill.requested_at)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="text-stone-600">
+                        โต๊ะ <span className="font-bold text-stone-800">{order?.tables?.table_number ?? "?"}</span>
+                      </p>
+                      <p className="text-xs text-stone-500">
+                        กดเพื่อดู/พิมพ์บิล
+                      </p>
+                    </div>
+                    <span className="text-xl font-bold text-orange-600">
+                      ฿{formatPrice(bill.total_amount)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        <>
+          {Object.keys(groupedByTable).length === 0 ? (
         <div className="text-center py-20 text-stone-400">
           <Utensils size={48} className="mx-auto mb-3 opacity-50" />
           <p className="text-sm">ไม่มีรายการในหมวดนี้</p>
@@ -193,6 +256,8 @@ export function ServerView() {
           })}
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -210,12 +275,13 @@ function FilterTab({
   icon: any;
   label: string;
   count: number;
-  color: "blue" | "amber" | "green";
+  color: "blue" | "amber" | "green" | "orange";
 }) {
   const colorMap = {
     blue: "from-blue-500 to-cyan-500",
     amber: "from-amber-500 to-orange-500",
     green: "from-green-500 to-emerald-500",
+    orange: "from-orange-500 to-amber-500",
   };
   return (
     <button

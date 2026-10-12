@@ -54,6 +54,9 @@ export interface OrderItem {
 export interface OrderWithItems extends Order {
   order_items: (OrderItem & { menu_items: MenuItem | null })[];
   tables: Table | null;
+  // เพิ่มใน migration 002 (server name + claimed time)
+  server_name?: string | null;
+  claimed_at?: string | null;
 }
 
 // Cart item (client-side)
@@ -64,4 +67,15 @@ export interface CartItem {
   image_url: string | null;
   quantity: number;
   note: string;
+}
+
+// Bill
+export interface Bill {
+  id: string;
+  order_id: string;
+  bill_number: string;
+  total_amount: number;
+  requested_at: string;
+  printed_at: string | null;
+  created_at: string;
 }

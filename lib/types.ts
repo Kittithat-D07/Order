@@ -36,6 +36,9 @@ export interface Order {
   note: string | null;
   created_at: string;
   updated_at: string;
+  // migration 004
+  paid_at: string | null;
+  session_number: number;
 }
 
 export interface OrderItem {

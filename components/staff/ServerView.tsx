@@ -3,16 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { OrderWithItems, OrderItemStatus, Bill } from "@/lib/types";
+import { OrderWithItems, OrderItemStatus, Bill, MenuItem } from "@/lib/types";
 import { formatDateTime, formatPrice } from "@/lib/utils";
 import { useStaffSession } from "@/hooks/useStaffSession";
-import { Utensils, Bell, Check, Volume2, Clock, X, Receipt } from "lucide-react";
+import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus } from "lucide-react";
+import { AddItemModal, BillPaymentModal } from "./AddItemModal";
 
 export function ServerView() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [filter, setFilter] = useState<"ready" | "active" | "completed" | "bills">("ready");
   const [serverName, setServerName] = useState("");
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [showBillModal, setShowBillModal] = useState<string | null>(null);
   const supabase = createClient();
   const { session } = useStaffSession();
 
@@ -105,19 +108,21 @@ export function ServerView() {
       .eq("id", orderId);
   };
 
-  // แยก items ตาม filter
+  // แยก items ตาม filter (กรองเฉพาะ order ที่ยังไม่ paid)
   const itemsByFilter = (orderList: OrderWithItems[]) => {
-    return orderList.flatMap((o) =>
-      (o.order_items ?? [])
-        .filter((it) => {
-          if (filter === "ready") return it.status === "ready";
-          if (filter === "active")
-            return ["pending", "preparing"].includes(it.status);
-          if (filter === "completed") return it.status === "served";
-          return false;
-        })
-        .map((it) => ({ ...it, order: o }))
-    );
+    return orderList
+      .filter((o) => !o.paid_at) // ซ่อน order ที่จ่ายเงินแล้ว
+      .flatMap((o) =>
+        (o.order_items ?? [])
+          .filter((it) => {
+            if (filter === "ready") return it.status === "ready";
+            if (filter === "active")
+              return ["pending", "preparing"].includes(it.status);
+            if (filter === "completed") return it.status === "served";
+            return false;
+          })
+          .map((it) => ({ ...it, order: o }))
+      );
   };
 
   const filteredItems = itemsByFilter(orders);
@@ -148,6 +153,16 @@ export function ServerView() {
           className="flex-1 outline-none text-sm font-semibold text-stone-800"
           placeholder="พิมพ์ชื่อเสริฟ์..."
         />
+      </div>
+
+      {/* Action bar */}
+      <div className="mb-4 flex gap-2">
+        <button
+          onClick={() => setShowAddItem(true)}
+          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-md active:scale-95"
+        >
+          <Plus size={16} /> เพิ่มเมนูให้โต๊ะ
+        </button>
       </div>
 
       {/* Filter tabs */}
@@ -237,6 +252,19 @@ export function ServerView() {
                       รับออร์เดอร์
                     </button>
                   )}
+                  {order.server_name && filter === "completed" && !order.paid_at && (
+                    <button
+                      onClick={() => setShowBillModal(order.id)}
+                      className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold flex items-center gap-1 active:scale-95"
+                    >
+                      <Receipt size={12} /> ปิดบิล/รับเงิน
+                    </button>
+                  )}
+                  {order.paid_at && (
+                    <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center gap-1">
+                      💰 จ่ายแล้ว
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-3 space-y-2">
@@ -287,6 +315,33 @@ export function ServerView() {
         </div>
       )}
         </>
+      )}
+
+      {/* Add Item Modal */}
+      {showAddItem && (
+        <AddItemModal
+          orders={orders}
+          onClose={() => setShowAddItem(false)}
+          onAdded={() => {
+            setShowAddItem(false);
+            loadOrders();
+          }}
+          serverName={serverName}
+        />
+      )}
+
+      {/* Bill Payment Modal */}
+      {showBillModal && (
+        <BillPaymentModal
+          orderId={showBillModal}
+          orders={orders}
+          onClose={() => setShowBillModal(null)}
+          onPaid={() => {
+            setShowBillModal(null);
+            loadOrders();
+            loadBills();
+          }}
+        />
       )}
     </div>
   );

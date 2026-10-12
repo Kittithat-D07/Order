@@ -179,10 +179,75 @@ function MenuContent() {
     const supabase = createClient();
     const total = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
+    // เช็ค order ล่าสุดของโต๊ะนี้
+    const { data: lastOrder } = await supabase
+      .from("orders")
+      .select("id, paid_at, session_number, status")
+      .eq("table_id", table.id)
+      .order("session_number", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // ถ้ามี order ค้างอยู่และยังไม่จ่ายเงิน
+    if (lastOrder && !lastOrder.paid_at && lastOrder.status !== "cancelled") {
+      const ok = confirm(
+        `โต๊ะนี้มีออร์เดอร์ค้างอยู่ (รอบที่ ${lastOrder.session_number})\n\n` +
+        `กด "ตกลง" เพื่อเพิ่มรายการเข้าออร์เดอร์เดิม\n` +
+        `กด "ยกเลิก" เพื่อยกเลิกออร์เดอร์เก่าแล้วเริ่มใหม่`
+      );
+      if (ok) {
+        // เพิ่มรายการเข้าออร์เดอร์เดิม
+        const orderItemsRows = cartItems.map((i) => ({
+          order_id: lastOrder.id,
+          menu_item_id: i.menu_item_id,
+          quantity: i.quantity,
+          unit_price: i.price,
+          note: i.note || null,
+          subtotal: i.price * i.quantity,
+        }));
+
+        const { error: itemsErr } = await supabase
+          .from("order_items")
+          .insert(orderItemsRows);
+        if (itemsErr) {
+          alert("เพิ่มรายการไม่สำเร็จ: " + itemsErr.message);
+          setSubmitting(false);
+          return;
+        }
+
+        // อัปเดต total_amount
+        await supabase
+          .from("orders")
+          .update({
+            total_amount: total + (await getOrderTotal(supabase, lastOrder.id)),
+          })
+          .eq("id", lastOrder.id);
+
+        clearCart();
+        router.push(`/order/${lastOrder.id}`);
+        return;
+      } else {
+        // ยกเลิกออร์เดอร์เก่า
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled", paid_at: new Date().toISOString() })
+          .eq("id", lastOrder.id);
+      }
+    }
+
+    // สร้างออร์เดอร์ใหม่
+    const nextSession = (lastOrder?.session_number ?? 0) + 1;
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .insert({ table_id: table.id, status: "pending", total_amount: total })
-      .select().single();
+      .insert({
+        table_id: table.id,
+        status: "pending",
+        total_amount: total,
+        session_number: nextSession,
+      })
+      .select()
+      .single();
 
     if (orderErr || !order) {
       alert("สั่งอาหารไม่สำเร็จ: " + (orderErr?.message ?? ""));
@@ -208,6 +273,18 @@ function MenuContent() {
 
     clearCart();
     router.push(`/order/${order.id}`);
+  };
+
+  // helper: คำนวณ total ของ order
+  const getOrderTotal = async (
+    supabase: ReturnType<typeof createClient>,
+    orderId: string
+  ): Promise<number> => {
+    const { data } = await supabase
+      .from("order_items")
+      .select("subtotal")
+      .eq("order_id", orderId);
+    return (data ?? []).reduce((s, i) => s + Number(i.subtotal), 0);
   };
 
   if (loading) return <LoadingScreen />;

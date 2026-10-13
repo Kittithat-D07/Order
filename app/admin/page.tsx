@@ -10,10 +10,19 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { StaffNameModal } from "@/components/auth/StaffNameModal";
+import { cn } from "@/lib/utils";
 
 function AdminContent() {
   const router = useRouter();
   const { session, logout } = useStaffSession();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <div className="min-h-screen bg-stone-50 overflow-x-hidden">
@@ -33,27 +42,48 @@ function AdminContent() {
         </FloatingElement>
       </div>
 
-      {/* Header (ผู้จัดการ) - ติดบนสุดของจอเสมอ */}
+      {/* Header (ผู้จัดการ) - Sticky: ติดบนสุดจอตลอดเวลา scroll */}
       <header
-        className="sticky top-0 z-50 bg-gradient-to-r from-purple-500/95 via-pink-500/95 to-rose-500/95 text-white shadow-lg shadow-purple-500/30 backdrop-blur-md"
+        className={cn(
+          "sticky top-0 z-50 text-white",
+          "bg-gradient-to-r from-purple-500/95 via-pink-500/95 to-rose-500/95",
+          "transition-all duration-300 ease-out",
+          scrolled
+            ? "shadow-2xl shadow-purple-500/40 backdrop-blur-xl border-b border-white/10"
+            : "shadow-lg shadow-purple-500/30 backdrop-blur-md"
+        )}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-between gap-2">
+        <div
+          className={cn(
+            "max-w-7xl mx-auto px-3 sm:px-4 flex items-center justify-between gap-2 transition-all duration-300",
+            scrolled ? "py-1.5 sm:py-1" : "py-2.5 sm:py-2"
+          )}
+        >
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2.5 min-w-0">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-white/20 backdrop-blur-sm text-white flex items-center justify-center shadow-lg shrink-0"
+                className={cn(
+                  "rounded-xl bg-white/20 backdrop-blur-sm text-white flex items-center justify-center shadow-lg shrink-0 transition-all duration-300",
+                  scrolled ? "w-8 h-8" : "w-10 h-10 sm:w-9 sm:h-9"
+                )}
               >
-                <Settings size={20} className="sm:hidden" />
-                <Settings size={18} className="hidden sm:block" />
+                <Settings size={scrolled ? 16 : 20} className="sm:hidden" />
+                <Settings size={scrolled ? 14 : 18} className="hidden sm:block" />
               </motion.div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-bold text-base sm:text-sm text-white flex items-center gap-2">
+                <h1 className={cn(
+                  "font-bold text-white flex items-center gap-2 transition-all duration-300",
+                  scrolled ? "text-sm sm:text-xs" : "text-base sm:text-sm"
+                )}>
                   <span className="truncate">ผู้จัดการ</span>
                   <PulseDot color="bg-white" />
                 </h1>
-                <p className="text-[11px] sm:text-[10px] text-white/80 truncate">
+                <p className={cn(
+                  "text-white/80 truncate transition-all duration-300",
+                  scrolled ? "text-[10px] sm:hidden" : "text-[11px] sm:text-[10px]"
+                )}>
                   {session?.displayName}
                 </p>
               </div>
@@ -67,10 +97,13 @@ function AdminContent() {
               logout();
               router.push("/login");
             }}
-            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium text-white bg-white/20 hover:bg-white/30 active:bg-white/40 transition flex items-center gap-1.5 shrink-0 border border-white/30"
+            className={cn(
+              "rounded-lg font-medium text-white bg-white/20 hover:bg-white/30 active:bg-white/40 transition-all flex items-center gap-1.5 shrink-0 border border-white/30",
+              scrolled ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 sm:px-2.5 sm:py-1.5 text-sm sm:text-xs"
+            )}
           >
-            <LogOut size={15} className="sm:hidden" />
-            <LogOut size={13} className="hidden sm:block" />
+            <LogOut size={scrolled ? 12 : 15} className="sm:hidden" />
+            <LogOut size={scrolled ? 11 : 13} className="hidden sm:block" />
             <span>ออก</span>
           </motion.button>
         </div>

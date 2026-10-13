@@ -44,9 +44,9 @@ export default function KitchenDonePage() {
         <Sparkles className="w-6 h-6 text-cyan-400/50" />
       </FloatingElement>
 
-      <header className="relative z-10 px-4 pt-6 pb-4">
-        <BlurFade delay={0.1}>
-          <div className="flex items-center justify-between gap-2 max-w-2xl mx-auto">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-2 flex-wrap">
+          <BlurFade delay={0.1}>
             <div className="flex items-center gap-3">
               <Link href="/kitchen">
                 <motion.div
@@ -57,15 +57,15 @@ export default function KitchenDonePage() {
                   <ArrowLeft size={18} className="text-stone-700" />
                 </motion.div>
               </Link>
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                 <CheckCircle2 size={24} className="text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold flex items-center gap-2 text-stone-800">
+                <h1 className="text-xl font-bold flex items-center gap-2 text-white">
                   หน้าจอครัว - เสร็จแล้ว
-                  <PulseDot color="bg-blue-500" />
+                  <PulseDot color="bg-white" />
                 </h1>
-                <p className="text-xs text-stone-600">
+                <p className="text-xs text-white/90">
                   {session?.displayName} • ออร์เดอร์ที่เสริฟ์นำไปแล้ว
                 </p>
               </div>
@@ -81,13 +81,12 @@ export default function KitchenDonePage() {
                 }}
                 variant="secondary"
                 size="sm"
-                className="bg-white/60 hover:bg-white/80 text-stone-700 border border-stone-200 backdrop-blur-sm"
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm"
               >
                 <LogOut size={14} className="mr-1.5" /> ออก
               </Button>
             </motion.div>
-          </div>
-        </BlurFade>
+          </BlurFade>
       </header>
 
       <main className="relative z-10">

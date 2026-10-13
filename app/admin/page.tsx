@@ -52,19 +52,20 @@ export default function AdminPage() {
         <Sparkles className="w-5 h-5 text-pink-400/50" />
       </FloatingElement>
 
+      {/* Header (ผู้จัดการ) - อยู่บนสุด ชิดขอบบน */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-white/80 border-b border-purple-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/30"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/30"
               >
-                <Settings size={20} />
+                <Settings size={18} />
               </motion.div>
               <div>
-                <h1 className="font-bold text-base text-stone-800 flex items-center gap-2">
+                <h1 className="font-bold text-sm text-stone-800 flex items-center gap-2">
                   ผู้จัดการ
                   <PulseDot color="bg-purple-500" />
                 </h1>
@@ -73,44 +74,45 @@ export default function AdminPage() {
             </div>
           </BlurFade>
 
-          <nav className="flex items-center gap-1 flex-wrap">
-            {navItems.map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <motion.div
-                  key={item.href}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + idx * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Link
-                    href={item.href}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium text-stone-600 ${item.color} transition flex items-center gap-1.5`}
-                  >
-                    <Icon size={14} /> {item.label}
-                  </Link>
-                </motion.div>
-              );
-            })}
-            <motion.button
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                logout();
-                router.push("/");
-              }}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition flex items-center gap-1.5"
-            >
-              <LogOut size={14} /> ออก
-            </motion.button>
-          </nav>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              logout();
+              router.push("/");
+            }}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 transition flex items-center gap-1.5"
+          >
+            <LogOut size={13} /> ออก
+          </motion.button>
         </div>
       </header>
+
+      {/* Nav bar (โต๊ะ/เมนู/ครัว/...) - แยกออกมา ชิดขอบบน ไม่ wrap */}
+      <nav className="sticky top-[57px] z-20 backdrop-blur-md bg-white/70 border-b border-purple-200/40">
+        <div className="max-w-7xl mx-auto px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
+          {navItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <motion.div
+                key={item.href}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.05 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  href={item.href}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium text-stone-600 ${item.color} transition flex items-center gap-1.5 whitespace-nowrap`}
+                >
+                  <Icon size={13} /> {item.label}
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
+      </nav>
 
       <main className="relative z-10">
         <AdminDashboard />

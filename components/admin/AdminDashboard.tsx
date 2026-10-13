@@ -15,7 +15,7 @@ import {
   LayoutGrid, Pizza, ArrowRight, TrendingUp, TrendingDown, Calendar,
   DollarSign, ShoppingBag, Clock, BarChart3, PieChart as PieChartIcon,
   Users, Flame, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight,
-  AlertTriangle, Package
+  AlertTriangle, Package, History, Sparkles, Settings
 } from "lucide-react";
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
@@ -197,9 +197,79 @@ export function AdminDashboard() {
   }, [orders, dateRange]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 space-y-4">
+      {/* ===== เมนูหลัก (Quick Menu Grid) — เห็นเด่นชัด ===== */}
+      <div>
+        <h2 className="text-sm font-bold text-stone-700 mb-2.5 flex items-center gap-1.5 px-1">
+          <Sparkles size={14} className="text-purple-500" />
+          เมนูจัดการ
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <BigMenuCard
+            href="/admin/tables"
+            icon={LayoutGrid}
+            label="จัดการโต๊ะ"
+            description="เปิด-ปิด โต๊ะ · QR Code"
+            gradient="from-orange-500 to-amber-500"
+            shadow="shadow-orange-500/30"
+            iconBg="bg-orange-100"
+            iconColor="text-orange-600"
+          />
+          <BigMenuCard
+            href="/admin/menu"
+            icon={Pizza}
+            label="จัดการเมนู"
+            description="เพิ่ม/ลบ/แก้ สินค้า"
+            gradient="from-green-500 to-emerald-500"
+            shadow="shadow-green-500/30"
+            iconBg="bg-green-100"
+            iconColor="text-green-600"
+          />
+          <BigMenuCard
+            href="/admin/history"
+            icon={History}
+            label="ประวัติเมนู"
+            description="Audit log การแก้ไข"
+            gradient="from-indigo-500 to-blue-500"
+            shadow="shadow-indigo-500/30"
+            iconBg="bg-indigo-100"
+            iconColor="text-indigo-600"
+          />
+          <BigMenuCard
+            href="/kitchen"
+            icon={ChefHat}
+            label="หน้าจอครัว"
+            description="จอสำหรับพนักงานครัว"
+            gradient="from-amber-500 to-orange-500"
+            shadow="shadow-amber-500/30"
+            iconBg="bg-amber-100"
+            iconColor="text-amber-600"
+          />
+          <BigMenuCard
+            href="/server"
+            icon={Utensils}
+            label="หน้าจอเสิร์ฟ์"
+            description="จอสำหรับพนักงานเสิร์ฟ"
+            gradient="from-blue-500 to-cyan-500"
+            shadow="shadow-blue-500/30"
+            iconBg="bg-blue-100"
+            iconColor="text-blue-600"
+          />
+          <BigMenuCard
+            href="/kitchen/stock"
+            icon={AlertTriangle}
+            label="จัดการสต็อก"
+            description="เปิด-ปิด เมนูที่หมด"
+            gradient="from-rose-500 to-pink-500"
+            shadow="shadow-rose-500/30"
+            iconBg="bg-rose-100"
+            iconColor="text-rose-600"
+          />
+        </div>
+      </div>
+
       {/* Tab Switcher */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 sticky top-[60px] z-20 bg-gradient-to-br from-purple-50/95 via-pink-50/95 to-rose-50/95 backdrop-blur-md py-2 -mx-3 px-3 sm:-mx-4 sm:px-4">
         {[
           { id: "overview", label: "📊 ภาพรวม", icon: BarChart3 },
           { id: "reports", label: "📋 รายงาน", icon: PieChartIcon },
@@ -210,7 +280,7 @@ export function AdminDashboard() {
               key={tab.id}
               whileTap={{ scale: 0.97 }}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 activeTab === tab.id
                   ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
                   : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
@@ -520,14 +590,50 @@ function OverviewTab({
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <QuickAction href="/admin/tables" icon={LayoutGrid} label="จัดการโต๊ะ" color="orange" />
-        <QuickAction href="/admin/menu" icon={Pizza} label="จัดการเมนู" color="green" />
-        <QuickAction href="/kitchen" icon={ChefHat} label="หน้าครัว" color="amber" />
-        <QuickAction href="/server" icon={Utensils} label="หน้าเสิร์ฟ์" color="blue" />
-      </div>
+      {/* Quick Actions (เดิม) - ย้ายไปอยู่บนเป็นเมนูหลักแล้ว */}
     </>
+  );
+}
+
+// ============ Big Menu Card (หน้าหลัก) ============
+function BigMenuCard({
+  href, icon: Icon, label, description, gradient, shadow, iconBg, iconColor
+}: {
+  href: string;
+  icon: any;
+  label: string;
+  description: string;
+  gradient: string;
+  shadow: string;
+  iconBg: string;
+  iconColor: string;
+}) {
+  return (
+    <Link href={href}>
+      <motion.div
+        whileHover={{ y: -3, scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+        className={`relative bg-white rounded-2xl border-2 border-stone-200 hover:border-transparent p-4 cursor-pointer transition-all overflow-hidden group shadow-sm hover:shadow-xl ${shadow}`}
+      >
+        {/* Gradient background on hover */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+        <div className="relative z-10 group-hover:text-white transition-colors">
+          <div className={`w-12 h-12 rounded-xl ${iconBg} group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors`}>
+            <Icon size={24} className={`${iconColor} group-hover:text-white transition-colors`} />
+          </div>
+          <h3 className="font-bold text-base text-stone-800 group-hover:text-white mb-0.5">
+            {label}
+          </h3>
+          <p className="text-[11px] text-stone-500 group-hover:text-white/80 leading-snug">
+            {description}
+          </p>
+          <div className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-stone-400 group-hover:text-white">
+            <span>เปิด</span>
+            <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
+      </motion.div>
+    </Link>
   );
 }
 
@@ -765,22 +871,6 @@ function KPICard({ icon: Icon, label, value, sub, trend, color, gradient }: any)
 }
 
 function QuickAction({ href, icon: Icon, label, color }: any) {
-  const colorMap: Record<string, string> = {
-    orange: "from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600",
-    green: "from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600",
-    amber: "from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
-    blue: "from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600",
-  };
-  return (
-    <Link href={href}>
-      <motion.div
-        whileHover={{ y: -2, scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className={`bg-gradient-to-br ${colorMap[color]} rounded-2xl p-4 text-white text-center cursor-pointer transition-all shadow-md hover:shadow-lg`}
-      >
-        <Icon size={20} className="mx-auto mb-1.5" />
-        <p className="text-xs font-semibold">{label}</p>
-      </motion.div>
-    </Link>
-  );
+  // deprecated - ใช้ BigMenuCard แทน
+  return null;
 }

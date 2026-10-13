@@ -29,7 +29,7 @@ function AdminContent() {
       </FloatingElement>
 
       <header
-        className="sticky top-0 z-30 backdrop-blur-md bg-white/90 border-b border-purple-200/50 shadow-sm"
+        className="sticky top-0 z-40 bg-gradient-to-r from-purple-500/95 via-pink-500/95 to-rose-500/95 text-white shadow-lg shadow-purple-500/30 backdrop-blur-md"
         style={{ paddingTop: "env(safe-area-inset-top, 0)" }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-between gap-2">
@@ -38,17 +38,17 @@ function AdminContent() {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/30 shrink-0"
+                className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-white/20 backdrop-blur-sm text-white flex items-center justify-center shadow-lg shrink-0"
               >
                 <Settings size={20} className="sm:hidden" />
                 <Settings size={18} className="hidden sm:block" />
               </motion.div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-bold text-base sm:text-sm text-stone-800 flex items-center gap-2">
+                <h1 className="font-bold text-base sm:text-sm text-white flex items-center gap-2">
                   <span className="truncate">ผู้จัดการ</span>
-                  <PulseDot color="bg-purple-500" />
+                  <PulseDot color="bg-white" />
                 </h1>
-                <p className="text-[11px] sm:text-[10px] text-stone-500 truncate">
+                <p className="text-[11px] sm:text-[10px] text-white/80 truncate">
                   {session?.displayName}
                 </p>
               </div>
@@ -62,7 +62,7 @@ function AdminContent() {
               logout();
               router.push("/login");
             }}
-            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium text-red-600 hover:bg-red-50 active:bg-red-100 transition flex items-center gap-1.5 shrink-0"
+            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium text-white bg-white/20 hover:bg-white/30 active:bg-white/40 transition flex items-center gap-1.5 shrink-0 border border-white/30"
           >
             <LogOut size={15} className="sm:hidden" />
             <LogOut size={13} className="hidden sm:block" />

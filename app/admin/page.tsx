@@ -29,7 +29,7 @@ function AdminContent() {
       </FloatingElement>
 
       <header
-        className="sticky top-14 z-20 backdrop-blur-md bg-white/90 border-b border-purple-200/50 shadow-sm"
+        className="sticky top-0 z-30 backdrop-blur-md bg-white/90 border-b border-purple-200/50 shadow-sm"
         style={{ paddingTop: "env(safe-area-inset-top, 0)" }}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-between gap-2">
@@ -71,7 +71,7 @@ function AdminContent() {
         </div>
       </header>
 
-      <main className="relative z-10 pb-24 sm:pb-20 pt-16">
+      <main className="relative z-10 pb-32 sm:pb-32">
         <AdminDashboard />
       </main>
 

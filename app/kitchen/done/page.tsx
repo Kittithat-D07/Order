@@ -75,7 +75,7 @@ function KitchenDoneContent() {
         </div>
       </header>
 
-      <main className="relative z-10 pb-24 sm:pb-20">
+      <main className="relative z-10 pb-32 sm:pb-32">
         <KitchenView mode="done" />
       </main>
 

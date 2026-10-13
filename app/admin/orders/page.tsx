@@ -89,7 +89,7 @@ export default function AdminOrdersPage() {
         <Sparkles className="w-5 h-6 text-pink-400/40" />
       </FloatingElement>
 
-      <header className="sticky top-14 z-20 backdrop-blur-md bg-white/70 border-b border-purple-200/50">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/70 border-b border-purple-200/50">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"

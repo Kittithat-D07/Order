@@ -79,7 +79,7 @@ function HistoryContent() {
         <History className="w-6 h-6 text-indigo-400/50" />
       </FloatingElement>
 
-      <header className="sticky top-14 z-20 bg-gradient-to-r from-indigo-500/95 via-blue-500/95 to-purple-500/95 text-white shadow-lg shadow-indigo-500/30">
+      <header className="sticky top-0 z-30 bg-gradient-to-r from-indigo-500/95 via-blue-500/95 to-purple-500/95 text-white shadow-lg shadow-indigo-500/30">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-2.5 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2.5 min-w-0">
@@ -127,7 +127,7 @@ function HistoryContent() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-3xl mx-auto px-3 sm:px-4 py-4 pt-20 pb-32">
+      <main className="relative z-10 max-w-3xl mx-auto px-3 sm:px-4 py-4 pt-2 pb-32">
         {/* Search + Filter */}
         <div className="mb-3 space-y-2">
           <div className="relative">

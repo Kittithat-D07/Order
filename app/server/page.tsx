@@ -28,9 +28,9 @@ function ServerContent() {
         <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400/50" />
       </FloatingElement>
 
-      {/* Header (เสิร์ฟ) - ใต้ Tab Bar */}
+      {/* Header (เสิร์ฟ) - ชิดบนสุด */}
       <header
-        className="sticky top-14 z-20 bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
+        className="sticky top-0 z-30 bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
@@ -70,7 +70,7 @@ function ServerContent() {
         </div>
       </header>
 
-      <main className="relative z-10 pb-24 sm:pb-20 pt-16">
+      <main className="relative z-10 pb-32 sm:pb-32">
         <ServerView />
       </main>
 

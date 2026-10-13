@@ -321,7 +321,7 @@ export default function AdminTablesPage() {
       </FloatingElement>
 
       {/* Header */}
-      <header className="sticky top-14 z-20 glass border-b border-stone-200/60 backdrop-blur-md bg-white/70">
+      <header className="sticky top-0 z-30 glass border-b border-stone-200/60 backdrop-blur-md bg-white/70">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"

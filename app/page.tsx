@@ -1,11 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ChefHat, Utensils, Settings, Sparkles, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChefHat, Utensils, Settings, Sparkles, ArrowRight, Lock, X } from "lucide-react";
 import { useStaffSession, StaffRole } from "@/hooks/useStaffSession";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface RoleOption {
   role: StaffRole;
@@ -43,7 +44,7 @@ const roleOptions: RoleOption[] = [
     role: "admin",
     icon: Settings,
     title: "ผู้จัดการ",
-    subtitle: "จัดการเมนู โต๊ะ และรายงาน",
+    subtitle: "จัดการเมนู โต๊ะ รายงาน (ต้องใส่ PIN)",
     gradient: "from-purple-500 to-pink-500",
     shadowColor: "shadow-purple-500/40",
     hoverColor: "hover:border-purple-400",
@@ -53,8 +54,12 @@ const roleOptions: RoleOption[] = [
 
 export default function HomePage() {
   const router = useRouter();
-  const { quickLogin, session, hydrated } = useStaffSession();
+  const { quickLogin, login, session, hydrated } = useStaffSession();
   const [loading, setLoading] = useState<StaffRole | null>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
 
   // ถ้า login แล้ว → redirect ไปหน้าที่เหมาะสม
   useEffect(() => {
@@ -69,7 +74,15 @@ export default function HomePage() {
     router.replace(roleMap[session.role]);
   }, [hydrated, session, router]);
 
-  const handleSelectRole = (role: StaffRole) => {
+  const handleSelectRole = async (role: StaffRole) => {
+    // Admin ต้องใส่ PIN
+    if (role === "admin") {
+      setShowPinModal(true);
+      setPin("");
+      setPinError("");
+      return;
+    }
+
     setLoading(role);
     quickLogin(role);
 
@@ -81,6 +94,40 @@ export default function HomePage() {
       };
       router.push(roleMap[role]);
     }, 300);
+  };
+
+  const handlePinSubmit = async () => {
+    if (pin.length < 4) {
+      setPinError("PIN ต้องมีอย่างน้อย 4 หลัก");
+      return;
+    }
+
+    setPinLoading(true);
+    setPinError("");
+
+    const result = await login("admin", pin);
+
+    if (!result.ok) {
+      setPinError(result.error || "PIN ไม่ถูกต้อง");
+      setPin("");
+      setPinLoading(false);
+      return;
+    }
+
+    setShowPinModal(false);
+    setPinLoading(false);
+    router.push("/admin");
+  };
+
+  const handlePinKeyPress = (digit: string) => {
+    if (pin.length >= 6) return;
+    setPin((prev) => prev + digit);
+    setPinError("");
+  };
+
+  const handlePinDelete = () => {
+    setPin((prev) => prev.slice(0, -1));
+    setPinError("");
   };
 
   if (!hydrated) {
@@ -164,6 +211,9 @@ export default function HomePage() {
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{option.emoji}</span>
                         <h3 className="font-bold text-stone-800">{option.title}</h3>
+                        {option.role === "admin" && (
+                          <Lock size={12} className="text-purple-500" />
+                        )}
                       </div>
                       <p className="text-sm text-stone-500">{option.subtitle}</p>
                     </div>
@@ -194,6 +244,129 @@ export default function HomePage() {
           </motion.a>
         </BlurFade>
       </div>
+
+      {/* PIN Modal for Admin */}
+      <AnimatePresence>
+        {showPinModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !pinLoading && setShowPinModal(false)}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full"
+            >
+              {/* Close button */}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <Lock size={18} className="text-white" />
+                  </div>
+                  <h2 className="text-lg font-bold text-stone-800">ใส่ PIN ผู้จัดการ</h2>
+                </div>
+                <button
+                  onClick={() => setShowPinModal(false)}
+                  disabled={pinLoading}
+                  className="w-8 h-8 rounded-full hover:bg-stone-100 flex items-center justify-center disabled:opacity-50"
+                >
+                  <X size={18} className="text-stone-500" />
+                </button>
+              </div>
+
+              {/* PIN dots */}
+              <div className="flex justify-center gap-3 mb-4">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <motion.div
+                    key={i}
+                    initial={false}
+                    animate={{
+                      scale: pin.length > i ? 1.2 : 1,
+                      backgroundColor: pin.length > i ? "#a855f7" : "#e7e5e4",
+                    }}
+                    className="w-4 h-4 rounded-full bg-stone-200"
+                  />
+                ))}
+              </div>
+
+              {pinError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center text-red-500 text-sm mb-3"
+                >
+                  {pinError}
+                </motion.p>
+              )}
+
+              {/* Number pad */}
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <motion.button
+                    key={n}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => handlePinKeyPress(String(n))}
+                    disabled={pinLoading}
+                    className="aspect-square rounded-2xl bg-stone-100 hover:bg-stone-200 text-2xl font-semibold text-stone-800 transition-colors disabled:opacity-50"
+                  >
+                    {n}
+                  </motion.button>
+                ))}
+                <div />
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handlePinKeyPress("0")}
+                  disabled={pinLoading}
+                  className="aspect-square rounded-2xl bg-stone-100 hover:bg-stone-200 text-2xl font-semibold text-stone-800 transition-colors disabled:opacity-50"
+                >
+                  0
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={handlePinDelete}
+                  disabled={pinLoading}
+                  className="aspect-square rounded-2xl bg-stone-100 hover:bg-red-100 text-stone-600 hover:text-red-600 transition-colors flex items-center justify-center disabled:opacity-50"
+                >
+                  ←
+                </motion.button>
+              </div>
+
+              {/* Submit */}
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={handlePinSubmit}
+                disabled={pin.length < 4 || pinLoading}
+                className="w-full mt-4 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {pinLoading ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                    />
+                    กำลังตรวจสอบ...
+                  </>
+                ) : (
+                  <>
+                    เข้าสู่ระบบ
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </motion.button>
+
+              <p className="text-center text-xs text-stone-400 mt-3">
+                🔒 เฉพาะผู้จัดการเท่านั้น
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

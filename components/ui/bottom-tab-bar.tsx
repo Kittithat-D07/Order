@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { type LucideIcon, ChefHat, Utensils, Pizza, LayoutGrid, BarChart3, CheckCircle2, Home, AlertTriangle } from "lucide-react";
+import { type LucideIcon, ChefHat, Utensils, Pizza, LayoutGrid, BarChart3, CheckCircle2, Home, AlertTriangle, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStaffSession } from "@/hooks/useStaffSession";
 
@@ -29,7 +29,7 @@ const tabsByRole: Record<string, TabItem[]> = {
     { href: "/admin", icon: Home, label: "หน้าหลัก", matchPaths: ["/admin"], color: "text-purple-600" },
     { href: "/admin/tables", icon: LayoutGrid, label: "โต๊ะ", matchPaths: ["/admin/tables"], color: "text-orange-600" },
     { href: "/admin/menu", icon: Pizza, label: "เมนู", matchPaths: ["/admin/menu"], color: "text-green-600" },
-    { href: "/admin/orders", icon: BarChart3, label: "ประวัติ", matchPaths: ["/admin/orders"], color: "text-blue-600" },
+    { href: "/admin/history", icon: History, label: "ประวัติ", matchPaths: ["/admin/history"], color: "text-indigo-600" },
   ],
 };
 

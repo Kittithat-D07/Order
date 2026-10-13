@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus, Bill, MenuItem } from "@/lib/types";
 import { formatDateTime, formatPrice } from "@/lib/utils";
 import { useStaffSession } from "@/hooks/useStaffSession";
-import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus } from "lucide-react";
+import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus, AlertTriangle, Package } from "lucide-react";
+import { StockToggleModal } from "./StockToggleModal";
 import { AddItemModal, BillPaymentModal } from "./AddItemModal";
 
 export function ServerView() {
@@ -16,6 +18,9 @@ export function ServerView() {
   const [serverName, setServerName] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [showBillModal, setShowBillModal] = useState<string | null>(null);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const supabase = createClient();
   const { session } = useStaffSession();
   const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "online" | "offline">("connecting");
@@ -231,6 +236,14 @@ export function ServerView() {
         <FilterTab active={filter === "active"} onClick={() => setFilter("active")} icon={Clock} label="กำลังทำ" count={counts.active} color="amber" />
         <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} icon={Check} label="เสร็จแล้ว" count={counts.completed} color="green" />
         <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} icon={Receipt} label="บิล" count={counts.bills} color="orange" />
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowStockModal(true)}
+          className="flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition min-w-[64px]"
+        >
+          <Package size={18} />
+          <span className="text-[10px] font-bold">สต็อก</span>
+        </motion.button>
       </div>
 
       {/* Bills View OR Table groups */}
@@ -402,6 +415,11 @@ export function ServerView() {
             loadBills();
           }}
         />
+      )}
+
+      {/* Stock Toggle Modal */}
+      {showStockModal && (
+        <StockToggleModal onClose={() => setShowStockModal(false)} />
       )}
     </div>
   );

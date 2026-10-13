@@ -9,6 +9,7 @@ import { LogOut, Settings, Sparkles } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { StaffNameModal } from "@/components/auth/StaffNameModal";
 
 function AdminContent() {
   const router = useRouter();
@@ -75,6 +76,7 @@ function AdminContent() {
       </main>
 
       <BottomTabBar />
+      <StaffNameModal />
     </div>
   );
 }

@@ -1,51 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useStaffSession, StaffRole } from "@/hooks/useStaffSession";
 import { ShieldAlert, LogIn } from "lucide-react";
 
 interface RoleGuardProps {
   allowedRoles: StaffRole[];
-  redirectTo?: string;
   children: React.ReactNode;
   pageName?: string;
 }
 
 /**
- * RoleGuard - ตรวจสอบสิทธิ์ก่อนเข้าหน้า
- * - ถ้า role ตรงกับ allowedRoles → แสดง children
- * - ถ้า role ไม่ตรง → redirect ไปหน้า login
- * - ถ้ายังไม่ login → redirect ไปหน้า login
+ * RoleGuard - ตรวจสอบสิทธิ์ (โหมด "พนักงานเชื่อใจ" ไม่ต้อง PIN)
+ *
+ * - ถ้า role ตรง → แสดง children
+ * - ถ้า role ไม่ตรง → auto-switch role เป็น role แรกที่อนุญาต
+ *   (พนักงานไม่กี่คน แชร์ลิงก์กันได้เลย)
  */
 export function RoleGuard({
   allowedRoles,
-  redirectTo = "/login",
   children,
   pageName = "หน้านี้",
 }: RoleGuardProps) {
-  const router = useRouter();
-  const { session, hydrated } = useStaffSession();
+  const { session, hydrated, quickLogin } = useStaffSession();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
 
+    // ยังไม่ login → quickLogin ด้วย role แรกที่อนุญาต
     if (!session) {
-      // ยังไม่ได้ login → ไปหน้า login
-      router.replace(redirectTo);
+      quickLogin(allowedRoles[0]);
       return;
     }
 
+    // role ไม่ตรง → สลับ role ให้ตรงกับหน้านี้
     if (!allowedRoles.includes(session.role)) {
-      // login แล้ว แต่ role ไม่ตรง → ไปหน้า login
-      router.replace(redirectTo);
+      quickLogin(allowedRoles[0]);
       return;
     }
 
     setAuthorized(true);
-  }, [hydrated, session, allowedRoles, redirectTo, router]);
+  }, [hydrated, session, allowedRoles, quickLogin]);
 
   if (!hydrated) {
     return (
@@ -61,25 +58,14 @@ export function RoleGuard({
 
   if (!authorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center"
+          className="text-center"
         >
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-            <ShieldAlert size={32} className="text-red-500" />
-          </div>
-          <h2 className="text-lg font-bold text-stone-800 mb-2">
-            ไม่มีสิทธิ์เข้าถึง
-          </h2>
-          <p className="text-sm text-stone-600 mb-4">
-            คุณไม่มีสิทธิ์เข้าใช้งาน{pageName}
-          </p>
-          <div className="flex items-center justify-center gap-2 text-xs text-stone-500">
-            <LogIn size={14} />
-            <span>กำลังเปลี่ยนเส้นทาง...</span>
-          </div>
+          <div className="w-12 h-12 mx-auto border-4 border-orange-300 border-t-orange-500 rounded-full animate-spin" />
+          <p className="mt-3 text-sm text-stone-600">กำลังเตรียมหน้า{pageName}...</p>
         </motion.div>
       </div>
     );

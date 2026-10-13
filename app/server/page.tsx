@@ -9,6 +9,7 @@ import { LogOut, Utensils, Sparkles } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { StaffNameModal } from "@/components/auth/StaffNameModal";
 
 function ServerContent() {
   const router = useRouter();
@@ -74,13 +75,14 @@ function ServerContent() {
       </main>
 
       <BottomTabBar />
+      <StaffNameModal />
     </div>
   );
 }
 
 export default function ServerPage() {
   return (
-    <RoleGuard allowedRoles={["server"]} pageName="หน้าจอเสิร์ฟ">
+    <RoleGuard allowedRoles={["server", "admin"]} pageName="หน้าจอเสริฟ์">
       <ServerContent />
     </RoleGuard>
   );

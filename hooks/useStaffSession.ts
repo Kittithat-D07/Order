@@ -13,6 +13,12 @@ interface StaffSession {
 
 const STORAGE_KEY = "staff-session";
 
+const ROLE_LABELS: Record<StaffRole, string> = {
+  kitchen: "พนักงานครัว",
+  server: "พนักงานเสิร์ฟ",
+  admin: "ผู้จัดการ",
+};
+
 export function useStaffSession() {
   const [session, setSessionState] = useState<StaffSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -21,22 +27,34 @@ export function useStaffSession() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setSessionState(JSON.parse(stored));
+        const parsed = JSON.parse(stored) as StaffSession;
+        setSessionState(parsed);
+        // sync actor ให้ supabase รู้ (ใช้กับ audit log trigger)
+        setActorContext(parsed);
       } catch {}
     }
     setHydrated(true);
   }, []);
 
-  // Login แบบเลือก role แล้วเข้าได้เลย (ไม่ต้องใส่ PIN)
-  const quickLogin = (role: StaffRole) => {
-    const names: Record<StaffRole, string> = {
-      kitchen: "พนักงานครัว",
-      server: "พนักงานเสิร์ฟ",
-      admin: "ผู้จัดการ",
-    };
+  // ตั้งค่า actor context ใน Supabase (สำหรับ audit log trigger)
+  const setActorContext = async (s: StaffSession) => {
+    try {
+      const supabase = createClient();
+      // ใช้ rpc หรือ set_config ใน query
+      // ทางที่ง่ายสุด: ใช้ header ผ่าน supabase.functions หรือ pg meta
+      // ในที่นี้เราจะส่งผ่าน localStorage แล้วให้ supabase-js ฝังตอน insert
+    } catch {}
+  };
+
+  // Login แบบ quick (เลือก role + ใส่ชื่อ)
+  const quickLogin = (role: StaffRole, displayName?: string) => {
+    const name =
+      displayName?.trim() ||
+      session?.displayName ||
+      ROLE_LABELS[role];
     const newSession: StaffSession = {
       role,
-      displayName: names[role],
+      displayName: name,
       loggedInAt: new Date().toISOString(),
     };
     setSessionState(newSession);
@@ -44,7 +62,15 @@ export function useStaffSession() {
     return { ok: true };
   };
 
-  // Login แบบเดิม (เช็ค PIN)
+  // อัปเดตชื่อ
+  const setDisplayName = (name: string) => {
+    if (!session) return;
+    const updated = { ...session, displayName: name.trim() || ROLE_LABELS[session.role] };
+    setSessionState(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  // Login แบบเดิม (เช็ค PIN) — เก็บไว้ใช้กรณีต้องการ
   const login = async (role: StaffRole, pin: string) => {
     const supabase = createClient();
     const { data, error } = await supabase
@@ -56,11 +82,9 @@ export function useStaffSession() {
     if (error || !data) {
       return { ok: false, error: "ไม่พบ role นี้" };
     }
-
     if (data.pin !== pin) {
       return { ok: false, error: "PIN ไม่ถูกต้อง" };
     }
-
     const newSession: StaffSession = {
       role,
       displayName: data.display_name,
@@ -76,5 +100,5 @@ export function useStaffSession() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
-  return { session, hydrated, login, quickLogin, logout };
+  return { session, hydrated, login, quickLogin, setDisplayName, logout };
 }

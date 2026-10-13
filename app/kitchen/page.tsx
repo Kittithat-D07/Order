@@ -11,6 +11,7 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { Button } from "@/components/ui/button";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { StaffNameModal } from "@/components/auth/StaffNameModal";
 
 function KitchenContent() {
   const router = useRouter();
@@ -78,13 +79,14 @@ function KitchenContent() {
       </main>
 
       <BottomTabBar />
+      <StaffNameModal />
     </div>
   );
 }
 
 export default function KitchenPage() {
   return (
-    <RoleGuard allowedRoles={["kitchen"]} pageName="หน้าจอครัว">
+    <RoleGuard allowedRoles={["kitchen", "admin"]} pageName="หน้าจอครัว">
       <KitchenContent />
     </RoleGuard>
   );

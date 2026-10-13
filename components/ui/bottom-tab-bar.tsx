@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { type LucideIcon, ChefHat, Utensils, Pizza, LayoutGrid, BarChart3, CheckCircle2 } from "lucide-react";
+import { type LucideIcon, ChefHat, Utensils, Pizza, LayoutGrid, BarChart3, CheckCircle2, Home, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStaffSession } from "@/hooks/useStaffSession";
 
@@ -15,19 +15,21 @@ type TabItem = {
   color: string;
 };
 
-// Tabs แยกตาม role
+// Tabs แยกตาม role — เพิ่มหน้าแรก (Dashboard) ให้ทุก role
 const tabsByRole: Record<string, TabItem[]> = {
   kitchen: [
     { href: "/kitchen", icon: ChefHat, label: "กำลังทำ", matchPaths: ["/kitchen"], color: "text-amber-600" },
     { href: "/kitchen/done", icon: CheckCircle2, label: "เสร็จแล้ว", matchPaths: ["/kitchen/done"], color: "text-blue-600" },
+    { href: "/kitchen/stock", icon: AlertTriangle, label: "สต็อก", matchPaths: ["/kitchen/stock"], color: "text-rose-600" },
   ],
   server: [
     { href: "/server", icon: Utensils, label: "รับออร์เดอร์", matchPaths: ["/server"], color: "text-blue-600" },
   ],
   admin: [
+    { href: "/admin", icon: Home, label: "หน้าหลัก", matchPaths: ["/admin"], color: "text-purple-600" },
     { href: "/admin/tables", icon: LayoutGrid, label: "โต๊ะ", matchPaths: ["/admin/tables"], color: "text-orange-600" },
     { href: "/admin/menu", icon: Pizza, label: "เมนู", matchPaths: ["/admin/menu"], color: "text-green-600" },
-    { href: "/admin/orders", icon: BarChart3, label: "ประวัติ", matchPaths: ["/admin/orders"], color: "text-purple-600" },
+    { href: "/admin/orders", icon: BarChart3, label: "ประวัติ", matchPaths: ["/admin/orders"], color: "text-blue-600" },
   ],
 };
 
@@ -35,60 +37,68 @@ export function BottomTabBar() {
   const pathname = usePathname();
   const { session, hydrated } = useStaffSession();
 
-  // รอ hydrate ก่อน
   if (!hydrated || !session) return null;
 
   const tabs = tabsByRole[session.role] ?? [];
-  const colCount = tabs.length > 0 ? tabs.length : 1;
+
+  // สี gradient ตาม role
+  const gradientMap: Record<string, string> = {
+    kitchen: "from-orange-500 to-amber-500",
+    server: "from-blue-500 to-cyan-500",
+    admin: "from-purple-500 to-pink-500",
+  };
+  const activeGradient = gradientMap[session.role] ?? "from-stone-500 to-stone-600";
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0)" }}
+      className="fixed left-0 right-0 z-40 flex justify-center pointer-events-none"
+      style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}
     >
-      <div className={`max-w-md mx-auto grid grid-cols-${colCount}`}>
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = tab.matchPaths?.some((p) => pathname === p) ?? false;
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="pointer-events-auto bg-white/95 backdrop-blur-xl rounded-full shadow-2xl shadow-stone-900/20 border border-stone-200/80 px-2 py-2"
+      >
+        <div className="flex items-center gap-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.matchPaths?.some((p) => pathname === p) ?? false;
 
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className="relative flex flex-col items-center justify-center py-2 min-h-[56px] active:scale-95 transition-transform"
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="bottomTabIndicator"
-                  className="absolute top-0 left-1/4 right-1/4 h-0.5 rounded-full"
-                  style={{
-                    background: session.role === "kitchen" ? "from-orange-500 to-amber-500" 
-                      : session.role === "server" ? "from-blue-500 to-cyan-500"
-                      : "from-purple-500 to-pink-500"
-                  }}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                />
-              )}
-              <motion.div
-                whileTap={{ scale: 0.85 }}
-                className={cn(
-                  "flex flex-col items-center gap-0.5",
-                  isActive ? tab.color : "text-stone-500"
-                )}
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className="relative flex flex-col items-center justify-center px-4 sm:px-5 py-2 min-w-[64px] sm:min-w-[72px] active:scale-90 transition-transform rounded-full"
               >
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  className={isActive ? "drop-shadow-sm" : ""}
-                />
-                <span className={cn("text-[10px] font-medium", isActive && "font-bold")}>
-                  {tab.label}
-                </span>
-              </motion.div>
-            </Link>
-          );
-        })}
-      </div>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottomTabIndicator"
+                    className={`absolute inset-0 rounded-full bg-gradient-to-br ${activeGradient} shadow-lg`}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+                <motion.div
+                  whileTap={{ scale: 0.85 }}
+                  className={cn(
+                    "relative flex flex-col items-center gap-0.5 transition-colors",
+                    isActive ? "text-white" : "text-stone-500"
+                  )}
+                >
+                  <Icon
+                    size={20}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className={isActive ? "drop-shadow-sm" : ""}
+                  />
+                  <span className={cn("text-[9px] sm:text-[10px] font-semibold", isActive && "font-bold")}>
+                    {tab.label}
+                  </span>
+                </motion.div>
+              </Link>
+            );
+          })}
+        </div>
+      </motion.div>
     </nav>
   );
 }

@@ -3,8 +3,9 @@
 import { MenuItem } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/lib/store/cart";
-import { Plus, Minus, ImageOff } from "lucide-react";
+import { Plus, Minus, ImageOff, XCircle } from "lucide-react";
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 export function MenuItemCard({ item }: { item: MenuItem }) {
   const addItem = useCart((s) => s.addItem);
@@ -13,31 +14,50 @@ export function MenuItemCard({ item }: { item: MenuItem }) {
   );
   const [imgError, setImgError] = useState(false);
 
-  // ถ้าไม่ available
+  // ถ้าไม่ available (แม่ครัว/แอดมินกดปิด)
   if (!item.is_available) {
     return (
-      <div className="card opacity-60 grayscale">
-        <div className="p-4 flex justify-between items-start gap-3">
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        className="relative bg-gradient-to-br from-stone-50 to-stone-100 rounded-2xl border-2 border-dashed border-stone-300 overflow-hidden"
+      >
+        <div className="p-3.5 flex items-center gap-3">
+          <div className="w-14 h-14 rounded-xl bg-stone-200/80 flex items-center justify-center shrink-0 relative">
+            {item.image_url && !imgError ? (
+              <img
+                src={item.image_url}
+                alt={item.name}
+                onError={() => setImgError(true)}
+                className="w-full h-full object-cover rounded-xl opacity-40"
+              />
+            ) : (
+              <ImageOff size={20} className="text-stone-400" />
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-stone-200/60 rounded-xl">
+              <XCircle size={24} className="text-stone-500" />
+            </div>
+          </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-stone-700 line-clamp-1">
+            <h3 className="font-semibold text-stone-500 line-clamp-1 text-sm">
               {item.name}
             </h3>
             {item.description && (
-              <p className="text-sm text-stone-500 mt-1 line-clamp-2">
+              <p className="text-xs text-stone-400 mt-0.5 line-clamp-1">
                 {item.description}
               </p>
             )}
-            <span className="inline-block mt-2 text-xs text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full font-bold">
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
               หมดชั่วคราว
             </span>
           </div>
           <div className="text-right shrink-0">
-            <div className="font-bold text-stone-500">
+            <div className="text-sm text-stone-400 line-through">
               {formatPrice(item.price)}
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 

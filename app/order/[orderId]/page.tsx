@@ -34,6 +34,7 @@ const STATUS_ICONS: Record<OrderStatus, any> = {
   pending: Clock,
   preparing: ChefHat,
   served: CheckCircle2,
+  completed: CheckCircle2,
   cancelled: XCircle,
 };
 
@@ -58,6 +59,12 @@ const STATUS_CONFIG: Record<
     color: "text-green-600",
     label: "เสิร์ฟแล้ว",
     desc: "อาหารถูกเสิร์ฟแล้ว ขอให้มื้อนี้เป็นมื้อที่อร่อย! 🍽️",
+  },
+  completed: {
+    bg: "from-green-100 to-emerald-100",
+    color: "text-green-700",
+    label: "เสร็จสิ้น",
+    desc: "ออร์เดอร์เสร็จเรียบร้อยแล้ว",
   },
   cancelled: {
     bg: "from-stone-100 to-stone-200",

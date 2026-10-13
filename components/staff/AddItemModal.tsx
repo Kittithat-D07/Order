@@ -36,7 +36,7 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
         supabase.from("menu_items").select("*").order("display_order"),
       ]);
       setCategories(cats ?? []);
-      setMenuItems((items ?? []).filter((i) => i.is_available));
+      setMenuItems(items ?? []);
     })();
   }, [orders]);
 
@@ -190,11 +190,22 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
                 {filteredItems.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => addToCart(item)}
-                    className="text-left p-2 rounded-lg border border-stone-200 hover:border-orange-300 hover:bg-orange-50 transition"
+                    onClick={() => item.is_available && addToCart(item)}
+                    disabled={!item.is_available}
+                    className={`text-left p-2 rounded-lg border transition ${
+                      item.is_available
+                        ? "border-stone-200 hover:border-orange-300 hover:bg-orange-50"
+                        : "border-dashed border-stone-300 bg-stone-50 opacity-60 cursor-not-allowed"
+                    }`}
                   >
-                    <p className="text-xs font-bold text-stone-800 line-clamp-2">{item.name}</p>
-                    <p className="text-xs text-orange-600 font-bold mt-1">{formatPrice(item.price)}</p>
+                    <p className={`text-xs font-bold line-clamp-2 ${item.is_available ? "text-stone-800" : "text-stone-400"}`}>
+                      {item.name}
+                    </p>
+                    {item.is_available ? (
+                      <p className="text-xs text-orange-600 font-bold mt-1">{formatPrice(item.price)}</p>
+                    ) : (
+                      <p className="text-[10px] text-rose-500 font-bold mt-1">🚫 หมด</p>
+                    )}
                   </button>
                 ))}
               </div>

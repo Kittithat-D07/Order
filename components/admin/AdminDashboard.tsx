@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { OrderWithItems } from "@/lib/types";
+import { OrderWithItems, MenuItem, MenuCategory } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
@@ -14,7 +14,8 @@ import {
   ChefHat, Utensils, Table as TableIcon, AlertCircle, RefreshCw,
   LayoutGrid, Pizza, ArrowRight, TrendingUp, TrendingDown, Calendar,
   DollarSign, ShoppingBag, Clock, BarChart3, PieChart as PieChartIcon,
-  Users, Flame, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight
+  Users, Flame, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight,
+  AlertTriangle, Package
 } from "lucide-react";
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
@@ -46,6 +47,8 @@ interface Stats {
 // ============ Main Component ============
 export function AdminDashboard() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "reports">("overview");
   const [selectedPeriod, setSelectedPeriod] = useState<"today" | "week" | "month">("today");
@@ -61,22 +64,37 @@ export function AdminDashboard() {
   const supabase = createClient();
 
   useEffect(() => {
-    loadOrders();
+    loadAll();
     const channel = supabase
       .channel("admin-dashboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => loadOrders())
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadOrders())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => loadAll())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const loadOrders = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
-      .order("created_at", { ascending: false });
-    if (data) setOrders(data as any as OrderWithItems[]);
+  const loadAll = async () => {
+    const [ordersRes, menuRes, catRes] = await Promise.all([
+      supabase.from("orders").select(`*, tables:table_id (*), order_items (*, menu_items (*))`).order("created_at", { ascending: false }),
+      supabase.from("menu_items").select("*").order("display_order"),
+      supabase.from("menu_categories").select("*").order("display_order"),
+    ]);
+    if (ordersRes.data) setOrders(ordersRes.data as any as OrderWithItems[]);
+    if (menuRes.data) setMenuItems(menuRes.data);
+    if (catRes.data) setCategories(catRes.data);
     setLoading(false);
+  };
+
+  const toggleItemStock = async (item: MenuItem) => {
+    await supabase
+      .from("menu_items")
+      .update({
+        is_available: !item.is_available,
+        marked_unavailable_at: !item.is_available ? null : new Date().toISOString(),
+        marked_unavailable_by: !item.is_available ? null : "admin",
+      })
+      .eq("id", item.id);
   };
 
   // ============ Stats Calculation ============
@@ -213,7 +231,7 @@ export function AdminDashboard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
           >
-            <OverviewTab stats={stats} orders={orders.slice(0, 5)} loading={loading} />
+            <OverviewTab stats={stats} orders={orders.slice(0, 5)} loading={loading} menuItems={menuItems} categories={categories} onToggleStock={toggleItemStock} />
           </motion.div>
         ) : (
           <motion.div
@@ -231,7 +249,17 @@ export function AdminDashboard() {
 }
 
 // ============ Overview Tab ============
-function OverviewTab({ stats, orders, loading }: { stats: Stats; orders: OrderWithItems[]; loading: boolean }) {
+function OverviewTab({
+  stats, orders, loading, menuItems, categories, onToggleStock
+}: {
+  stats: Stats;
+  orders: OrderWithItems[];
+  loading: boolean;
+  menuItems: MenuItem[];
+  categories: MenuCategory[];
+  onToggleStock: (item: MenuItem) => void;
+}) {
+  const soldOutItems = menuItems.filter(i => !i.is_available);
   return (
     <>
       {/* KPI Cards */}
@@ -285,16 +313,18 @@ function OverviewTab({ stats, orders, loading }: { stats: Stats; orders: OrderWi
           <p className="font-bold text-lg text-stone-800">{stats.monthOrders} ออร์เดอร์</p>
           <p className="text-xs text-green-600 font-medium">฿{stats.monthRevenue.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl border border-stone-200 p-3 text-center">
-          <p className="text-[10px] text-stone-500 mb-1">สถานะ</p>
-          <div className="flex gap-1 justify-center flex-wrap">
-            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
-              {stats.pendingOrders} รอ
-            </span>
-            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
-              {stats.activeOrders - stats.pendingOrders} ทำ
-            </span>
-          </div>
+        <div className={`rounded-xl border p-3 text-center ${
+          soldOutItems.length > 0
+            ? "bg-rose-50 border-rose-200"
+            : "bg-white border-stone-200"
+        }`}>
+          <p className="text-[10px] text-stone-500 mb-1">เมนูที่หมด</p>
+          <p className={`font-bold text-lg ${soldOutItems.length > 0 ? "text-rose-700" : "text-stone-800"}`}>
+            {soldOutItems.length} เมนู
+          </p>
+          <p className={`text-xs font-medium ${soldOutItems.length > 0 ? "text-rose-600" : "text-green-600"}`}>
+            {soldOutItems.length > 0 ? "ต้องเติม!" : "ครบทุกเมนู"}
+          </p>
         </div>
       </div>
 
@@ -449,6 +479,47 @@ function OverviewTab({ stats, orders, loading }: { stats: Stats; orders: OrderWi
         </div>
       </div>
 
+      {/* Sold Out Items (real-time) */}
+      {soldOutItems.length > 0 && (
+        <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border-2 border-rose-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-rose-700 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              เมนูที่หมดตอนนี้ ({soldOutItems.length})
+            </h3>
+            <Link href="/admin/menu" className="text-xs text-rose-600 hover:underline font-medium">
+              จัดการ →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {soldOutItems.map(item => {
+              const cat = categories.find(c => c.id === item.category_id);
+              return (
+                <div key={item.id} className="bg-white rounded-xl p-3 flex items-center gap-3 border border-rose-200">
+                  <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
+                    <Package size={18} className="text-rose-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-stone-800 truncate">{item.name}</p>
+                    <p className="text-[10px] text-stone-500 truncate">
+                      {cat?.name ?? "—"} · ฿{Number(item.price).toLocaleString()}
+                    </p>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => onToggleStock(item)}
+                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-xs font-bold flex items-center gap-1"
+                  >
+                    <CheckCircle size={12} />
+                    เปิด
+                  </motion.button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Quick Actions */}
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <QuickAction href="/admin/tables" icon={LayoutGrid} label="จัดการโต๊ะ" color="orange" />
@@ -570,10 +641,10 @@ function ReportsTab({
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `฿${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
-                formatter={(v: any, name: string) => [
+                formatter={((v: any, name: any) => [
                   name === "revenue" ? `฿${Number(v).toLocaleString()}` : `${v} ออร์เดอร์`,
                   name === "revenue" ? "รายได้" : "ออร์เดอร์"
-                ]}
+                ]) as any}
               />
               <Bar dataKey="revenue" name="revenue" fill="#22c55e" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -600,10 +671,10 @@ function ReportsTab({
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={v => `฿${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
-                formatter={(v: any, name: string) => [
+                formatter={((v: any, name: any) => [
                   name === "revenue" ? `฿${Number(v).toLocaleString()}` : `${v} ออร์เดอร์`,
                   name === "revenue" ? "รายได้" : "ออร์เดอร์"
-                ]}
+                ]) as any}
               />
               <Legend />
               <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />

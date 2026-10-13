@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
-import { ChefHat, Check, Clock } from "lucide-react";
+import { ChefHat, Check, Clock, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {

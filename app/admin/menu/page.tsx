@@ -27,6 +27,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
 export default function AdminMenuPage() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -417,6 +419,7 @@ export default function AdminMenuPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <BottomTabBar />
     </div>
   );
 }

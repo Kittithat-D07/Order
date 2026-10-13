@@ -8,36 +8,19 @@ import { useStaffSession } from "@/hooks/useStaffSession";
 import { KitchenView } from "@/components/staff/KitchenView";
 import { LogOut, CheckCircle2, ArrowLeft, Sparkles } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
-import { Button } from "@/components/ui/button";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
-export default function KitchenDonePage() {
+function KitchenDoneContent() {
   const router = useRouter();
-  const { session, hydrated, logout, quickLogin } = useStaffSession();
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    if (hydrated) {
-      if (session && session.role === "kitchen") {
-        setAuthed(true);
-      } else {
-        quickLogin("kitchen");
-        setAuthed(true);
-      }
-    }
-  }, [hydrated, session, quickLogin]);
-
-  if (!hydrated) return null;
-  if (!authed) return null;
+  const { session, logout } = useStaffSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 relative overflow-x-hidden">
-      {/* Background blobs */}
       <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-blue-300/30" />
       <GradientBlob className="top-[30%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-cyan-300/30" delay={2} />
       <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-sky-300/30" delay={4} />
 
-      {/* Floating */}
       <FloatingElement className="top-24 right-4 sm:right-12" delay={0}>
         <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-400/50" />
       </FloatingElement>
@@ -45,7 +28,6 @@ export default function KitchenDonePage() {
         <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400/50" />
       </FloatingElement>
 
-      {/* Header (ครัว-เสร็จแล้ว) - Mobile-First */}
       <header
         className="sticky top-0 z-30 backdrop-blur-md bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
         style={{ paddingTop: "env(safe-area-inset-top, 0)" }}
@@ -84,7 +66,7 @@ export default function KitchenDonePage() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/");
+              router.push("/login");
             }}
             className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 backdrop-blur-sm flex items-center gap-1.5 shrink-0"
           >
@@ -101,5 +83,13 @@ export default function KitchenDonePage() {
 
       <BottomTabBar />
     </div>
+  );
+}
+
+export default function KitchenDonePage() {
+  return (
+    <RoleGuard allowedRoles={["kitchen"]} pageName="หน้าจอครัว (เสร็จแล้ว)">
+      <KitchenDoneContent />
+    </RoleGuard>
   );
 }

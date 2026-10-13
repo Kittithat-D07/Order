@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/magic-effects";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 border-amber-200",
@@ -239,6 +241,7 @@ export default function AdminOrdersPage() {
           </BlurFade>
         )}
       </main>
+      <BottomTabBar />
     </div>
   );
 }

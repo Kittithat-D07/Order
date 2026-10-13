@@ -5,37 +5,21 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
-import { LogOut, Settings, Sparkles, Home } from "lucide-react";
+import { LogOut, Settings, Sparkles } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
-export default function AdminPage() {
+function AdminContent() {
   const router = useRouter();
-  const { session, hydrated, logout, quickLogin } = useStaffSession();
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    if (hydrated) {
-      if (session && (session.role === "admin" || session.role === "server")) {
-        setAuthed(true);
-      } else {
-        quickLogin("admin");
-        setAuthed(true);
-      }
-    }
-  }, [hydrated, session, quickLogin]);
-
-  if (!hydrated) return null;
-  if (!authed) return null;
+  const { session, logout } = useStaffSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 relative overflow-x-hidden">
-      {/* Background blobs */}
       <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-purple-300/30" />
       <GradientBlob className="top-[40%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-pink-300/30" delay={2} />
       <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-rose-300/30" delay={4} />
 
-      {/* Floating */}
       <FloatingElement className="top-24 left-4 sm:left-12" delay={0}>
         <Settings className="w-6 h-6 sm:w-7 sm:h-7 text-purple-400/50" />
       </FloatingElement>
@@ -43,7 +27,6 @@ export default function AdminPage() {
         <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400/50" />
       </FloatingElement>
 
-      {/* Header (ผู้จัดการ) - Mobile-First */}
       <header
         className="sticky top-0 z-30 backdrop-blur-md bg-white/90 border-b border-purple-200/50 shadow-sm"
         style={{ paddingTop: "env(safe-area-inset-top, 0)" }}
@@ -76,7 +59,7 @@ export default function AdminPage() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/");
+              router.push("/login");
             }}
             className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium text-red-600 hover:bg-red-50 active:bg-red-100 transition flex items-center gap-1.5 shrink-0"
           >
@@ -93,5 +76,13 @@ export default function AdminPage() {
 
       <BottomTabBar />
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <RoleGuard allowedRoles={["admin"]} pageName="หน้าจัดการ">
+      <AdminContent />
+    </RoleGuard>
   );
 }

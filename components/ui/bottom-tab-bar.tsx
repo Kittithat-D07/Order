@@ -3,21 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import {
-  ChefHat,
-  Utensils,
-  Pizza,
-  LayoutGrid,
-  BarChart3,
-  Home,
-} from "lucide-react";
+import { type LucideIcon, ChefHat, Utensils, Pizza, LayoutGrid, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TabItem = {
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   label: string;
-  matchPaths?: string[]; // paths ที่ถือว่า active
+  matchPaths?: string[];
   color: string;
 };
 

@@ -10,25 +10,11 @@ import { LogOut, ChefHat, Sparkles, ArrowLeft } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { Button } from "@/components/ui/button";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
-export default function KitchenPage() {
+function KitchenContent() {
   const router = useRouter();
-  const { session, hydrated, logout, quickLogin } = useStaffSession();
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    if (hydrated) {
-      if (session && session.role === "kitchen") {
-        setAuthed(true);
-      } else {
-        quickLogin("kitchen");
-        setAuthed(true);
-      }
-    }
-  }, [hydrated, session, quickLogin]);
-
-  if (!hydrated) return null;
-  if (!authed) return null;
+  const { session, logout } = useStaffSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-x-hidden">
@@ -78,24 +64,30 @@ export default function KitchenPage() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/");
+              router.push("/login");
             }}
             className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 backdrop-blur-sm flex items-center gap-1.5 shrink-0"
           >
             <LogOut size={15} className="sm:hidden" />
             <LogOut size={13} className="hidden sm:block" />
-            <span className="hidden xs:inline sm:inline">ออก</span>
+            <span>ออก</span>
           </motion.button>
         </div>
       </header>
 
-      {/* Main content - เว้นที่ให้ Bottom Tab Bar */}
       <main className="relative z-10 pb-24 sm:pb-20">
         <KitchenView />
       </main>
 
-      {/* Bottom Tab Bar (Mobile-First) */}
       <BottomTabBar />
     </div>
+  );
+}
+
+export default function KitchenPage() {
+  return (
+    <RoleGuard allowedRoles={["kitchen"]} pageName="หน้าจอครัว">
+      <KitchenContent />
+    </RoleGuard>
   );
 }

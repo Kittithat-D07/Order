@@ -29,6 +29,8 @@ import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
+import { RoleGuard } from "@/components/auth/RoleGuard";
 
 type ToastType = "success" | "error" | "info";
 interface Toast {
@@ -639,7 +641,7 @@ export default function AdminTablesPage() {
       )}
 
       {/* Toasts */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-24 right-4 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -655,6 +657,7 @@ export default function AdminTablesPage() {
           </div>
         ))}
       </div>
+      <BottomTabBar />
     </div>
   );
 }

@@ -179,7 +179,7 @@ export function ServerView() {
   };
 
   return (
-    <div className="p-3 sm:p-4 max-w-3xl mx-auto">
+    <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
       {/* Realtime status badge */}
       <div className="mb-3 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-stone-200 shadow-sm">

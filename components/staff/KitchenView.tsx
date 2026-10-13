@@ -111,7 +111,7 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   };
 
   return (
-    <div className="p-3 sm:p-4 max-w-3xl mx-auto">
+    <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
       {/* Header count */}
       <div className="mb-4 flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-stone-200 shadow-sm">
         <h2 className="text-lg sm:text-xl font-bold text-stone-800 flex items-center gap-2">

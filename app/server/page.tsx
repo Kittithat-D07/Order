@@ -27,20 +27,19 @@ function ServerContent() {
         <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400/50" />
       </FloatingElement>
 
+      {/* Header (เสิร์ฟ) - ชิดบนสุด */}
       <header
-        className="sticky top-0 z-30 backdrop-blur-md bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
-        style={{ paddingTop: "env(safe-area-inset-top, 0)" }}
+        className="sticky top-0 z-30 bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2.5 min-w-0">
               <motion.div
                 animate={{ y: [0, -3, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg shrink-0"
+                className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shadow-lg shrink-0"
               >
-                <Utensils size={22} className="sm:hidden" strokeWidth={2.2} />
-                <Utensils size={20} className="hidden sm:block" strokeWidth={2.2} />
+                <Utensils size={20} strokeWidth={2.2} />
               </motion.div>
               <div className="min-w-0 flex-1">
                 <h1 className="text-base font-bold flex items-center gap-2">
@@ -61,7 +60,7 @@ function ServerContent() {
               logout();
               router.push("/login");
             }}
-            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 backdrop-blur-sm flex items-center gap-1.5 shrink-0"
+            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 flex items-center gap-1.5 shrink-0"
           >
             <LogOut size={15} className="sm:hidden" />
             <LogOut size={13} className="hidden sm:block" />

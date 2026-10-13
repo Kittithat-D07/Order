@@ -18,40 +18,61 @@ export function ServerView() {
   const [showBillModal, setShowBillModal] = useState<string | null>(null);
   const supabase = createClient();
   const { session } = useStaffSession();
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "online" | "offline">("connecting");
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     setServerName(session?.displayName ?? "");
     loadOrders();
     loadBills();
+
     const channel = supabase
-      .channel("server-orders")
+      .channel("server-orders-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
-        () => loadOrders()
+        () => {
+          console.log("🔄 [realtime] order_items changed");
+          loadOrders();
+        }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bills" },
-        () => loadBills()
+        () => {
+          console.log("🔄 [realtime] bills changed");
+          loadBills();
+        }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => loadOrders()
+        () => {
+          console.log("🔄 [realtime] orders changed");
+          loadOrders();
+        }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 [realtime] channel status:", status);
+        if (status === "SUBSCRIBED") {
+          setRealtimeStatus("online");
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setRealtimeStatus("offline");
+        }
+      });
+
     return () => {
       supabase.removeChannel(channel);
     };
   }, [session]);
 
-  // Auto-refresh ทุก 10s เป็น fallback (กรณี realtime หลุด)
+  // Auto-refresh ทุก 3s เป็น fallback (responsive ขึ้น)
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log("⏰ [polling] refresh");
       loadOrders();
       loadBills();
-    }, 10000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -63,6 +84,7 @@ export function ServerView() {
 
     if (data) {
       setOrders(data as any as OrderWithItems[]);
+      setLastUpdate(new Date());
     }
   };
 
@@ -158,6 +180,30 @@ export function ServerView() {
 
   return (
     <div className="p-3 sm:p-4 max-w-3xl mx-auto">
+      {/* Realtime status badge */}
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-stone-200 shadow-sm">
+          <span className={`relative flex w-2 h-2 rounded-full ${
+            realtimeStatus === "online" ? "bg-green-500" :
+            realtimeStatus === "offline" ? "bg-red-500" : "bg-amber-500"
+          }`}>
+            {realtimeStatus === "online" && (
+              <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
+            )}
+          </span>
+          <span className="text-stone-600 font-medium">
+            {realtimeStatus === "online" && "🟢 Realtime เชื่อมต่ออยู่"}
+            {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ (ใช้ polling)"}
+            {realtimeStatus === "connecting" && "🟡 กำลังเชื่อมต่อ..."}
+          </span>
+        </div>
+        {lastUpdate && (
+          <span className="text-stone-400 text-[10px]">
+            อัปเดต {lastUpdate.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
+        )}
+      </div>
+
       {/* Name input */}
       <div className="mb-4 bg-white rounded-2xl p-4 border-2 border-stone-200 flex items-center gap-3 shadow-sm">
         <span className="text-sm text-stone-500 font-medium">เสริฟ์ชื่อ:</span>

@@ -32,9 +32,9 @@ function KitchenContent() {
         <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/50" />
       </FloatingElement>
 
-      {/* Header (ครัว) - ชิดบนสุด */}
+      {/* Header (ครัว) - ใต้ Tab Bar */}
       <header
-        className="sticky top-0 z-30 bg-gradient-to-r from-orange-500/95 via-amber-500/95 to-orange-500/95 text-white shadow-lg shadow-orange-500/30"
+        className="sticky top-14 z-20 bg-gradient-to-r from-orange-500/95 via-amber-500/95 to-orange-500/95 text-white shadow-lg shadow-orange-500/30"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
@@ -74,7 +74,7 @@ function KitchenContent() {
         </div>
       </header>
 
-      <main className="relative z-10 pb-24 sm:pb-20">
+      <main className="relative z-10 pb-24 sm:pb-20 pt-16">
         <KitchenView />
       </main>
 

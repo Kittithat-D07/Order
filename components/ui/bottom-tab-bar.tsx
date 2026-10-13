@@ -52,13 +52,13 @@ export function BottomTabBar() {
   return (
     <nav
       className="fixed left-0 right-0 z-40 flex justify-center pointer-events-none"
-      style={{ bottom: "max(16px, env(safe-area-inset-bottom, 0px))" }}
+      style={{ top: "max(8px, env(safe-area-inset-top, 0px))" }}
     >
       <motion.div
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        className="pointer-events-auto bg-white/95 backdrop-blur-xl rounded-full shadow-2xl shadow-stone-900/20 border border-stone-200/80 px-2 py-2"
+        className="pointer-events-auto bg-white/95 backdrop-blur-xl rounded-full shadow-2xl shadow-stone-900/20 border border-stone-200/80 px-2 py-1.5"
       >
         <div className="flex items-center gap-1">
           {tabs.map((tab) => {
@@ -69,7 +69,7 @@ export function BottomTabBar() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="relative flex flex-col items-center justify-center px-4 sm:px-5 py-2 min-w-[64px] sm:min-w-[72px] active:scale-90 transition-transform rounded-full"
+                className="relative flex flex-col items-center justify-center px-3 sm:px-4 py-1.5 min-w-[56px] sm:min-w-[64px] active:scale-90 transition-transform rounded-full"
               >
                 {isActive && (
                   <motion.div

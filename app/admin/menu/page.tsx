@@ -101,12 +101,21 @@ export default function AdminMenuPage() {
   };
 
   const toggleAvailable = async (item: MenuItem) => {
-    const supabase = createClient();
-    await supabase
-      .from("menu_items")
-      .update({ is_available: !item.is_available })
-      .eq("id", item.id);
-    load();
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("menu_items")
+        .update({ is_available: !item.is_available })
+        .eq("id", item.id);
+
+      if (error) {
+        alert(`❌ เกิดข้อผิดพลาด: ${error.message}\n\n💡 อาจยังไม่ได้รัน migration 005_unavailable_reason.sql ใน Supabase\nไปที่ Supabase → SQL Editor แล้วรันไฟล์ supabase/migrations/005_unavailable_reason.sql`);
+        return;
+      }
+      load();
+    } catch (e: any) {
+      alert(`❌ เกิดข้อผิดพลาด: ${e?.message ?? e}`);
+    }
   };
 
   if (loading) {
@@ -140,7 +149,7 @@ export default function AdminMenuPage() {
         <Sparkles className="w-5 h-6 text-green-400/40" />
       </FloatingElement>
 
-      <header className="sticky top-0 z-20 backdrop-blur-md bg-white/70 border-b border-emerald-200/50">
+      <header className="sticky top-14 z-20 backdrop-blur-md bg-white/70 border-b border-emerald-200/50">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"
@@ -171,7 +180,7 @@ export default function AdminMenuPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4 space-y-6">
+      <main className="max-w-5xl mx-auto p-4 pt-20 space-y-6">
         {/* Categories */}
         <BlurFade delay={0.1}>
           <Card className="border-0 shadow-lg">

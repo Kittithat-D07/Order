@@ -105,7 +105,7 @@ function StockContent() {
       </FloatingElement>
 
       <header
-        className="sticky top-0 z-30 bg-gradient-to-r from-rose-500/95 via-pink-500/95 to-rose-500/95 text-white shadow-lg shadow-rose-500/30"
+        className="sticky top-14 z-20 bg-gradient-to-r from-rose-500/95 via-pink-500/95 to-rose-500/95 text-white shadow-lg shadow-rose-500/30"
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
@@ -150,7 +150,7 @@ function StockContent() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-3xl mx-auto px-3 sm:px-4 py-4 pb-32">
+      <main className="relative z-10 max-w-3xl mx-auto px-3 sm:px-4 py-4 pt-20 pb-32">
         {/* Filter chips */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {[

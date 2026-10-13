@@ -111,23 +111,23 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div className="p-3 sm:p-4 max-w-3xl mx-auto">
       {/* Header count */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
+      <div className="mb-4 flex items-center justify-between bg-white rounded-2xl p-4 border-2 border-stone-200 shadow-sm">
+        <h2 className="text-lg sm:text-xl font-bold text-stone-800 flex items-center gap-2">
           {mode === "active" ? (
             <>
-              <ChefHat className="w-5 h-5 text-orange-500" />
+              <ChefHat className="w-6 h-6 text-orange-500" />
               ออร์เดอร์ที่กำลังทำ
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-5 h-5 text-blue-500" />
+              <CheckCircle2 className="w-6 h-6 text-blue-500" />
               เสร็จแล้ว (เสริฟ์นำไปแล้ว)
             </>
           )}
         </h2>
-        <span className="text-xs text-stone-500">
+        <span className="text-base font-bold text-stone-600 bg-stone-100 px-3 py-1.5 rounded-full">
           {orders.length} ออร์เดอร์
         </span>
       </div>
@@ -200,13 +200,13 @@ function OrderCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`bg-white rounded-2xl border-2 overflow-hidden shadow-sm ${
-        mode === "done" ? "border-blue-200" : isOld ? "border-red-300" : "border-stone-200"
+      className={`bg-white rounded-2xl border-2 overflow-hidden shadow-md ${
+        mode === "done" ? "border-blue-200" : isOld ? "border-red-400" : "border-stone-200"
       }`}
     >
       {/* Header: โต๊ะ + เวลา */}
       <div
-        className={`px-4 py-3 flex items-center justify-between ${
+        className={`px-4 py-3.5 flex items-center justify-between ${
           mode === "done"
             ? "bg-gradient-to-r from-blue-50 to-cyan-50"
             : isOld
@@ -215,7 +215,7 @@ function OrderCard({
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-stone-900 text-white flex items-center justify-center font-bold">
+          <div className="w-14 h-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center font-bold text-xl">
             {order.tables?.table_number ?? "?"}
           </div>
           <div>
@@ -223,7 +223,7 @@ function OrderCard({
               #{order.id.slice(0, 8)}
             </p>
             <p
-              className={`text-xs font-bold ${
+              className={`text-sm font-bold ${
                 isOld ? "text-red-600" : "text-stone-700"
               }`}
             >
@@ -232,10 +232,10 @@ function OrderCard({
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-stone-400">
+          <p className="text-xs text-stone-400">
             {formatDateTime(order.created_at)}
           </p>
-          <p className="text-xs text-stone-600 font-medium">
+          <p className="text-sm text-stone-700 font-bold">
             {doneItems}/{totalItems} เสร็จ
           </p>
         </div>
@@ -248,11 +248,11 @@ function OrderCard({
           return (
             <div
               key={item.id}
-              className="border border-stone-200 rounded-xl p-3"
+              className="border-2 border-stone-200 rounded-xl p-3.5"
             >
               {/* Item name + qty */}
               <div className="flex items-start justify-between gap-2 mb-2">
-                <p className="font-bold text-stone-800 text-base flex-1">
+                <p className="font-bold text-stone-800 text-lg flex-1">
                   <span className="text-orange-600">{item.quantity}×</span>{" "}
                   {item.menu_items?.name}
                 </p>
@@ -261,36 +261,36 @@ function OrderCard({
 
               {/* Note */}
               {item.note && (
-                <p className="text-xs bg-amber-50 text-amber-800 p-2 rounded-lg mb-2">
+                <p className="text-sm bg-amber-50 text-amber-800 p-2.5 rounded-lg mb-2.5">
                   💬 {item.note}
                 </p>
               )}
 
               {/* Action buttons - ครัวกดได้แค่ 2 ปุ่ม */}
               {mode === "active" && (
-                <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <div className="grid grid-cols-2 gap-2 mt-3">
                   <button
                     onClick={() => onUpdateItem(item.id, "preparing")}
                     disabled={item.status === "preparing"}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    className={`py-3.5 px-3 rounded-xl text-base font-bold flex items-center justify-center gap-1.5 transition active:scale-95 ${
                       item.status === "preparing"
                         ? "bg-amber-500 text-white shadow-md"
-                        : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                        : "bg-amber-50 text-amber-700 hover:bg-amber-100 border-2 border-amber-200"
                     }`}
                   >
-                    <ChefHat size={12} />
+                    <ChefHat size={16} />
                     กำลังทำ
                   </button>
                   <button
                     onClick={() => onUpdateItem(item.id, "ready")}
                     disabled={item.status === "ready"}
-                    className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    className={`py-3.5 px-3 rounded-xl text-base font-bold flex items-center justify-center gap-1.5 transition active:scale-95 ${
                       item.status === "ready"
                         ? "bg-green-500 text-white shadow-md"
-                        : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                        : "bg-green-50 text-green-700 hover:bg-green-100 border-2 border-green-200"
                     }`}
                   >
-                    <Check size={12} />
+                    <Check size={16} />
                     รอเสริฟ
                   </button>
                 </div>
@@ -325,9 +325,9 @@ function StatusBadge({ status }: { status: "new" | "doing" | "ready" }) {
   const Icon = s.icon;
   return (
     <span
-      className={`text-[10px] font-bold px-2 py-1 rounded-full border flex items-center gap-1 ${s.className}`}
+      className={`text-sm font-bold px-3 py-1.5 rounded-full border-2 flex items-center gap-1 ${s.className}`}
     >
-      <Icon size={10} />
+      <Icon size={12} />
       {s.label}
     </span>
   );

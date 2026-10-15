@@ -91,7 +91,7 @@ function KitchenContent() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/login");
+              router.push("/");
             }}
             className={cn(
               "rounded-lg font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 flex items-center gap-1.5 shrink-0 transition-all duration-300",

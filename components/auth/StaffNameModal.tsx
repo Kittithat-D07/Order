@@ -24,7 +24,7 @@ export function StaffNameModal() {
       setName(stored);
     }
     // เปิด modal เฉพาะ staff (มี session แต่ยังไม่มีชื่อ หรือชื่อเป็น default)
-    if (session && (!stored || stored === session.displayName === false)) {
+    if (session) {
       // เช็คว่าชื่อ default ไหม
       const isDefault = ["พนักงานครัว", "พนักงานเสิร์ฟ", "ผู้จัดการ"].includes(session.displayName);
       if (!stored || isDefault) {

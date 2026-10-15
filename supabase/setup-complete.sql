@@ -1,0 +1,552 @@
+-- =====================================================
+-- 🍜 Restaurant QR Order - Complete Setup (รันครั้งเดียวจบ)
+-- =====================================================
+-- วิธีใช้:
+-- 1. ไปที่ https://supabase.com/dashboard/project/tkmxgyvabxwofhkxzrxa/sql
+-- 2. New query
+-- 3. Copy ทั้งหมดนี้ไปวาง → Run
+-- 4. รอ ~10 วินาที → เสร็จ!
+-- =====================================================
+
+-- =====================================================
+-- PART 1: Extensions
+-- =====================================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- =====================================================
+-- PART 2: Core Tables
+-- =====================================================
+
+-- TABLES (โต๊ะในร้าน)
+CREATE TABLE IF NOT EXISTS public.tables (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  table_number TEXT NOT NULL UNIQUE,
+  qr_token TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tables_qr_token ON public.tables(qr_token);
+
+-- MENU CATEGORIES (หมวดเมนู)
+CREATE TABLE IF NOT EXISTS public.menu_categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- MENU ITEMS (รายการอาหาร)
+CREATE TABLE IF NOT EXISTS public.menu_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  category_id UUID NOT NULL REFERENCES public.menu_categories(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC(10, 2) NOT NULL,
+  image_url TEXT,
+  is_available BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category_id);
+
+-- ORDERS (ออร์เดอร์)
+CREATE TABLE IF NOT EXISTS public.orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  table_id UUID NOT NULL REFERENCES public.tables(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'preparing', 'served', 'cancelled')),
+  total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_table ON public.orders(table_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
+
+-- ORDER ITEMS (รายการย่อยในออร์เดอร์)
+CREATE TABLE IF NOT EXISTS public.order_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  menu_item_id UUID NOT NULL REFERENCES public.menu_items(id),
+  quantity INT NOT NULL CHECK (quantity > 0),
+  unit_price NUMERIC(10, 2) NOT NULL,
+  note TEXT,
+  subtotal NUMERIC(10, 2) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
+
+-- =====================================================
+-- PART 3: Staff PINs
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.staff_pins (
+  role TEXT PRIMARY KEY CHECK (role IN ('kitchen', 'server', 'admin')),
+  pin TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO public.staff_pins (role, pin, display_name) VALUES
+  ('kitchen', '1234', '👨‍🍳 ครัว'),
+  ('server', '5678', '🍽️ เสริฟ์'),
+  ('admin', '0000', '⚙️ ผู้จัดการ')
+ON CONFLICT (role) DO UPDATE
+  SET pin = EXCLUDED.pin, display_name = EXCLUDED.display_name, updated_at = NOW();
+
+-- =====================================================
+-- PART 4: Migration 002 - Server Name
+-- =====================================================
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS server_name TEXT;
+
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_orders_server ON public.orders(server_name);
+
+-- =====================================================
+-- PART 5: Migration 003 - Item Status
+-- =====================================================
+ALTER TABLE public.order_items
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
+  CHECK (status IN ('pending', 'preparing', 'ready', 'served', 'cancelled'));
+
+ALTER TABLE public.order_items
+ADD COLUMN IF NOT EXISTS served_by TEXT;
+
+ALTER TABLE public.order_items
+ADD COLUMN IF NOT EXISTS served_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_order_items_status ON public.order_items(status);
+
+-- =====================================================
+-- PART 6: Migration 004 - Table Session + paid_at
+-- =====================================================
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS session_number INT NOT NULL DEFAULT 1;
+
+CREATE INDEX IF NOT EXISTS idx_orders_paid_at ON public.orders(paid_at);
+CREATE INDEX IF NOT EXISTS idx_orders_table_session ON public.orders(table_id, session_number);
+
+-- =====================================================
+-- PART 7: Migration 005 - Bills
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.bills (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE UNIQUE,
+  bill_number TEXT NOT NULL UNIQUE,
+  total_amount NUMERIC(10, 2) NOT NULL,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  printed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bills_order ON public.bills(order_id);
+CREATE INDEX IF NOT EXISTS idx_bills_number ON public.bills(bill_number);
+
+-- =====================================================
+-- PART 8: Migration 005b - Unavailable reason
+-- =====================================================
+ALTER TABLE public.menu_items
+  ADD COLUMN IF NOT EXISTS unavailable_reason TEXT DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS marked_unavailable_at TIMESTAMPTZ DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS marked_unavailable_by TEXT DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_menu_items_unavailable
+  ON public.menu_items(is_available, unavailable_reason)
+  WHERE is_available = false;
+
+-- =====================================================
+-- PART 9: Migration 006 - Audit Log
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.menu_item_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  menu_item_id UUID REFERENCES public.menu_items(id) ON DELETE SET NULL,
+  menu_item_name TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'deleted', 'toggled_stock')),
+  changes JSONB DEFAULT '{}'::jsonb,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_menu_history_created
+  ON public.menu_item_history(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_menu_history_item
+  ON public.menu_item_history(menu_item_id);
+
+-- Audit trigger function
+CREATE OR REPLACE FUNCTION public.log_menu_item_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_actor_role TEXT;
+  v_actor_name TEXT;
+  v_changes JSONB;
+BEGIN
+  v_actor_role := COALESCE(current_setting('app.actor_role', true), 'system');
+  v_actor_name := COALESCE(current_setting('app.actor_name', true), 'system');
+
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO public.menu_item_history
+      (menu_item_id, menu_item_name, action, changes, actor_role, actor_name)
+    VALUES
+      (NEW.id, NEW.name, 'created',
+       jsonb_build_object('name', NEW.name, 'price', NEW.price, 'category_id', NEW.category_id, 'is_available', NEW.is_available),
+       v_actor_role, v_actor_name);
+    RETURN NEW;
+
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_changes := jsonb_build_object(
+      'before', jsonb_build_object(
+        'name', OLD.name, 'price', OLD.price, 'is_available', OLD.is_available,
+        'description', OLD.description, 'image_url', OLD.image_url, 'category_id', OLD.category_id
+      ),
+      'after', jsonb_build_object(
+        'name', NEW.name, 'price', NEW.price, 'is_available', NEW.is_available,
+        'description', NEW.description, 'image_url', NEW.image_url, 'category_id', NEW.category_id
+      )
+    );
+
+    IF OLD.name = NEW.name
+       AND OLD.price = NEW.price
+       AND COALESCE(OLD.description,'') = COALESCE(NEW.description,'')
+       AND COALESCE(OLD.image_url,'') = COALESCE(NEW.image_url,'')
+       AND OLD.category_id = NEW.category_id
+       AND OLD.is_available IS DISTINCT FROM NEW.is_available
+    THEN
+      INSERT INTO public.menu_item_history
+        (menu_item_id, menu_item_name, action, changes, actor_role, actor_name)
+      VALUES
+        (NEW.id, NEW.name, 'toggled_stock', v_changes, v_actor_role, v_actor_name);
+    ELSE
+      INSERT INTO public.menu_item_history
+        (menu_item_id, menu_item_name, action, changes, actor_role, actor_name)
+      VALUES
+        (NEW.id, NEW.name, 'updated', v_changes, v_actor_role, v_actor_name);
+    END IF;
+    RETURN NEW;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    INSERT INTO public.menu_item_history
+      (menu_item_id, menu_item_name, action, changes, actor_role, actor_name)
+    VALUES
+      (OLD.id, OLD.name, 'deleted',
+       jsonb_build_object('name', OLD.name, 'price', OLD.price),
+       v_actor_role, v_actor_name);
+    RETURN OLD;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_menu_item_history ON public.menu_items;
+CREATE TRIGGER trg_menu_item_history
+AFTER INSERT OR UPDATE OR DELETE ON public.menu_items
+FOR EACH ROW EXECUTE FUNCTION public.log_menu_item_change();
+
+-- Actor context RPC
+CREATE OR REPLACE FUNCTION public.set_actor_context(actor_role TEXT, actor_name TEXT)
+RETURNS VOID AS $$
+BEGIN
+  PERFORM set_config('app.actor_role', actor_role, true);
+  PERFORM set_config('app.actor_name', actor_name, true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- PART 10: Migration 006b - Auto-sync order status
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.calculate_order_status(p_order_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+  v_total INT;
+  v_active INT;
+BEGIN
+  SELECT
+    COUNT(*),
+    COUNT(*) FILTER (WHERE status IN ('pending', 'preparing', 'ready'))
+  INTO v_total, v_active
+  FROM public.order_items
+  WHERE order_id = p_order_id;
+
+  IF v_total > 0 AND v_active = 0 THEN
+    RETURN 'served';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.order_items
+    WHERE order_id = p_order_id
+    AND status IN ('preparing', 'ready', 'served')
+  ) THEN
+    RETURN 'preparing';
+  END IF;
+
+  RETURN 'pending';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.sync_order_status()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_order_id UUID;
+  v_new_status TEXT;
+  v_old_status TEXT;
+BEGIN
+  v_order_id := COALESCE(NEW.order_id, OLD.order_id);
+  v_new_status := public.calculate_order_status(v_order_id);
+  SELECT status INTO v_old_status FROM public.orders WHERE id = v_order_id;
+
+  IF v_old_status IS DISTINCT FROM v_new_status THEN
+    UPDATE public.orders
+    SET status = v_new_status, updated_at = NOW()
+    WHERE id = v_order_id;
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_order_status ON public.order_items;
+CREATE TRIGGER trg_sync_order_status
+  AFTER INSERT OR UPDATE OR DELETE ON public.order_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_order_status();
+
+-- =====================================================
+-- PART 11: Triggers
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_orders_updated_at ON public.orders;
+CREATE TRIGGER trg_orders_updated_at
+  BEFORE UPDATE ON public.orders
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
+-- Bill number generator
+CREATE OR REPLACE FUNCTION public.generate_bill_number()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.bill_number = 'B' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' ||
+    LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_generate_bill_number ON public.bills;
+CREATE TRIGGER trg_generate_bill_number
+  BEFORE INSERT ON public.bills
+  FOR EACH ROW
+  WHEN (NEW.bill_number IS NULL OR NEW.bill_number = '')
+  EXECUTE FUNCTION public.generate_bill_number();
+
+-- Bill total auto-fill
+CREATE OR REPLACE FUNCTION public.set_bill_total()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.total_amount IS NULL OR NEW.total_amount = 0 THEN
+    SELECT total_amount INTO NEW.total_amount
+    FROM public.orders
+    WHERE id = NEW.order_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_set_bill_total ON public.bills;
+CREATE TRIGGER trg_set_bill_total
+  BEFORE INSERT ON public.bills
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_bill_total();
+
+-- =====================================================
+-- PART 12: Realtime
+-- =====================================================
+DO $$
+BEGIN
+  -- orders
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+
+  -- order_items
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'order_items'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
+  END IF;
+
+  -- menu_items
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'menu_items'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_items;
+  END IF;
+
+  -- bills
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'bills'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.bills;
+  END IF;
+
+  -- menu_item_history
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'menu_item_history'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.menu_item_history;
+  END IF;
+END $$;
+
+-- =====================================================
+-- PART 13: RLS Policies (เปิดให้ทุกคนเข้าถึงได้ - MVP)
+-- =====================================================
+ALTER TABLE public.tables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menu_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.staff_pins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menu_item_history ENABLE ROW LEVEL SECURITY;
+
+-- Drop all existing policies
+DROP POLICY IF EXISTS "Allow public read tables" ON public.tables;
+DROP POLICY IF EXISTS "Allow public write tables" ON public.tables;
+DROP POLICY IF EXISTS "Allow public read menu_categories" ON public.menu_categories;
+DROP POLICY IF EXISTS "Allow public write menu_categories" ON public.menu_categories;
+DROP POLICY IF EXISTS "Allow public read menu_items" ON public.menu_items;
+DROP POLICY IF EXISTS "Allow public write menu_items" ON public.menu_items;
+DROP POLICY IF EXISTS "Allow public read orders" ON public.orders;
+DROP POLICY IF EXISTS "Allow public write orders" ON public.orders;
+DROP POLICY IF EXISTS "Allow public read order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Allow public write order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Allow public read bills" ON public.bills;
+DROP POLICY IF EXISTS "Allow public write bills" ON public.bills;
+DROP POLICY IF EXISTS "Staff pins readable by all" ON public.staff_pins;
+DROP POLICY IF EXISTS "Staff pins updatable" ON public.staff_pins;
+DROP POLICY IF EXISTS "Allow read menu_item_history" ON public.menu_item_history;
+DROP POLICY IF EXISTS "Allow insert menu_item_history" ON public.menu_item_history;
+
+-- Recreate policies
+CREATE POLICY "Allow public read tables" ON public.tables FOR SELECT USING (true);
+CREATE POLICY "Allow public read menu_categories" ON public.menu_categories FOR SELECT USING (true);
+CREATE POLICY "Allow public read menu_items" ON public.menu_items FOR SELECT USING (true);
+CREATE POLICY "Allow public read orders" ON public.orders FOR SELECT USING (true);
+CREATE POLICY "Allow public read order_items" ON public.order_items FOR SELECT USING (true);
+CREATE POLICY "Allow public read bills" ON public.bills FOR SELECT USING (true);
+
+CREATE POLICY "Allow public write tables" ON public.tables FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write menu_categories" ON public.menu_categories FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write menu_items" ON public.menu_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write order_items" ON public.order_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public write bills" ON public.bills FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Staff pins readable by all" ON public.staff_pins FOR SELECT USING (true);
+CREATE POLICY "Staff pins updatable" ON public.staff_pins FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow read menu_item_history" ON public.menu_item_history FOR SELECT USING (true);
+CREATE POLICY "Allow insert menu_item_history" ON public.menu_item_history FOR INSERT WITH CHECK (true);
+
+-- =====================================================
+-- PART 14: SEED DATA (ข้อมูลตัวอย่าง)
+-- =====================================================
+
+-- หมวดเมนู
+INSERT INTO public.menu_categories (name, display_order) VALUES
+  ('อาหารจานเดียว', 1),
+  ('ก๋วยเตี๋ยว', 2),
+  ('เครื่องดื่ม', 3),
+  ('ของหวาน', 4)
+ON CONFLICT DO NOTHING;
+
+-- เมนู
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ผัดกะเพราหมูสับไข่ดาว', 'ผัดกะเพราหมูสับ เสิร์ฟพร้อมไข่ดาวและข้าวสวยร้อนๆ', 75.00, NULL, 1
+FROM public.menu_categories WHERE name = 'อาหารจานเดียว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ข้าวผัดอเมริกัน', 'ข้าวผัดใส่ไส้กรอก แฮม ไข่ และผักรวม', 80.00, NULL, 2
+FROM public.menu_categories WHERE name = 'อาหารจานเดียว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ข้าวมันไก่', 'ข้าวมันไก่ต้ม เสิร์ฟพร้อมน้ำจิ้ม', 90.00, NULL, 3
+FROM public.menu_categories WHERE name = 'อาหารจานเดียว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ก๋วยเตี๋ยวเรือ', 'ก๋วยเตี๋ยวเรือน้ำใส หมูสับ ลูกชิ้นปลา', 60.00, NULL, 1
+FROM public.menu_categories WHERE name = 'ก๋วยเตี๋ยว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ก๋วยเตี๋ยวต้มยำ', 'ก๋วยเตี๋ยวต้มยำรสจัดจ้าน เลือกเส้นได้', 70.00, NULL, 2
+FROM public.menu_categories WHERE name = 'ก๋วยเตี๋ยว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ก๋วยเตี๋ยวเย็นตาโฟ', 'ก๋วยเตี๋ยวเย็นตาโฟน้ำข้น ใส่ผักบุ้ง ลูกชิ้น', 65.00, NULL, 3
+FROM public.menu_categories WHERE name = 'ก๋วยเตี๋ยว';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ชาเย็น', 'ชาไทยเย็น หวานกลางๆ', 35.00, NULL, 1
+FROM public.menu_categories WHERE name = 'เครื่องดื่ม';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'กาแฟเย็น', 'กาแฟสดชงเย็น', 45.00, NULL, 2
+FROM public.menu_categories WHERE name = 'เครื่องดื่ม';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'น้ำมะนาว', 'น้ำมะนาวสด ไม่ใส่น้ำตาล', 30.00, NULL, 3
+FROM public.menu_categories WHERE name = 'เครื่องดื่ม';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'โค้ก', 'โคคา-โคลา 325ml', 25.00, NULL, 4
+FROM public.menu_categories WHERE name = 'เครื่องดื่ม';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'บัวลอย', 'บัวลอยน้ำกะทิ ท็อปด้วยไข่หอย', 40.00, NULL, 1
+FROM public.menu_categories WHERE name = 'ของหวาน';
+
+INSERT INTO public.menu_items (category_id, name, description, price, image_url, display_order)
+SELECT id, 'ทับทิมกรอบ', 'ทับทิมกรอบน้ำกะทิ มะพร้าวอ่อน', 45.00, NULL, 2
+FROM public.menu_categories WHERE name = 'ของหวาน';
+
+-- โต๊ะ
+INSERT INTO public.tables (table_number, qr_token) VALUES
+  ('T01', 't01-demo-aaaa'),
+  ('T02', 't02-demo-bbbb'),
+  ('T03', 't03-demo-cccc'),
+  ('T04', 't04-demo-dddd'),
+  ('T05', 't05-demo-eeee'),
+  ('T06', 't06-demo-ffff')
+ON CONFLICT DO NOTHING;
+
+-- =====================================================
+-- เสร็จแล้ว! ✅
+-- =====================================================
+-- ทดสอบได้ที่:
+-- 1. เปิดแอป: http://localhost:3000
+-- 2. คลิกเข้าหน้า "ผู้จัดการ" → ใส่ PIN: 0000
+-- 3. คลิก "จัดการโต๊ะ" → ดู QR Code
+-- 4. สแกน QR → เข้าหน้าเมนูลูกค้า
+-- =====================================================

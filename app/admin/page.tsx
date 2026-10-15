@@ -95,7 +95,7 @@ function AdminContent() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/login");
+              router.push("/");
             }}
             className={cn(
               "rounded-lg font-medium text-white bg-white/20 hover:bg-white/30 active:bg-white/40 transition-all flex items-center gap-1.5 shrink-0 border border-white/30",

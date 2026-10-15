@@ -64,7 +64,7 @@ function KitchenDoneContent() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               logout();
-              router.push("/login");
+              router.push("/");
             }}
             className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 flex items-center gap-1.5 shrink-0"
           >

@@ -40,6 +40,14 @@ interface Toast {
 }
 
 export default function AdminTablesPage() {
+  return (
+    <RoleGuard allowedRoles={["admin"]} pageName="จัดการโต๊ะ">
+      <AdminTablesContent />
+    </RoleGuard>
+  );
+}
+
+function AdminTablesContent() {
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTableNumber, setNewTableNumber] = useState("");

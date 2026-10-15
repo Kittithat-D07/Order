@@ -24,16 +24,28 @@ export function useStaffSession() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as StaffSession;
-        setSessionState(parsed);
-        // sync actor ให้ supabase รู้ (ใช้กับ audit log trigger)
-        setActorContext(parsed);
-      } catch {}
-    }
+    const syncSession = () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored) as StaffSession;
+          setSessionState(parsed);
+        } catch {
+          setSessionState(null);
+        }
+      } else {
+        setSessionState(null);
+      }
+    };
+    syncSession();
     setHydrated(true);
+
+    // Listen for changes from other tabs / same tab
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) syncSession();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   // ตั้งค่า actor context ใน Supabase (สำหรับ audit log trigger)

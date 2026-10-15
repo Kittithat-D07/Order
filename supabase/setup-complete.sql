@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS public.staff_pins (
 );
 
 INSERT INTO public.staff_pins (role, pin, display_name) VALUES
-  ('kitchen', '1234', '👨‍🍳 ครัว'),
-  ('server', '5678', '🍽️ เสริฟ์'),
-  ('admin', '0000', '⚙️ ผู้จัดการ')
+  ('kitchen', '123456', '👨‍🍳 ครัว'),
+  ('server', '567890', '🍽️ เสริฟ์'),
+  ('admin', '000000', '⚙️ ผู้จัดการ')
 ON CONFLICT (role) DO UPDATE
   SET pin = EXCLUDED.pin, display_name = EXCLUDED.display_name, updated_at = NOW();
 
@@ -133,6 +133,11 @@ ADD COLUMN IF NOT EXISTS session_number INT NOT NULL DEFAULT 1;
 
 CREATE INDEX IF NOT EXISTS idx_orders_paid_at ON public.orders(paid_at);
 CREATE INDEX IF NOT EXISTS idx_orders_table_session ON public.orders(table_id, session_number);
+
+-- =====================================================
+-- PART 0: Cleanup conflicting tables (ลบตาราง bills เก่าที่ schema ผิด)
+-- =====================================================
+DROP TABLE IF EXISTS public.bills CASCADE;
 
 -- =====================================================
 -- PART 7: Migration 005 - Bills
@@ -448,6 +453,10 @@ DROP POLICY IF EXISTS "Staff pins readable by all" ON public.staff_pins;
 DROP POLICY IF EXISTS "Staff pins updatable" ON public.staff_pins;
 DROP POLICY IF EXISTS "Allow read menu_item_history" ON public.menu_item_history;
 DROP POLICY IF EXISTS "Allow insert menu_item_history" ON public.menu_item_history;
+-- ลบ trigger bills เก่าก่อน
+DROP TRIGGER IF EXISTS trg_generate_bill_number ON public.bills;
+DROP TRIGGER IF EXISTS trg_set_bill_total ON public.bills;
+DROP TRIGGER IF EXISTS trg_sync_order_status ON public.order_items;
 
 -- Recreate policies
 CREATE POLICY "Allow public read tables" ON public.tables FOR SELECT USING (true);

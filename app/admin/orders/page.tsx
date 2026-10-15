@@ -33,6 +33,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminOrdersPage() {
+  return (
+    <RoleGuard allowedRoles={["admin"]} pageName="ประวัติออร์เดอร์">
+      <AdminOrdersContent />
+    </RoleGuard>
+  );
+}
+
+function AdminOrdersContent() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -26,6 +26,10 @@ export interface MenuItem {
   is_available: boolean;
   display_order: number;
   created_at: string;
+  // migration 005
+  unavailable_reason: string | null;
+  marked_unavailable_at: string | null;
+  marked_unavailable_by: string | null;
 }
 
 export interface Order {

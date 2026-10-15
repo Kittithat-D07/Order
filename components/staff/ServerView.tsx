@@ -28,6 +28,9 @@ export function ServerView() {
 
   useEffect(() => {
     setServerName(session?.displayName ?? "");
+  }, [session]);
+
+  useEffect(() => {
     loadOrders();
     loadBills();
 
@@ -69,7 +72,7 @@ export function ServerView() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session]);
+  }, []);
 
   // Auto-refresh ทุก 3s เป็น fallback (responsive ขึ้น)
   useEffect(() => {

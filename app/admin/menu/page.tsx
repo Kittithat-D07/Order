@@ -31,6 +31,14 @@ import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 
 export default function AdminMenuPage() {
+  return (
+    <RoleGuard allowedRoles={["admin"]} pageName="จัดการเมนู">
+      <AdminMenuContent />
+    </RoleGuard>
+  );
+}
+
+function AdminMenuContent() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);

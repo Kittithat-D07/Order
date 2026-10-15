@@ -379,7 +379,7 @@ function OverviewTab({
           <p className="text-xs text-green-600 font-medium">฿{stats.weekRevenue.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl border border-stone-200 p-3 text-center">
-          <p className="text[10px] text-stone-500 mb-1">เดือนนี้</p>
+          <p className="text-[10px] text-stone-500 mb-1">เดือนนี้</p>
           <p className="font-bold text-lg text-stone-800">{stats.monthOrders} ออร์เดอร์</p>
           <p className="text-xs text-green-600 font-medium">฿{stats.monthRevenue.toLocaleString()}</p>
         </div>

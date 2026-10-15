@@ -25,22 +25,28 @@ import {
 } from "lucide-react";
 
 /* ============================================================
-   🎨 Aura Bistro — Modern Warm Minimalist Design System
+   🍜 Aura Bistro — Warm Thai Restaurant Design System
    Palette:
-   - Cream:      #FAF6F0
-   - Off-white:  #FFFCF7
-   - Beige:      #E8DDD0
-   - Terracotta: #E85A35
-   - Charcoal:   #1C1917
+    - Primary:   #E85A35 (Terracotta)
+    - Secondary: #F59E0B (Amber)
+    - Background:#FAF8F5 (Warm Cream)
+    - Surface:   #FFFFFF
 ============================================================ */
 
 const COLORS = {
-  cream: "#FAF6F0",
-  offwhite: "#FFFCF7",
-  beige: "#E8DDD0",
-  terracotta: "#E85A35",
-  terracottaDark: "#C8431F",
-  charcoal: "#1C1917",
+  primary: "#E85A35",
+  primaryDark: "#C8431F",
+  primaryLight: "#FFF0ED",
+  secondary: "#F59E0B",
+  secondaryLight: "#FEF3C7",
+  bg: "#FAF8F5",
+  surface: "#FFFFFF",
+  surface2: "#F5F3F0",
+  border: "#E8E4DF",
+  text: "#1C1917",
+  textMuted: "#78716C",
+  success: "#16A34A",
+  danger: "#DC2626",
 };
 
 export default function MenuPage() {
@@ -54,20 +60,26 @@ export default function MenuPage() {
 function LoadingScreen() {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center gap-3"
-      style={{ background: COLORS.cream }}
+      className="min-h-screen flex flex-col items-center justify-center gap-4"
+      style={{ background: COLORS.bg }}
     >
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl"
-        style={{ background: COLORS.terracotta }}
+        className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-xl"
+        style={{ 
+          background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+          boxShadow: `0 20px 40px -8px rgba(232, 90, 53, 0.4)`
+        }}
       >
-        <ChefHat className="text-white" size={28} />
+        <ChefHat className="text-white" size={32} />
       </motion.div>
-      <p className="text-sm text-stone-600 font-medium" style={{ fontFamily: "'Prompt', sans-serif" }}>
-        กำลังโหลดเมนู...
-      </p>
+      <div className="text-center">
+        <p className="text-lg font-semibold text-stone-800" style={{ fontFamily: "'Prompt', sans-serif" }}>
+          กำลังโหลดเมนู...
+        </p>
+        <p className="text-sm text-stone-500 mt-1">เตรียมความอร่อยให้คุณ</p>
+      </div>
     </div>
   );
 }
@@ -293,91 +305,109 @@ function MenuContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center p-6"
-        style={{ background: COLORS.cream }}
+        style={{ background: COLORS.bg }}
       >
-        <div className="max-w-sm text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-sm text-center p-8 bg-white rounded-3xl shadow-lg border border-stone-100"
+        >
           <div
-            className="w-20 h-20 mx-auto mb-4 rounded-3xl flex items-center justify-center shadow-xl"
-            style={{ background: COLORS.terracotta }}
+            className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center shadow-lg"
+            style={{ 
+              background: `linear-gradient(135deg, ${COLORS.danger} 0%, #B91C1C 100%)`,
+              boxShadow: `0 12px 24px -4px rgba(220, 38, 38, 0.3)`
+            }}
           >
             <AlertCircle size={36} className="text-white" />
           </div>
-          <p className="text-stone-800 font-bold text-lg mb-2" style={{ fontFamily: "'Prompt', sans-serif" }}>
+          <p className="text-stone-800 font-bold text-xl mb-3" style={{ fontFamily: "'Prompt', sans-serif" }}>
             เกิดข้อผิดพลาด
           </p>
-          <p className="text-stone-600 text-sm">{error}</p>
-        </div>
+          <p className="text-stone-600 text-sm leading-relaxed">{error}</p>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => window.location.reload()}
+            className="mt-6 px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold shadow-lg"
+          >
+            ลองใหม่
+          </motion.button>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: COLORS.cream, fontFamily: "'Prompt', 'Sukhumvit Set', sans-serif" }}>
-      {/* Load Prompt font */}
-      <link
-        href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;700;900&display=swap"
-        rel="stylesheet"
-      />
-
+    <div className="min-h-screen pb-32" style={{ background: COLORS.bg }}>
       {/* ============ HERO BANNER ============ */}
-      <section className="relative h-[340px] overflow-hidden">
-        {/* Hero image - cozy bistro */}
+      <section
+        className="relative h-72 overflow-hidden"
+        style={{ background: COLORS.bg }}
+      >
+        {/* Hero Background - Cozy restaurant */}
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(28,25,23,0.55) 100%), url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1200&q=80')`,
+            backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(28,25,23,0.6) 100%), url('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1200&q=80')`,
           }}
         />
 
-        {/* Top status badges */}
+        {/* Top Status Bar */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="px-3 py-1.5 rounded-full bg-white/95 backdrop-blur text-[11px] font-semibold flex items-center gap-1.5 shadow-md"
+            className="px-4 py-2 rounded-full bg-white/95 backdrop-blur-md text-xs font-semibold flex items-center gap-2 shadow-lg"
           >
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span style={{ color: COLORS.charcoal }}>เปิดให้บริการ</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            <span style={{ color: COLORS.text }}>เปิดให้บริการ</span>
           </motion.div>
+          
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.9, rotate: 90 }}
             onClick={() => setCartOpen(true)}
-            className="relative w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md"
+            className="relative w-12 h-12 rounded-full bg-white/95 backdrop-blur-md flex items-center justify-center shadow-lg transition-transform hover:scale-105"
           >
-            <ShoppingBag size={18} style={{ color: COLORS.charcoal }} />
+            <ShoppingBag size={20} style={{ color: COLORS.text }} />
             {totalCount > 0 && (
-              <span
-                className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow-md"
-                style={{ background: COLORS.terracotta }}
+              <motion.span
+                key={totalCount}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1.5 -right-1.5 min-w-[22px] h-6 px-1.5 rounded-full text-white text-xs font-bold flex items-center justify-center shadow-lg"
+                style={{ 
+                  background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                  boxShadow: `0 4px 12px -2px rgba(232, 90, 53, 0.4)`
+                }}
               >
                 {totalCount}
-              </span>
+              </motion.span>
             )}
           </motion.button>
         </div>
 
-        {/* Hero content */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 z-10 text-white">
+        {/* Hero Content */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 z-10 text-white">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <p className="text-[11px] uppercase tracking-[0.2em] opacity-80 font-medium mb-1">
+            <p className="text-[10px] uppercase tracking-[0.25em] opacity-90 font-semibold mb-1">
               Welcome to
             </p>
             <h1
-              className="text-4xl font-bold leading-none mb-1"
+              className="text-4xl font-bold leading-none mb-2"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
               Aura Bistro
             </h1>
-            <p className="text-sm opacity-90 mb-3" style={{ fontFamily: "'Prompt', sans-serif" }}>
-              ออร่า บิสโทร • โต๊ะ {table?.table_number}
+            <p className="text-sm opacity-90 mb-4" style={{ fontFamily: "'Prompt', sans-serif" }}>
+              🍜 ออร่า บิสโทร • โต๊ะ {table?.table_number}
             </p>
           </motion.div>
 
-          {/* Quick info badges */}
+          {/* Quick Info Pills */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -399,9 +429,12 @@ function MenuContent() {
           animate={{ opacity: 1, y: 0 }}
           className="max-w-3xl mx-auto"
         >
-          <div className="relative bg-white rounded-2xl shadow-xl shadow-stone-900/5 border border-stone-100">
+          <div 
+            className="relative bg-white rounded-2xl shadow-xl border border-stone-100"
+            style={{ boxShadow: "0 8px 24px -4px rgba(0,0,0,0.08)" }}
+          >
             <Search
-              size={16}
+              size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
             />
             <input
@@ -409,16 +442,19 @@ function MenuContent() {
               placeholder="ค้นหาเมนูอร่อย..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3.5 bg-transparent outline-none text-sm rounded-2xl"
-              style={{ color: COLORS.charcoal }}
+              className="w-full pl-12 pr-4 py-4 bg-transparent outline-none text-base rounded-2xl"
+              style={{ color: COLORS.text }}
             />
             {searchQuery && (
-              <button
+              <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition-colors"
               >
                 <X size={14} />
-              </button>
+              </motion.button>
             )}
           </div>
         </motion.div>
@@ -426,9 +462,9 @@ function MenuContent() {
 
       {/* ============ HORIZONTAL CATEGORY PILLS ============ */}
       {categories.length > 0 && !searchQuery && (
-        <div className="sticky top-[72px] z-20 bg-white/80 backdrop-blur-md border-b border-stone-200/40 mt-4">
+        <div className="sticky top-[76px] z-20 bg-white/90 backdrop-blur-md border-b border-stone-200/40 mt-4">
           <div className="max-w-3xl mx-auto px-4 py-3 overflow-x-auto no-scrollbar">
-            <div className="flex gap-2.5">
+            <div className="flex gap-3">
               {categories.map((cat) => {
                 const itemCount = items.filter((i) => i.category_id === cat.id).length;
                 if (itemCount === 0) return null;
@@ -438,12 +474,15 @@ function MenuContent() {
                     key={cat.id}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleCategoryClick(cat.id)}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                       isActive
-                        ? "text-white shadow-md"
+                        ? "text-white shadow-lg"
                         : "bg-stone-100 text-stone-600 hover:bg-stone-200"
                     }`}
-                    style={isActive ? { background: COLORS.terracotta } : {}}
+                    style={isActive ? { 
+                      background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                      boxShadow: `0 4px 12px -2px rgba(232, 90, 53, 0.35)`
+                    } : {}}
                   >
                     <span className="text-base">
                       {getCategoryEmoji(cat.name)}
@@ -507,48 +546,49 @@ function MenuContent() {
       <AnimatePresence>
         {totalCount > 0 && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
+            initial={{ y: 120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
+            exit={{ y: 120, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-20 safe-bottom"
           >
-            <div className="max-w-3xl mx-auto p-3">
+            <div className="max-w-3xl mx-auto p-4">
               <motion.button
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ y: -2 }}
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setCartOpen(true)}
-                className="w-full rounded-2xl p-4 flex items-center justify-between shadow-2xl text-white"
+                className="w-full rounded-2xl p-5 flex items-center justify-between shadow-2xl text-white"
                 style={{
-                  background: `linear-gradient(135deg, ${COLORS.terracotta} 0%, ${COLORS.terracottaDark} 100%)`,
+                  background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                  boxShadow: `0 20px 40px -8px rgba(232, 90, 53, 0.4)`
                 }}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <ShoppingBag size={20} />
+                    <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <ShoppingBag size={24} />
                     </div>
                     <motion.span
                       key={totalCount}
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-white text-[10px] font-bold flex items-center justify-center shadow-md"
-                      style={{ color: COLORS.terracotta }}
+                      className="absolute -top-2 -right-2 min-w-[24px] h-6 px-2 rounded-full bg-white text-sm font-bold flex items-center justify-center shadow-lg"
+                      style={{ color: COLORS.primary }}
                     >
                       {totalCount}
                     </motion.span>
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] opacity-90">ตะกร้าของคุณ</p>
-                    <p className="text-base font-bold leading-tight">
-                      ฿{cartTotal.toFixed(0)} • {totalCount} รายการ
+                    <p className="text-xs opacity-90">ตะกร้าของคุณ</p>
+                    <p className="text-xl font-bold leading-tight">
+                      ฿{cartTotal.toLocaleString()} • {totalCount} รายการ
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">ดูตะกร้า</span>
+                <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm px-5 py-3 rounded-xl font-semibold">
+                  <span>ดูตะกร้า</span>
                   <motion.div
-                    animate={{ x: [0, 4, 0] }}
+                    animate={{ x: [0, 5, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
                   >
                     →
@@ -563,12 +603,28 @@ function MenuContent() {
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} onCheckout={handleCheckout} />
 
       {submitting && (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-6 flex items-center gap-3 shadow-xl">
-            <Loader2 className="animate-spin" size={20} style={{ color: COLORS.terracotta }} />
-            <span className="font-medium">กำลังสั่งอาหาร...</span>
-          </div>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 bg-stone-900/70 backdrop-blur-sm flex items-center justify-center"
+        >
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}
+            >
+              <ChefHat size={24} className="text-white" />
+            </motion.div>
+            <p className="text-lg font-semibold text-stone-800">กำลังสั่งอาหาร...</p>
+            <p className="text-sm text-stone-500">รอสักครู่นะคะ</p>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
@@ -589,8 +645,8 @@ function PillBadge({
 }) {
   return (
     <div
-      className={`px-2.5 py-1 rounded-full backdrop-blur-md text-[10px] font-semibold flex items-center gap-1 ${
-        highlight ? "bg-amber-400/90 text-stone-900" : "bg-white/20 text-white"
+      className={`px-3 py-1.5 rounded-full backdrop-blur-md text-xs font-semibold flex items-center gap-1.5 shadow-lg ${
+        highlight ? "bg-gradient-to-r from-amber-400 to-orange-400 text-white" : "bg-white/20 text-white"
       }`}
     >
       {icon}
@@ -612,25 +668,30 @@ function FeaturedSection({
 }) {
   return (
     <section className="mb-8">
-      <div className="flex items-end justify-between mb-4">
+      <div className="flex items-end justify-between mb-5">
         <div>
           <p
-            className="text-[10px] uppercase tracking-[0.2em] font-semibold"
-            style={{ color: COLORS.terracotta }}
+            className="text-xs font-bold tracking-wider uppercase mb-1"
+            style={{ color: COLORS.primary }}
           >
             ✨ Signature
           </p>
           <h2
             className="text-2xl font-bold leading-tight"
-            style={{ fontFamily: "'Playfair Display', serif", color: COLORS.charcoal }}
+            style={{ fontFamily: "'Playfair Display', serif", color: COLORS.text }}
           >
             เมนูซิกเนเจอร์
           </h2>
-          <p className="text-xs text-stone-500">Chef's Pick — คัดสรรโดยเชฟ</p>
+          <p className="text-sm text-stone-500 mt-1">Chef's Pick — คัดสรรโดยเชฟ</p>
         </div>
-        <Flame size={20} style={{ color: COLORS.terracotta }} />
+        <div 
+          className="w-12 h-12 rounded-2xl flex items-center justify-center"
+          style={{ background: COLORS.secondaryLight }}
+        >
+          <Flame size={24} style={{ color: COLORS.primary }} />
+        </div>
       </div>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
+      <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4">
         {items.map((item, idx) => (
           <FeaturedCard
             key={item.id}
@@ -659,61 +720,82 @@ function FeaturedCard({
   onFav: () => void;
   onAdd: () => void;
 }) {
+  const gradients = [
+    "linear-gradient(135deg, #FFECD2 0%, #FCB69F 100%)",
+    "linear-gradient(135deg, #FFE5B4 0%, #FFD093 100%)",
+    "linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%)",
+  ];
+  const gradient = gradients[idx % gradients.length];
+  
   return (
     <motion.div
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 0, x: 30 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: idx * 0.1 }}
-      whileHover={{ y: -4 }}
-      className="flex-shrink-0 w-64 bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100"
+      transition={{ delay: idx * 0.1, type: "spring", damping: 20, stiffness: 200 }}
+      whileHover={{ y: -6 }}
+      className="flex-shrink-0 w-64 bg-white rounded-2xl overflow-hidden shadow-md border border-stone-100"
+      style={{ boxShadow: "0 8px 24px -4px rgba(0,0,0,0.08)" }}
     >
-      <div className="relative h-40 overflow-hidden">
+      {/* Image */}
+      <div className="relative h-44 overflow-hidden">
         {item.image_url ? (
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
         ) : (
           <div
             className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, ${COLORS.beige} 0%, ${COLORS.cream} 100%)` }}
+            style={{ background: gradient }}
           >
-            <ChefHat size={36} className="text-stone-300" />
+            <span className="text-6xl">🍜</span>
           </div>
         )}
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-amber-400 text-stone-900 text-[9px] font-bold flex items-center gap-1">
-          <Sparkles size={8} /> CHEF'S PICK
+        
+        {/* Chef's Pick Badge */}
+        <div 
+          className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-white text-[10px] font-bold flex items-center gap-1.5 shadow-lg"
+          style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}
+        >
+          <Sparkles size={10} /> CHEF'S PICK
         </div>
-        <button
+        
+        {/* Favorite Button */}
+        <motion.button
+          whileTap={{ scale: 0.8 }}
           onClick={onFav}
-          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md"
+          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center shadow-lg"
         >
           <Heart
-            size={14}
-            className={isFav ? "fill-red-500 text-red-500" : "text-stone-500"}
+            size={16}
+            className={isFav ? "fill-red-500 text-red-500" : "text-stone-400"}
           />
-        </button>
+        </motion.button>
       </div>
-      <div className="p-3">
-        <h3 className="font-bold text-sm leading-tight line-clamp-2" style={{ color: COLORS.charcoal }}>
+      
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="font-bold text-base leading-tight line-clamp-2" style={{ color: COLORS.text }}>
           {item.name}
         </h3>
         {item.description && (
-          <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-1">{item.description}</p>
+          <p className="text-sm text-stone-500 mt-1 line-clamp-1">{item.description}</p>
         )}
-        <div className="flex items-center justify-between mt-2.5">
-          <div>
-            <p
-              className="text-lg font-bold leading-none"
-              style={{ color: COLORS.terracotta, fontFamily: "'Playfair Display', serif" }}
-            >
-              ฿{Number(item.price).toFixed(0)}
-            </p>
-          </div>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={onAdd}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md"
-            style={{ background: COLORS.terracotta }}
+        
+        <div className="flex items-center justify-between mt-3">
+          <p
+            className="text-xl font-bold"
+            style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}
           >
-            <Plus size={16} strokeWidth={2.5} />
+            ฿{Number(item.price).toLocaleString()}
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={onAdd}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg"
+            style={{ 
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+              boxShadow: `0 4px 12px -2px rgba(232, 90, 53, 0.4)`
+            }}
+          >
+            <Plus size={18} strokeWidth={2.5} />
           </motion.button>
         </div>
       </div>
@@ -741,21 +823,22 @@ function CategorySection({
   return (
     <motion.section
       ref={onMount}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: catIdx * 0.05 }}
+      transition={{ delay: catIdx * 0.05, type: "spring", damping: 20, stiffness: 200 }}
       className="mb-8"
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <h2
-          className="text-lg font-bold flex items-center gap-2"
-          style={{ color: COLORS.charcoal }}
+          className="text-lg font-bold flex items-center gap-2.5"
+          style={{ color: COLORS.text }}
         >
-          <span className="text-xl">{getCategoryEmoji(category.name)}</span>
+          <span className="text-2xl">{getCategoryEmoji(category.name)}</span>
           <span>{category.name}</span>
-          <span className="text-xs text-stone-400 font-normal">({items.length})</span>
+          <span className="text-sm text-stone-400 font-normal">({items.length})</span>
         </h2>
       </div>
+      
       <div className="space-y-3">
         {items.map((item, idx) => (
           <ListItem
@@ -785,29 +868,37 @@ function ListItem({
   onFav: () => void;
   onAdd: () => void;
 }) {
+  const gradients = [
+    "linear-gradient(135deg, #FFECD2 0%, #FCB69F 100%)",
+    "linear-gradient(135deg, #FFE5B4 0%, #FFD093 100%)",
+    "linear-gradient(135deg, #FFF0F5 0%, #FFE4E1 100%)",
+    "linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%)",
+  ];
+  const gradient = gradients[idx % gradients.length];
+  
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: idx * 0.04 }}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: idx * 0.04, type: "spring", damping: 20, stiffness: 200 }}
       whileHover={{ y: -2 }}
-      className="bg-white rounded-2xl p-3 flex gap-3 shadow-sm border border-stone-100 hover:shadow-md transition-shadow"
+      className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm border border-stone-100 hover:shadow-md transition-shadow"
     >
-      {/* Image */}
-      <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+      {/* Food Image */}
+      <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0">
         {item.image_url ? (
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
         ) : (
           <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: `linear-gradient(135deg, ${COLORS.beige} 0%, ${COLORS.cream} 100%)` }}
+            className="w-full h-full flex items-center justify-center text-3xl"
+            style={{ background: gradient }}
           >
-            <ChefHat size={26} className="text-stone-300" />
+            🍜
           </div>
         )}
         {(item as any).is_recommended && (
-          <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-stone-900 text-[8px] font-bold">
-            ⭐ แนะนำ
+          <div className="absolute top-1 left-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[8px] font-bold">
+            ⭐
           </div>
         )}
       </div>
@@ -815,32 +906,42 @@ function ListItem({
       {/* Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-sm leading-tight line-clamp-2" style={{ color: COLORS.charcoal }}>
+          <h3 className="font-bold text-base leading-tight line-clamp-2" style={{ color: COLORS.text }}>
             {item.name}
           </h3>
-          <button onClick={onFav} className="w-7 h-7 flex-shrink-0 flex items-center justify-center">
-            <Heart size={14} className={isFav ? "fill-red-500 text-red-500" : "text-stone-300"} />
-          </button>
+          <motion.button
+            whileTap={{ scale: 0.8 }}
+            onClick={onFav}
+            className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full hover:bg-stone-100 transition-colors"
+          >
+            <Heart size={16} className={isFav ? "fill-red-500 text-red-500" : "text-stone-300"} />
+          </motion.button>
         </div>
         {item.description && (
-          <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-stone-500 mt-1 line-clamp-2 leading-relaxed">
             {item.description}
           </p>
         )}
-        <div className="flex items-center justify-between mt-auto pt-1.5">
+        
+        <div className="flex items-center justify-between mt-auto pt-2">
           <p
-            className="text-base font-bold"
-            style={{ color: COLORS.terracotta, fontFamily: "'Playfair Display', serif" }}
+            className="text-lg font-bold"
+            style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}
           >
-            ฿{Number(item.price).toFixed(0)}
+            ฿{Number(item.price).toLocaleString()}
           </p>
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.85 }}
+            whileHover={{ scale: 1.05 }}
             onClick={onAdd}
-            className="px-3 py-1.5 rounded-full text-white text-xs font-bold flex items-center gap-1 shadow-md"
-            style={{ background: COLORS.terracotta }}
+            className="px-5 py-2 rounded-full text-white text-sm font-semibold shadow-lg flex items-center gap-1.5"
+            style={{ 
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+              boxShadow: `0 4px 12px -2px rgba(232, 90, 53, 0.35)`
+            }}
           >
-            <Plus size={12} strokeWidth={3} /> เพิ่ม
+            <Plus size={14} strokeWidth={3} />
+            เพิ่ม
           </motion.button>
         </div>
       </div>
@@ -869,19 +970,20 @@ function SearchResults({
         className="text-center py-20"
       >
         <div
-          className="w-16 h-16 mx-auto mb-3 rounded-2xl flex items-center justify-center"
-          style={{ background: COLORS.beige }}
+          className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center text-5xl"
+          style={{ background: COLORS.secondaryLight }}
         >
-          <Search size={26} className="text-stone-400" />
+          🔍
         </div>
-        <p className="text-stone-500 text-sm">ไม่พบเมนู "{query}"</p>
+        <p className="text-stone-500 text-lg font-medium">ไม่พบ "{query}"</p>
+        <p className="text-stone-400 text-sm mt-2">ลองค้นหาคำอื่น</p>
       </motion.div>
     );
   }
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-      <p className="text-sm text-stone-500 mb-3">
-        ผลลัพธ์สำหรับ "<span className="font-bold" style={{ color: COLORS.terracotta }}>{query}</span>" ({items.length} รายการ)
+      <p className="text-sm text-stone-500 mb-4">
+        ผลลัพธ์สำหรับ "<span className="font-bold" style={{ color: COLORS.primary }}>{query}</span>" ({items.length} รายการ)
       </p>
       <div className="space-y-3">
         {items.map((item, idx) => (

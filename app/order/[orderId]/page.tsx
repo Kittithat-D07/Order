@@ -253,16 +253,16 @@ export default function OrderStatusPage() {
   };
 
   // Function to setup realtime subscriptions
-  const setupRealtime = () => {
+  const setupRealtime = useCallback(() => {
     const supabase = createClient();
 
     // Clean up old channels
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
 
-    // Order updates
+    // Order updates (ใช้ orderId เป็น channel name ไม่ใส่ Date.now())
     const channel = supabase
-      .channel(`order-${orderId}-${Date.now()}`)
+      .channel(`order-${orderId}`)
       .on(
         "postgres_changes",
         {
@@ -309,7 +309,7 @@ export default function OrderStatusPage() {
 
     // Bill updates
     const billChannel = supabase
-      .channel(`order-bill-${orderId}-${Date.now()}`)
+      .channel(`order-bill-${orderId}`)
       .on(
         "postgres_changes",
         {
@@ -329,19 +329,23 @@ export default function OrderStatusPage() {
 
     channelRef.current = channel;
     billChannelRef.current = billChannel;
-  };
+  }, [orderId]);
 
   useEffect(() => {
     // Initial load
     const load = async () => {
       await fetchOrder(true);
       const supabase = createClient();
-      const { data: billData } = await supabase
-        .from("bills")
-        .select("*")
-        .eq("order_id", orderId)
-        .maybeSingle();
-      if (billData) setBill(billData as Bill);
+      try {
+        const { data: billData } = await supabase
+          .from("bills")
+          .select("*")
+          .eq("order_id", orderId)
+          .maybeSingle();
+        if (billData) setBill(billData as Bill);
+      } catch (e) {
+        console.warn("bills table not ready:", e);
+      }
       setLoading(false);
     };
 
@@ -379,7 +383,7 @@ export default function OrderStatusPage() {
       }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [orderId]);
+  }, [orderId, setupRealtime]);
 
   // ตรวจสอบว่าทุกรายการเสิร์ฟแล้วหรือยัง
   const allServed = order?.order_items?.every(
@@ -389,12 +393,18 @@ export default function OrderStatusPage() {
   const handleRequestBill = async () => {
     if (!order || bill) return;
     setRequestingBill(true);
-    const supabase = createClient();
-    await supabase.from("bills").insert({
-      order_id: order.id,
-      total_amount: order.total_amount,
-    });
-    setRequestingBill(false);
+    try {
+      const supabase = createClient();
+      await supabase.from("bills").insert({
+        order_id: order.id,
+        total_amount: order.total_amount,
+      });
+    } catch (e: any) {
+      console.error("Failed to create bill:", e);
+      alert("ไม่สามารถสร้างบิลได้: " + (e?.message ?? ""));
+    } finally {
+      setRequestingBill(false);
+    }
   };
 
   if (loading) {

@@ -31,7 +31,7 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [mode]);
 
   const loadOrders = async () => {
     const { data } = await supabase

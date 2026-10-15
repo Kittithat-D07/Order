@@ -18,18 +18,19 @@ export function StaffNameModal() {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !session) return;
     const stored = localStorage.getItem(NAME_KEY);
     if (stored) {
       setName(stored);
     }
-    // เปิด modal เฉพาะ staff (มี session แต่ยังไม่มีชื่อ หรือชื่อเป็น default)
-    if (session) {
-      // เช็คว่าชื่อ default ไหม
-      const isDefault = ["พนักงานครัว", "พนักงานเสิร์ฟ", "ผู้จัดการ"].includes(session.displayName);
-      if (!stored || isDefault) {
-        setOpen(true);
-      }
+    // เปิด modal เฉพาะเมื่อ:
+    // 1. session มี displayName เป็น default
+    // 2. และยังไม่มีชื่อใน localStorage
+    const isDefault = ["พนักงานครัว", "พนักงานเสิร์ฟ", "ผู้จัดการ"].includes(session.displayName);
+    if (isDefault && !stored) {
+      setOpen(true);
+    } else {
+      setOpen(false);
     }
   }, [hydrated, session]);
 

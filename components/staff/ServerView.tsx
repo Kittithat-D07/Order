@@ -74,8 +74,15 @@ export function ServerView() {
         () => { loadOrders(); }
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") setRealtimeStatus("online");
-        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("offline");
+        let st: "connecting" | "online" | "offline" = "connecting";
+        if (status === "SUBSCRIBED") st = "online";
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") st = "offline";
+        setRealtimeStatus(st);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("server-realtime-status", {
+            detail: { status: st, lastUpdate: new Date().toISOString() }
+          }));
+        }
       });
 
     return () => { supabase.removeChannel(channel); };
@@ -85,6 +92,15 @@ export function ServerView() {
     const interval = setInterval(() => { loadOrders(); loadBills(); }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Dispatch lastUpdate to header
+  useEffect(() => {
+    if (typeof window !== "undefined" && lastUpdate) {
+      window.dispatchEvent(new CustomEvent("server-realtime-status", {
+        detail: { status: realtimeStatus, lastUpdate: lastUpdate.toISOString() }
+      }));
+    }
+  }, [lastUpdate, realtimeStatus]);
 
   const loadOrders = async () => {
     const { data } = await supabase
@@ -169,31 +185,7 @@ export function ServerView() {
 
   return (
     <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
-      {/* Realtime status */}
-      <div className="mb-3 flex items-center justify-between text-xs">
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-          style={{ background: COLORS.surface, boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.1)", border: "1px solid rgba(232, 223, 208, 0.5)" }}
-        >
-          <span className={`relative flex w-2 h-2 rounded-full ${
-            realtimeStatus === "online" ? "bg-green-500" : realtimeStatus === "offline" ? "bg-red-500" : "bg-amber-500"
-          }`}>
-            {realtimeStatus === "online" && (
-              <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
-            )}
-          </span>
-          <span style={{ color: COLORS.textMuted }}>
-            {realtimeStatus === "online" && "🟢 Realtime เชื่อมต่ออยู่"}
-            {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ"}
-            {realtimeStatus === "connecting" && "🟡 กำลังเชื่อมต่อ..."}
-          </span>
-        </div>
-        {lastUpdate && (
-          <span className="text-xs" style={{ color: COLORS.textMuted }}>
-            อัปเดต {lastUpdate.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-          </span>
-        )}
-      </div>
+      {/* Realtime status now in sticky header */}
 
       {/* Name input */}
       <div

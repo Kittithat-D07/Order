@@ -5,54 +5,108 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { ServerView } from "@/components/staff/ServerView";
-import { LogOut, Utensils, Sparkles } from "lucide-react";
-import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
+import { LogOut, Utensils, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { StaffNameModal } from "@/components/auth/StaffNameModal";
 
+const SERVER_COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryDark: "#4A5942",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+};
+
 function ServerContent() {
   const router = useRouter();
   const { session, logout } = useStaffSession();
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "online" | "offline">("connecting");
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  // Listen for realtime status changes from ServerView via custom event
+  useEffect(() => {
+    const onStatus = (e: any) => {
+      setRealtimeStatus(e.detail.status);
+      if (e.detail.lastUpdate) setLastUpdate(new Date(e.detail.lastUpdate));
+    };
+    window.addEventListener("server-realtime-status", onStatus);
+    return () => window.removeEventListener("server-realtime-status", onStatus);
+  }, []);
+
+  // Default to online for SSR consistency, then update
+  useEffect(() => {
+    setRealtimeStatus("online");
+    setLastUpdate(new Date());
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 relative overflow-x-hidden">
-      <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-blue-300/30" />
-      <GradientBlob className="top-[40%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-cyan-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-sky-300/30" delay={4} />
-
-      <FloatingElement className="top-24 right-4 sm:right-12" delay={0}>
-        <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-blue-400/50" />
-      </FloatingElement>
-      <FloatingElement className="top-40 left-4 sm:left-12" delay={1}>
-        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400/50" />
-      </FloatingElement>
-
-      {/* Header (เสิร์ฟ) - ชิดบนสุด */}
-      <header
-        className="sticky top-0 z-30 bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
+    <div className="min-h-screen relative overflow-x-hidden" style={{ background: SERVER_COLORS.bg }}>
+      {/* Decorative leaves */}
+      <motion.div
+        animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="leaf-deco text-7xl pointer-events-none fixed"
+        style={{ top: "120px", right: "20px", color: SERVER_COLORS.secondary, opacity: 0.1, zIndex: 0 }}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
-          <BlurFade delay={0.1}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <motion.div
-                animate={{ y: [0, -3, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shadow-lg shrink-0"
+        🌿
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="leaf-deco text-6xl pointer-events-none fixed"
+        style={{ top: "400px", left: "15px", color: SERVER_COLORS.accent, opacity: 0.08, zIndex: 0 }}
+      >
+        🍃
+      </motion.div>
+
+      {/* Header - STICKY TOP-0 ALWAYS */}
+      <header
+        className="sticky top-0 z-50 text-white"
+        style={{
+          background: `linear-gradient(135deg, ${SERVER_COLORS.primary} 0%, ${SERVER_COLORS.accent} 100%)`,
+          boxShadow: "0 8px 24px -4px rgba(184, 92, 56, 0.3)"
+        }}
+      >
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-2.5 pb-2 flex items-center justify-between gap-2">
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-2.5 min-w-0"
+          >
+            <motion.div
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+              style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(10px)" }}
+            >
+              <Utensils size={18} className="text-white" />
+            </motion.div>
+            <div className="min-w-0 flex-1">
+              <h1
+                className="text-base font-bold flex items-center gap-2"
+                style={{ fontFamily: "'Playfair Display', serif" }}
               >
-                <Utensils size={20} strokeWidth={2.2} />
-              </motion.div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-base font-bold flex items-center gap-2">
-                  <span className="truncate">หน้าจอเสริฟ์</span>
-                  <PulseDot color="bg-white" />
-                </h1>
-                <p className="text-[10px] opacity-90 truncate">
-                  {session?.displayName}
-                </p>
-              </div>
+                <span className="truncate">หน้าจอเสริฟ์</span>
+                <motion.div
+                  animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-1.5 h-1.5 rounded-full bg-white shrink-0"
+                />
+              </h1>
+              <p className="text-[10px] opacity-90 truncate">
+                {session?.displayName}
+              </p>
             </div>
-          </BlurFade>
+          </motion.div>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -61,16 +115,49 @@ function ServerContent() {
               logout();
               router.push("/");
             }}
-            className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 flex items-center gap-1.5 shrink-0"
+            className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0"
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.2)"
+            }}
           >
-            <LogOut size={15} className="sm:hidden" />
-            <LogOut size={13} className="hidden sm:block" />
+            <LogOut size={13} />
             <span>ออก</span>
           </motion.button>
         </div>
+
+        {/* Realtime status - ALWAYS visible in header */}
+        <div
+          className="px-3 sm:px-4 pb-2 flex items-center justify-between text-[10px]"
+          style={{ background: "rgba(0,0,0,0.08)" }}
+        >
+          <div className="flex items-center gap-1.5 max-w-3xl mx-auto w-full">
+            <span className={`relative flex w-2 h-2 rounded-full shrink-0 ${
+              realtimeStatus === "online" ? "bg-green-400" : realtimeStatus === "offline" ? "bg-red-400" : "bg-amber-400"
+            }`}>
+              {realtimeStatus === "online" && (
+                <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75" />
+              )}
+            </span>
+            <span className="font-medium">
+              {realtimeStatus === "online" && "🟢 Realtime เชื่อมต่ออยู่"}
+              {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ"}
+              {realtimeStatus === "connecting" && "🟡 กำลังเชื่อมต่อ..."}
+            </span>
+            {lastUpdate && (
+              <>
+                <span className="opacity-50">•</span>
+                <span className="opacity-90">
+                  อัปเดต {lastUpdate.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
       </header>
 
-      <main className="relative z-10 pb-32 sm:pb-32">
+      <main className="relative z-10 pb-32 sm:pb-32 pt-3">
         <ServerView />
       </main>
 

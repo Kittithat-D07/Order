@@ -42,7 +42,7 @@ function KitchenContent() {
   }, []);
 
   return (
-      <div className="min-h-screen relative overflow-x-hidden" style={{ background: ADMIN_COLORS.bg }}>
+      <div className="min-h-screen relative overflow-x-hidden" style={{ background: KITCHEN_COLORS.bg }}>
       {/* Background blobs */}
       <GradientBlob className="top-[-150px] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-orange-300/30" />
       <GradientBlob className="top-[30%] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-red-300/30" delay={2} />
@@ -137,3 +137,4 @@ export default function KitchenPage() {
     </RoleGuard>
   );
 }
+

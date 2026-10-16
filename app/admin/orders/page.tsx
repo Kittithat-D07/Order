@@ -25,6 +25,22 @@ import { Badge } from "@/components/ui/badge";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 
+const ORDERS_COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
+};
+
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700 border-amber-200",
   preparing: "bg-orange-100 text-orange-700 border-orange-200",
@@ -62,13 +78,13 @@ function AdminOrdersContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: COLORS.bg }}>
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: ORDERS_COLORS.bg }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
           style={{ 
-            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+            background: `linear-gradient(135deg, ${ORDERS_COLORS.primary} 0%, ${ORDERS_COLORS.primaryDark} 100%)`,
             boxShadow: "0 24px 60px -12px rgba(184, 92, 56, 0.4)"
           }}
         >
@@ -255,3 +271,4 @@ function AdminOrdersContent() {
     </div>
   );
 }
+

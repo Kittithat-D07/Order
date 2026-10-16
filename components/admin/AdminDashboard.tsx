@@ -300,7 +300,7 @@ export function AdminDashboard() {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 activeTab === tab.id
                   ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
-                  : "bg-white text-stone-600 hover:bg-stone-50 border border-stone-200"
+                  : "bg-white text-stone-600 hover:bg-[#FAF6F0] border border-stone-200"
               }`}
             >
               <Icon size={16} />
@@ -539,7 +539,7 @@ function OverviewTab({
           ) : orders.length > 0 ? (
             <div className="space-y-2">
               {orders.map((o) => (
-                <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-50 transition">
+                <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#FAF6F0] transition">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
                     o.status === "completed" ? "bg-green-100 text-green-700" :
                     o.order_items?.some(it => it.status === "ready") ? "bg-blue-100 text-blue-700" :
@@ -634,9 +634,9 @@ function BigMenuCard({
       >
         {/* Gradient background on hover */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-        <div className="relative z-10 group-hover:text-white transition-colors">
-          <div className={`w-12 h-12 rounded-xl ${iconBg} group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors`}>
-            <Icon size={24} className={`${iconColor} group-hover:text-white transition-colors`} />
+        <div className="relative z-10 group-hover:text-white transition-ADMIN_COLORS">
+          <div className={`w-12 h-12 rounded-xl ${iconBg} group-hover:bg-white/20 flex items-center justify-center mb-3 transition-ADMIN_COLORS`}>
+            <Icon size={24} className={`${iconColor} group-hover:text-white transition-ADMIN_COLORS`} />
           </div>
           <h3 className="font-bold text-base text-stone-800 group-hover:text-white mb-0.5">
             {label}
@@ -830,7 +830,7 @@ function ReportsTab({
               </thead>
               <tbody>
                 {dailyData.map((d, i) => (
-                  <tr key={i} className="border-b border-stone-100 hover:bg-stone-50">
+                  <tr key={i} className="border-b border-stone-100 hover:bg-[#FAF6F0]">
                     <td className="py-2 px-2 text-stone-700">{d.date}</td>
                     <td className="py-2 px-2 text-right font-medium text-stone-800">{d.orders}</td>
                     <td className="py-2 px-2 text-right font-bold text-green-700">฿{d.revenue.toLocaleString()}</td>
@@ -841,7 +841,7 @@ function ReportsTab({
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-stone-50 rounded-b-xl">
+                <tr className="bg-[#FAF6F0] rounded-b-xl">
                   <td className="py-2 px-2 font-bold text-stone-800">รวม ({dailyData.length} วัน)</td>
                   <td className="py-2 px-2 text-right font-bold text-stone-800">{totalOrders}</td>
                   <td className="py-2 px-2 text-right font-bold text-green-700">฿{totalRevenue.toLocaleString()}</td>
@@ -891,3 +891,4 @@ function QuickAction({ href, icon: Icon, label, color }: any) {
   // deprecated - ใช้ BigMenuCard แทน
   return null;
 }
+

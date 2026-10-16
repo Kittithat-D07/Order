@@ -11,18 +11,22 @@ import { useEffect } from "react";
    🌅 ORGANIC WARM - Aura Bistro Home
 ============================================================ */
 
-const COLORS = {
+const COLORS: Record<string, string> = {
   primary: "#B85C38",
   primaryDark: "#8B3F1A",
   primaryLight: "#F4DCC4",
   secondary: "#6B7B5F",
+  secondaryDark: "#4A5942",
   secondaryLight: "#DDE3D2",
   accent: "#C8932F",
   accentLight: "#F0D78C",
   bg: "#FAF6F0",
   surface: "#FFFFFF",
+  border: "#E8DFD0",
   text: "#2C2620",
   textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
 };
 
 interface RoleOption {

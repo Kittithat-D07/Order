@@ -1,91 +1,124 @@
-# Design System - Aura Bistro QR Order
+# Design System - Organic Warm Thai Restaurant
 
-<!-- impeccable:design-schema 1 -->
+<!-- impeccable:design-schema 2 -->
 
-## Brand
+## Brand Personality
 
-- **Name**: Aura Bistro
-- **Type**: Thai restaurant, warm and inviting
-- **Personality**: Friendly, appetizing, modern but approachable
+**Aura Bistro** - ร้านอาหารไทยที่เหมือนนั่งในสวนตอนเย็น
+- 🌿 อบอุ่น เป็นกันเอง
+- 🍃 สดชื่น เป็นธรรมชาติ
+- 🌅 อบอุ่น เหมือนแสงเย็น
 
-## Color Palette
+## Color Palette - "Sunset Garden"
 
+### Background
 ```
-Primary:        #E85A35 (Terracotta Orange)
-Primary Dark:   #C8431F (Deep Terracotta)
-Primary Light:  #FFF0ED (Blush)
+--color-bg:        #FAF6F0  (Cream paper)
+--color-bg-2:      #F5EDE0  (Warm sand)
+--color-surface:   #FFFFFF
+--color-surface-2: #FBF8F3  (Light cream)
+```
 
-Secondary:      #F59E0B (Amber)
-Secondary Light:#FEF3C7 (Light Amber)
+### Primary - Terracotta Clay
+```
+--color-primary:        #B85C38  (Clay)
+--color-primary-dark:   #8B3F1A  (Deep clay)
+--color-primary-light:  #F4DCC4  (Blush)
+```
 
-Background:     #FAF8F5 (Warm Cream)
-Surface:        #FFFFFF (White)
-Surface-2:      #F5F3F0 (Light Stone)
-Border:         #E8E4DF (Warm Gray)
+### Secondary - Sage Green
+```
+--color-secondary:      #6B7B5F  (Sage)
+--color-secondary-dark: #4A5942
+--color-secondary-light:#DDE3D2  (Mint)
+```
 
-Text:           #1C1917 (Near Black)
-Text Muted:     #78716C (Stone Gray)
+### Accent - Mustard / Honey
+```
+--color-accent:         #C8932F  (Honey)
+--color-accent-light:   #F0D78C  (Saffron)
+```
 
-Success:         #16A34A
-Success Light:   #DCFCE7
-Danger:          #DC2626
-Danger Light:    #FEE2E2
-Warning:         #F59E0B
-Warning Light:   #FEF3C7
+### Text
+```
+--color-text:        #2C2620  (Espresso)
+--color-text-muted:  #6B5F54  (Coffee)
+--color-text-soft:   #968A7E
+```
+
+### Semantic
+```
+--color-success:     #4F7942  (Forest)
+--color-danger:      #A03826  (Brick)
+--color-warning:     #C8932F
 ```
 
 ## Typography
 
-- **Display Font**: Playfair Display (headings, prices)
-- **UI Font**: Prompt (Thai support, body text)
-- **Fallback**: system-ui, sans-serif
+- **Display**: "Cormorant Garamond" (elegant serif)
+- **Headings**: "Playfair Display" (rich serif)
+- **Body Thai**: "Prompt" (warm, friendly)
+- **Accent**: "Caveat" (handwriting for special touches)
 
-## Spacing
+## Visual Elements
 
-- Base unit: 4px
-- Border radius: 0.5rem (sm), 0.75rem (md), 1rem (lg), 1.5rem (xl)
-- Shadows: sm, md, lg, xl for elevation
+### Textures
+- **Paper texture**: subtle noise overlay
+- **Wood grain**: for buttons
+- **Leaf patterns**: as decoration
+- **Spice patterns**: for categories
+
+### Shapes
+- Border-radius: organic, asymmetric (12-24px)
+- Cards: slight rotation (-1deg to 1deg) for "hand-placed" feel
+- Badges: organic blob shapes
+
+### Shadows
+- Soft, warm shadows (rgba brown)
+- Multi-layer shadows for depth
+- Long shadows for "afternoon sun" feel
 
 ## Components
 
 ### Cards
-- White background with warm gray border
-- Large border-radius (1rem - 1.5rem)
-- Subtle shadows with warm tint
-- Lift animation on hover (-4px)
+- White with warm shadow
+- Slight tilt/rotation
+- Inner border (paper layer)
+- Optional leaf accent
 
 ### Buttons
-- **Primary**: Gradient orange, rounded, shadow
-- **Secondary**: White with border
-- **Ghost**: Transparent with hover background
+- Primary: clay color, hand-drawn feel
+- Secondary: sage with paper texture
+- Ghost: outline with stamp effect
 
-### Food Placeholders
-- Gradient backgrounds (warm peachy tones)
-- Food emoji icons (🍜🍲🥗🍛)
-- Cycle through 7 gradient variations
-
-### Animations
-- Spring physics for natural feel
-- 200-350ms transitions
-- Scale animations for cart interactions
-- Staggered reveals for lists
+### Food Imagery
+- Large hero images
+- Real food photography (Unsplash)
+- Circular dish photos
+- Steam/smoke overlays
 
 ## Motion Principles
 
-1. **Purposeful**: Every animation communicates state
-2. **Quick**: 150-350ms for micro-interactions
-3. **Natural**: Spring physics (damping: 25-30, stiffness: 300)
-4. **Orchestrated**: Staggered reveals for lists
+1. **Gentle, never rushed** - 400-500ms transitions
+2. **Organic easing** - not linear, slightly bouncy
+3. **Layered reveals** - leaves/cards fall into place
+4. **Ambient motion** - gentle floating, like wind
+5. **Hand-drawn** - sketch-like line animations
+
+## Signature Move
+
+🌿 **"Garden Layer Reveal"** - Elements enter like leaves falling into place, with gentle rotation and fade. Cards have subtle paper texture that animates on hover.
 
 ## Layout
 
-- Mobile-first responsive
-- Max-width: 48rem (768px) for content
-- Consistent 1rem padding
-- Safe area support for iOS
+- Mobile-first, generous spacing
+- Hero sections with real food photography
+- Asymmetric grids for organic feel
+- Decorative leaves/spices as background elements
 
-## Visual Assets
+## Assets to Source
 
-- Food images: Unsplash placeholders
-- Icons: Lucide React
-- Emoji for food categories and empty states
+- High-quality Thai food photography
+- Hand-drawn leaf illustrations
+- Paper texture overlays
+- Spice/herb patterns

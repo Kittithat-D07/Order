@@ -14,6 +14,21 @@ import { RoleGuard } from "@/components/auth/RoleGuard";
 import { StaffNameModal } from "@/components/auth/StaffNameModal";
 import { cn } from "@/lib/utils";
 
+const KITCHEN_COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryDark: "#4A5942",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+};
+
 function KitchenContent() {
   const router = useRouter();
   const { session, logout } = useStaffSession();
@@ -27,7 +42,7 @@ function KitchenContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-x-hidden">
+      <div className="min-h-screen relative overflow-x-hidden" style={{ background: ADMIN_COLORS.bg }}>
       {/* Background blobs */}
       <GradientBlob className="top-[-150px] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-orange-300/30" />
       <GradientBlob className="top-[30%] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-red-300/30" delay={2} />

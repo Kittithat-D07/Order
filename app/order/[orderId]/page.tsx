@@ -13,7 +13,6 @@ import {
   ChefHat,
   Utensils,
   XCircle,
-  Loader2,
   ArrowLeft,
   Sparkles,
   Receipt,
@@ -21,184 +20,210 @@ import {
   AlertCircle,
   Flame,
   Heart,
+  Star,
+  Leaf,
   Wifi,
   WifiOff,
   RefreshCw,
 } from "lucide-react";
-import { BlurFade, GradientBlob, FloatingElement, PulseDot, Shimmer } from "@/components/ui/magic-effects";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
-const STATUS_ICONS: Record<OrderStatus, any> = {
-  pending: Clock,
-  preparing: ChefHat,
-  served: CheckCircle2,
-  completed: CheckCircle2,
-  cancelled: XCircle,
+/* ============================================================
+   🌅 ORGANIC WARM - Aura Bistro Order Status
+============================================================ */
+
+const COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
 };
 
 const STATUS_CONFIG: Record<
   OrderStatus,
-  { bg: string; color: string; label: string; desc: string }
+  { bg: string; gradient: string; color: string; label: string; desc: string; emoji: string }
 > = {
   pending: {
-    bg: "from-amber-100 to-orange-100",
-    color: "text-amber-600",
+    bg: "from-amber-50 to-orange-50",
+    gradient: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`,
+    color: COLORS.primary,
     label: "รอยืนยัน",
     desc: "ร้านกำลังตรวจสอบออร์เดอร์ของคุณ",
+    emoji: "🌿",
   },
   preparing: {
-    bg: "from-orange-100 to-red-100",
-    color: "text-orange-600",
+    bg: "from-orange-50 to-red-50",
+    gradient: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.danger} 100%)`,
+    color: COLORS.primary,
     label: "กำลังทำ",
     desc: "เชฟกำลังทำอาหารให้คุณ รอสักครู่นะคะ",
+    emoji: "🍳",
   },
   served: {
-    bg: "from-green-100 to-emerald-100",
-    color: "text-green-600",
+    bg: "from-green-50 to-emerald-50",
+    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
+    color: COLORS.success,
     label: "เสิร์ฟแล้ว",
-    desc: "อาหารถูกเสิร์ฟแล้ว ขอให้มื้อนี้เป็นมื้อที่อร่อย! 🍽️",
+    desc: "อาหารถูกเสิร์ฟแล้ว 🍽️",
+    emoji: "✨",
   },
   completed: {
-    bg: "from-green-100 to-emerald-100",
-    color: "text-green-700",
+    bg: "from-green-50 to-emerald-50",
+    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
+    color: COLORS.success,
     label: "เสร็จสิ้น",
     desc: "ออร์เดอร์เสร็จเรียบร้อยแล้ว",
+    emoji: "🎉",
   },
   cancelled: {
     bg: "from-stone-100 to-stone-200",
-    color: "text-stone-500",
+    gradient: `linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)`,
+    color: "#6B7280",
     label: "ยกเลิก",
     desc: "ออร์เดอร์ถูกยกเลิก",
+    emoji: "🍃",
   },
 };
 
-// Per-item status config (4 สถานะหลัก + cancelled)
+// Per-item status config
 const ITEM_STATUS_CONFIG: Record<
   "pending" | "preparing" | "ready" | "served" | "cancelled",
-  { label: string; sublabel: string; bg: string; ring: string; color: string; dot: string; icon: any }
+  { label: string; sublabel: string; bg: string; ring: string; color: string; dot: string; emoji: string }
 > = {
   pending: {
     label: "รอครัว",
     sublabel: "ยังไม่เริ่มทำ",
-    bg: "bg-stone-50",
-    ring: "ring-stone-200",
-    color: "text-stone-600",
-    dot: "bg-stone-400",
-    icon: Clock,
+    bg: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, #f5f5f4 100%)`,
+    ring: "ring-amber-200",
+    color: COLORS.textMuted,
+    dot: "#f59e0b",
+    emoji: "🌿",
   },
   preparing: {
     label: "กำลังทำ",
     sublabel: "เชฟกำลังปรุงอยู่",
-    bg: "bg-gradient-to-r from-orange-50 to-amber-50",
-    ring: "ring-orange-300",
-    color: "text-orange-700",
-    dot: "bg-orange-500",
-    icon: ChefHat,
+    bg: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, #fff7ed 100%)`,
+    ring: "ring-orange-200",
+    color: COLORS.primary,
+    dot: COLORS.primary,
+    emoji: "🔥",
   },
   ready: {
     label: "พร้อมเสิร์ฟ",
     sublabel: "รอเสริฟ์นำไปเสิร์ฟ",
-    bg: "bg-gradient-to-r from-blue-50 to-sky-50",
-    ring: "ring-blue-300",
-    color: "text-blue-700",
-    dot: "bg-blue-500",
-    icon: Bell,
+    bg: `linear-gradient(135deg, ${COLORS.accentLight} 0%, #fef3c7 100%)`,
+    ring: "ring-amber-300",
+    color: COLORS.accent,
+    dot: COLORS.accent,
+    emoji: "✨",
   },
   served: {
     label: "เสร็จแล้ว",
     sublabel: "เสิร์ฟเรียบร้อย",
-    bg: "bg-gradient-to-r from-green-50 to-emerald-50",
-    ring: "ring-green-300",
-    color: "text-green-700",
-    dot: "bg-green-500",
-    icon: CheckCircle2,
+    bg: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, #dcfce7 100%)`,
+    ring: "ring-green-200",
+    color: COLORS.success,
+    dot: COLORS.success,
+    emoji: "🌟",
   },
   cancelled: {
     label: "ยกเลิก",
     sublabel: "เมนูนี้ถูกยกเลิก",
-    bg: "bg-red-50",
-    ring: "ring-red-200",
-    color: "text-red-500",
-    dot: "bg-red-400",
-    icon: XCircle,
+    bg: "bg-stone-100",
+    ring: "ring-stone-200",
+    color: "#9ca3af",
+    dot: "#9ca3af",
+    emoji: "🍂",
   },
 };
 
-// Component: แสดงสถานะแต่ละเมนู (4 ขั้น)
 function ItemStatusRow({ item, status }: { item: any; status: keyof typeof ITEM_STATUS_CONFIG }) {
-  const cfg = ITEM_STATUS_CONFIG[status] ?? ITEM_STATUS_CONFIG.pending;
-  const Icon = cfg.icon;
+  const cfg = ITEM_STATUS_CONFIG[status];
   const isActive = status === "preparing" || status === "ready";
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-      className={`relative overflow-hidden p-3 rounded-2xl ring-1 ${cfg.ring} ${cfg.bg}`}
+      initial={{ opacity: 0, scale: 0.95, rotate: -1 }}
+      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+      transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
+      className={`relative overflow-hidden p-3.5 rounded-2xl ring-1 ${cfg.ring}`}
+      style={{ background: cfg.bg }}
     >
-      {/* Pulse animation สำหรับสถานะที่ยังไม่เสร็จ */}
       {isActive && (
         <motion.div
-          className={`absolute top-2 right-2 w-2 h-2 rounded-full ${cfg.dot}`}
+          className="absolute top-2 right-2 w-2 h-2 rounded-full"
+          style={{ backgroundColor: cfg.dot }}
           animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         />
       )}
 
       <div className="flex items-center gap-3">
-        {/* Icon */}
-        <div className={`w-10 h-10 rounded-xl bg-white/80 flex items-center justify-center shadow-sm flex-shrink-0 ${isActive ? "animate-pulse" : ""}`}>
-          <Icon className={`w-5 h-5 ${cfg.color}`} />
+        <div
+          className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0"
+          style={{ background: "white" }}
+        >
+          <span className="text-xl">{cfg.emoji}</span>
         </div>
 
-        {/* Name + status */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-stone-800 truncate">
+          <p className="text-sm font-bold" style={{ color: COLORS.text }}>
             {item.menu_items?.name ?? "(เมนูถูกลบ)"}
-            <span className="text-stone-500 font-normal ml-1">× {item.quantity}</span>
+            <span className="font-normal ml-1" style={{ color: COLORS.textMuted }}>
+              × {item.quantity}
+            </span>
           </p>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`text-[11px] font-bold ${cfg.color}`}>
+            <span className="text-[11px] font-bold" style={{ color: cfg.color }}>
               {cfg.label}
             </span>
             <span className="text-stone-400 text-[10px]">·</span>
-            <span className="text-[10px] text-stone-500">{cfg.sublabel}</span>
+            <span className="text-[10px]" style={{ color: COLORS.textMuted }}>{cfg.sublabel}</span>
           </div>
         </div>
 
-        {/* Status badge */}
         {status === "served" && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: COLORS.success }}
           >
             <CheckCircle2 className="w-4 h-4 text-white" />
           </motion.div>
         )}
       </div>
 
-      {/* Mini progress bar 4 steps */}
-      <div className="mt-2.5 flex items-center gap-0.5">
+      {/* Progress bar 4 steps */}
+      <div className="mt-3 flex items-center gap-0.5">
         {(["pending", "preparing", "ready", "served"] as const).map((s, i) => {
           const order = ["pending", "preparing", "ready", "served"];
           const currentIdx = order.indexOf(status);
           const thisIdx = i;
           const isPast = thisIdx < currentIdx;
           const isCurrent = thisIdx === currentIdx;
-          const isUpcoming = thisIdx > currentIdx;
           return (
             <div
               key={s}
               className={`flex-1 h-1 rounded-full transition-all ${
-                isPast ? "bg-green-400" :
-                isCurrent ? (isActive ? "bg-gradient-to-r from-orange-400 to-amber-400 animate-pulse" : "bg-orange-400") :
-                "bg-stone-200"
+                isPast
+                  ? "bg-green-400"
+                  : isCurrent
+                  ? isActive
+                    ? "animate-pulse"
+                    : ""
+                  : "bg-stone-200"
               }`}
+              style={isCurrent && isActive ? { background: `linear-gradient(90deg, ${COLORS.accent}, ${COLORS.primary})` } : isCurrent ? { background: COLORS.primary } : {}}
             />
           );
         })}
@@ -224,7 +249,6 @@ export default function OrderStatusPage() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const orderStatusRef = useRef<string | null>(null);
 
-  // Function to fetch latest order data
   const fetchOrder = async (silent = false) => {
     if (!silent) setIsRefreshing(true);
     const supabase = createClient();
@@ -240,9 +264,8 @@ export default function OrderStatusPage() {
       const newOrder = data as OrderWithItems;
       setOrder(newOrder);
       setLastUpdate(new Date());
-      // Track status changes for vibration
       if (orderStatusRef.current && orderStatusRef.current !== newOrder.status) {
-        console.log("🔔 Status changed (polling):", orderStatusRef.current, "→", newOrder.status);
+        console.log("📡 Status changed:", orderStatusRef.current, "→", newOrder.status);
         if (typeof navigator !== "undefined" && navigator.vibrate) {
           navigator.vibrate(200);
         }
@@ -252,72 +275,40 @@ export default function OrderStatusPage() {
     if (!silent) setIsRefreshing(false);
   };
 
-  // Function to setup realtime subscriptions
   const setupRealtime = useCallback(() => {
     const supabase = createClient();
-
-    // Clean up old channels
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
 
-    // Order updates (ใช้ orderId เป็น channel name ไม่ใส่ Date.now())
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `id=eq.${orderId}`,
-        },
+        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
         (payload) => {
-          console.log("📦 Order updated:", payload.new);
           const newRow = payload.new as Partial<OrderWithItems>;
-          setOrder((prev) =>
-            prev ? ({ ...prev, ...newRow } as OrderWithItems) : prev
-          );
+          setOrder((prev) => prev ? ({ ...prev, ...newRow } as OrderWithItems) : prev);
           setLastUpdate(new Date());
         }
       )
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "order_items",
-        },
-        (payload) => {
-          console.log("🍜 Order item updated:", payload.new);
-          // Refresh full order to get updated items
-          fetchOrder(true);
-        }
+        { event: "UPDATE", schema: "public", table: "order_items" },
+        () => { fetchOrder(true); }
       )
       .subscribe((status) => {
-        console.log("🔌 Realtime status:", status);
-        if (status === "SUBSCRIBED") {
-          setIsConnected(true);
-        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+        if (status === "SUBSCRIBED") setIsConnected(true);
+        else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
           setIsConnected(false);
-          // Try to reconnect after 3s
-          setTimeout(() => {
-            console.log("🔄 Reconnecting...");
-            setupRealtime();
-          }, 3000);
+          setTimeout(() => { setupRealtime(); }, 3000);
         }
       });
 
-    // Bill updates
     const billChannel = supabase
       .channel(`order-bill-${orderId}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bills",
-          filter: `order_id=eq.${orderId}`,
-        },
+        { event: "*", schema: "public", table: "bills", filter: `order_id=eq.${orderId}` },
         (payload) => {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             setBill(payload.new as Bill);
@@ -332,16 +323,12 @@ export default function OrderStatusPage() {
   }, [orderId]);
 
   useEffect(() => {
-    // Initial load
     const load = async () => {
       await fetchOrder(true);
       const supabase = createClient();
       try {
         const { data: billData } = await supabase
-          .from("bills")
-          .select("*")
-          .eq("order_id", orderId)
-          .maybeSingle();
+          .from("bills").select("*").eq("order_id", orderId).maybeSingle();
         if (billData) setBill(billData as Bill);
       } catch (e) {
         console.warn("bills table not ready:", e);
@@ -351,41 +338,22 @@ export default function OrderStatusPage() {
 
     load();
     setupRealtime();
+    pollIntervalRef.current = setInterval(() => { fetchOrder(true); }, 5000);
 
-    // Polling fallback - ดึงทุก 5 วิ (กันเหนียว realtime ไม่ทำงาน)
-    pollIntervalRef.current = setInterval(() => {
-      console.log("🔄 Polling...");
-      fetchOrder(true);
-    }, 5000);
-
-    // Visibility change - refresh เมื่อกลับมาดู
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        console.log("👁️ Tab visible - refreshing");
-        fetchOrder(true);
-      }
+      if (document.visibilityState === "visible") fetchOrder(true);
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       const supabase = createClient();
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      if (billChannelRef.current) {
-        supabase.removeChannel(billChannelRef.current);
-        billChannelRef.current = null;
-      }
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
+      if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
+      if (billChannelRef.current) { supabase.removeChannel(billChannelRef.current); billChannelRef.current = null; }
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [orderId, setupRealtime]);
 
-  // ตรวจสอบว่าทุกรายการเสิร์ฟแล้วหรือยัง
   const allServed = order?.order_items?.every(
     (it) => (it as any).status === "served" || (it as any).status === "cancelled"
   ) ?? false;
@@ -400,7 +368,7 @@ export default function OrderStatusPage() {
         total_amount: order.total_amount,
       });
     } catch (e: any) {
-      console.error("Failed to create bill:", e);
+      console.error("Failed:", e);
       alert("ไม่สามารถสร้างบิลได้: " + (e?.message ?? ""));
     } finally {
       setRequestingBill(false);
@@ -409,19 +377,21 @@ export default function OrderStatusPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-hidden flex flex-col items-center justify-center gap-4">
-        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
-        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-amber-300/30" delay={1} />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5" style={{ background: COLORS.bg }}>
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+          animate={{ rotate: [0, 8, -8, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="text-7xl"
         >
-          <Loader2 className="text-white" size={28} />
+          🍳
         </motion.div>
-        <div className="flex items-center gap-2">
-          <PulseDot color="bg-orange-500" />
-          <p className="text-sm text-stone-600 font-medium">กำลังโหลดออร์เดอร์...</p>
+        <div className="text-center">
+          <p className="text-2xl text-sunset font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+            Aura Bistro
+          </p>
+          <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
+            กำลังโหลดออร์เดอร์...
+          </p>
         </div>
       </div>
     );
@@ -429,61 +399,57 @@ export default function OrderStatusPage() {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 relative overflow-hidden flex items-center justify-center p-6">
-        <GradientBlob className="top-[-100px] right-[-100px]" color="bg-red-300/30" />
-        <GradientBlob className="bottom-[-100px] left-[-100px]" color="bg-orange-300/30" delay={1} />
-        <BlurFade>
-          <div className="max-w-sm text-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-2xl shadow-red-500/40"
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.bg }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-sm text-center p-8"
+          style={{ 
+            background: COLORS.surface, 
+            borderRadius: "1.75rem", 
+            boxShadow: "0 20px 60px -10px rgba(139, 63, 26, 0.2)"
+          }}
+        >
+          <div className="text-7xl mb-4 animate-sway">🌿</div>
+          <p className="text-2xl text-sunset font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+            เกิดข้อผิดพลาด
+          </p>
+          <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
+          <Link href="/menu?table=t01-demo-aaaa">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="mt-6 btn-primary"
             >
-              <AlertCircle size={36} className="text-white" />
-            </motion.div>
-            <p className="text-stone-800 font-bold text-lg mb-2">เกิดข้อผิดพลาด</p>
-            <p className="text-stone-600 text-sm mb-6">{error ?? "ไม่พบออร์เดอร์"}</p>
-            <Link href="/menu?table=t01-demo-aaaa">
-              <Button className="bg-gradient-to-r from-orange-500 to-amber-500">
-                <ArrowLeft size={14} className="mr-2" /> กลับไปสั่งอาหาร
-              </Button>
-            </Link>
-          </div>
-        </BlurFade>
+              <ArrowLeft size={14} className="mr-2" /> กลับไปสั่งอาหาร
+            </motion.button>
+          </Link>
+        </motion.div>
       </div>
     );
   }
 
   const status = order.status as OrderStatus;
-  const Icon = STATUS_ICONS[status];
   const cfg = STATUS_CONFIG[status];
 
   return (
-    <div className="min-h-screen pb-12 relative overflow-hidden bg-stone-50">
-      {/* Animated Background Blobs */}
-      <GradientBlob
-        className="w-96 h-96 bg-gradient-to-br from-orange-300 to-amber-300 -top-20 -right-20"
-        delay={0}
-      />
-      <GradientBlob
-        className="w-80 h-80 bg-gradient-to-br from-amber-200 to-yellow-200 top-1/2 -left-20"
-        delay={3}
-      />
-      <GradientBlob
-        className="w-72 h-72 bg-gradient-to-br from-rose-200 to-orange-200 bottom-0 right-0"
-        delay={6}
-      />
-
-      {/* Floating decorations */}
-      <FloatingElement className="top-32 right-8" delay={0}>
-        <Flame className="w-6 h-6 text-orange-400/50" />
-      </FloatingElement>
-      <FloatingElement className="top-1/2 left-4" delay={2}>
-        <Heart className="w-5 h-5 text-rose-400/50" />
-      </FloatingElement>
-      <FloatingElement className="bottom-32 right-12" delay={4}>
-        <Sparkles className="w-5 h-5 text-amber-400/50" />
-      </FloatingElement>
+    <div className="min-h-screen pb-12 relative" style={{ background: COLORS.bg }}>
+      {/* Decorative leaves */}
+      <motion.div
+        animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="leaf-deco text-7xl"
+        style={{ top: "120px", right: "20px", color: COLORS.secondary, opacity: 0.12 }}
+      >
+        🌿
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="leaf-deco text-5xl"
+        style={{ top: "400px", left: "15px", color: COLORS.accent, opacity: 0.1 }}
+      >
+        🍃
+      </motion.div>
 
       {/* Hero Header */}
       <motion.div
@@ -492,80 +458,72 @@ export default function OrderStatusPage() {
         transition={{ duration: 0.5 }}
         className="relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-400 animate-gradient" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.2),transparent_60%)]" />
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl" />
+        <div
+          className="relative px-6 pt-12 pb-10 text-center text-white"
+          style={{ background: cfg.gradient }}
+        >
+          {/* Texture overlay */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")" }} />
 
-        <div className="relative px-6 pt-12 pb-10 text-center text-white">
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-xs font-medium opacity-90 mb-1 flex items-center justify-center gap-1.5"
+            className="relative"
           >
-            <PulseDot color="bg-white" />
-            โต๊ะ {order.tables?.table_number}
-          </motion.p>
-
-          {/* Status Icon */}
-          <div className="relative inline-block mb-5">
-            <div className="absolute inset-0 bg-white/20 rounded-full blur-xl scale-110" />
-            <div className="relative w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40">
-              <Icon size={38} strokeWidth={2.2} />
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="text-sm opacity-90">โต๊ะ</span>
+              <span className="font-bold text-xl">{order.tables?.table_number}</span>
             </div>
-          </div>
 
-          <h1 className="text-3xl font-bold mb-1">สั่งอาหารสำเร็จ!</h1>
-          <p className="text-sm opacity-80">#{order.id.slice(0, 8).toUpperCase()}</p>
-
-          {/* Order ID Badge */}
-          <div className="mt-3 inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium">
-            <Clock size={12} />
-            {formatDateTime(order.created_at)}
-          </div>
-
-          {/* Realtime Status + Refresh */}
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={isConnected ? "online" : "offline"}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                  isConnected
-                    ? "bg-green-500/30 text-white"
-                    : "bg-red-500/30 text-white"
-                }`}
+            {/* Status Icon - Large organic circle */}
+            <div className="relative inline-block mb-5 mt-3">
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center text-5xl"
+                style={{ background: "rgba(255,255,255,0.25)", backdropFilter: "blur(10px)" }}
               >
-                {isConnected ? (
-                  <>
-                    <Wifi size={10} />
-                    <span>Live</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff size={10} />
-                    <span>Reconnect...</span>
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-            <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              transition={{ duration: 0.3 }}
-              onClick={() => fetchOrder()}
-              disabled={isRefreshing}
-              className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition disabled:opacity-50"
-              title="รีเฟรช"
-            >
-              <RefreshCw
-                size={12}
-                className={isRefreshing ? "animate-spin" : ""}
-              />
-            </motion.button>
-          </div>
+                {cfg.emoji}
+              </div>
+            </div>
+
+            <h1 className="text-3xl font-bold mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+              สั่งอาหารสำเร็จ!
+            </h1>
+            <p className="text-sm opacity-80 font-mono">#{order.id.slice(0, 8).toUpperCase()}</p>
+
+            {/* Time badge */}
+            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/20 backdrop-blur-sm">
+              <Clock size={12} />
+              {formatDateTime(order.created_at)}
+            </div>
+
+            {/* Realtime status */}
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={isConnected ? "online" : "offline"}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                    isConnected ? "bg-green-500/30 text-white" : "bg-red-500/30 text-white"
+                  }`}
+                >
+                  {isConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
+                  <span>{isConnected ? "Live" : "Reconnect..."}</span>
+                </motion.div>
+              </AnimatePresence>
+              <motion.button
+                whileTap={{ scale: 0.9, rotate: 180 }}
+                transition={{ duration: 0.3 }}
+                onClick={() => fetchOrder()}
+                disabled={isRefreshing}
+                className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} />
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
 
@@ -575,15 +533,24 @@ export default function OrderStatusPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className={`card-interactive p-5 mb-4 bg-gradient-to-br ${cfg.bg} border-0`}
+          className="rounded-2xl p-5 mb-4 bg-white"
+          style={{ 
+            boxShadow: "0 12px 32px -6px rgba(139, 63, 26, 0.12)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
         >
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl bg-white/60 flex items-center justify-center shadow-sm`}>
-              <Icon size={24} className={cfg.color} />
+          <div className="flex items-center gap-4 mb-5">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
+              style={{ background: `linear-gradient(135deg, ${COLORS.primaryLight}, ${COLORS.accentLight})` }}
+            >
+              {cfg.emoji}
             </div>
             <div>
-              <h2 className={`text-lg font-bold ${cfg.color}`}>{cfg.label}</h2>
-              <p className="text-sm text-stone-600 leading-snug">{cfg.desc}</p>
+              <h2 className="text-xl font-bold" style={{ color: cfg.color, fontFamily: "'Playfair Display', serif" }}>
+                {cfg.label}
+              </h2>
+              <p className="text-sm" style={{ color: COLORS.textMuted }}>{cfg.desc}</p>
             </div>
           </div>
 
@@ -595,25 +562,28 @@ export default function OrderStatusPage() {
                 (status === "preparing" && s === "pending") ||
                 (status === "served" && (s === "pending" || s === "preparing"));
               const cfg2 = STATUS_CONFIG[s];
-              const Icon2 = STATUS_ICONS[s];
+              const emojis = ["🌿", "🔥", "✨"];
+
               return (
                 <div key={s} className="flex items-center flex-1">
                   <div className="flex flex-col items-center gap-1.5">
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all ${
+                      className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm text-lg transition-all"
+                      style={
                         isPast
-                          ? "bg-green-500 text-white"
+                          ? { background: COLORS.success, color: "white" }
                           : isActive
-                          ? "bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md"
-                          : "bg-white text-stone-400"
-                      }`}
+                          ? { background: cfg.gradient, color: "white", boxShadow: "0 4px 12px -2px rgba(184, 92, 56, 0.4)" }
+                          : { background: "white", color: COLORS.textMuted, border: "1px solid rgba(232, 223, 208, 0.6)" }
+                      }
                     >
-                      {isPast ? <CheckCircle2 size={16} /> : <Icon2 size={14} />}
+                      {isPast ? <CheckCircle2 size={16} className="text-white" /> : emojis[i]}
                     </div>
                     <span
-                      className={`text-[10px] font-medium ${
-                        isActive ? "text-orange-700" : isPast ? "text-green-700" : "text-stone-400"
-                      }`}
+                      className="text-[10px] font-medium"
+                      style={
+                        isActive ? { color: cfg.color } : isPast ? { color: COLORS.success } : { color: COLORS.textMuted }
+                      }
                     >
                       {cfg2.label}
                     </span>
@@ -621,8 +591,9 @@ export default function OrderStatusPage() {
                   {i < 2 && (
                     <div
                       className={`flex-1 h-0.5 mx-1 rounded-full transition-all ${
-                        isPast ? "bg-green-400" : "bg-stone-300"
+                        isPast ? "" : "bg-stone-200"
                       }`}
+                      style={isPast ? { background: COLORS.success } : {}}
                     />
                   )}
                 </div>
@@ -631,24 +602,27 @@ export default function OrderStatusPage() {
           </div>
         </motion.div>
 
-        {/* Per-item Status Cards (รอ/กำลังทำ/พร้อมเสิร์ฟ/เสร็จ) */}
+        {/* Per-item Status */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
-          className="card p-4 mb-4"
+          className="rounded-2xl p-4 mb-4 bg-white"
+          style={{ 
+            boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
         >
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-sm">
-            <Flame size={15} className="text-orange-500" />
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-sm" style={{ color: COLORS.text }}>
+            <span className="text-lg">🍳</span>
             สถานะอาหารแต่ละอย่าง
-            <span className="ml-auto text-[10px] font-normal text-stone-500">
+            <span className="ml-auto text-[10px] font-normal" style={{ color: COLORS.textMuted }}>
               {order.order_items?.length ?? 0} เมนู
             </span>
           </h3>
           <div className="space-y-2">
             {order.order_items?.map((it) => {
-              const itemStatus = ((it as any).status ?? "pending") as
-                | "pending" | "preparing" | "ready" | "served" | "cancelled";
+              const itemStatus = ((it as any).status ?? "pending") as "pending" | "preparing" | "ready" | "served" | "cancelled";
               return (
                 <ItemStatusRow key={it.id} item={it} status={itemStatus} />
               );
@@ -661,10 +635,14 @@ export default function OrderStatusPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="card p-5 mb-4"
+          className="rounded-2xl p-5 mb-4 bg-white"
+          style={{ 
+            boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
         >
-          <h3 className="font-bold mb-3 flex items-center gap-2 text-sm">
-            <Utensils size={15} className="text-orange-500" />
+          <h3 className="font-bold mb-3 flex items-center gap-2 text-sm" style={{ color: COLORS.text }}>
+            <span className="text-lg">🍜</span>
             รายการอาหาร
           </h3>
           <div className="space-y-2.5">
@@ -675,47 +653,47 @@ export default function OrderStatusPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="flex justify-between items-start gap-3 py-2 border-b border-stone-100 last:border-0"
+                  className="flex justify-between items-start gap-3 py-2"
+                  style={{ borderBottom: "1px solid rgba(232, 223, 208, 0.5)" }}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800">
+                    <p className="text-sm font-semibold" style={{ color: COLORS.text }}>
                       {it.menu_items?.name ?? "(เมนูถูกลบ)"}
-                      <span className="text-stone-500 font-normal ml-1">× {it.quantity}</span>
+                      <span className="font-normal ml-1" style={{ color: COLORS.textMuted }}>× {it.quantity}</span>
                     </p>
                     {it.note && (
-                      <p className="text-xs text-stone-500 italic mt-0.5">
+                      <p className="text-xs mt-0.5 italic" style={{ color: COLORS.accent }}>
                         💬 {it.note}
                       </p>
                     )}
                   </div>
-                  <span className="font-semibold text-sm text-stone-800 shrink-0">
+                  <span className="font-semibold text-sm shrink-0" style={{ color: COLORS.primary }}>
                     ฿{formatPrice(it.subtotal)}
                   </span>
                 </motion.div>
               ))}
             </AnimatePresence>
           </div>
-          <div className="flex justify-between items-baseline mt-4 pt-3 border-t border-stone-200">
-            <span className="text-sm text-stone-500">รวมทั้งหมด</span>
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+          <div className="flex justify-between items-baseline mt-4 pt-3">
+            <span className="text-sm" style={{ color: COLORS.textMuted }}>รวมทั้งหมด</span>
+            <span className="text-2xl font-bold text-sunset" style={{ fontFamily: "'Playfair Display', serif" }}>
               ฿{formatPrice(order.total_amount)}
             </span>
           </div>
         </motion.div>
 
-        {/* Tip */}
+        {/* Tip Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex items-start gap-3 p-4 bg-amber-50/80 backdrop-blur-sm rounded-2xl mb-4 border border-amber-200/50"
+          className="flex items-start gap-3 p-4 rounded-2xl mb-4"
+          style={{ background: COLORS.secondaryLight }}
         >
-          <div className="w-8 h-8 rounded-lg bg-amber-200/60 flex items-center justify-center shrink-0 mt-0.5">
-            <Sparkles size={16} className="text-amber-600" />
-          </div>
+          <span className="text-2xl">🌿</span>
           <div>
-            <p className="text-sm font-semibold text-amber-800">เคล็ดลับ</p>
-            <p className="text-xs text-stone-600 mt-0.5">
+            <p className="text-sm font-bold" style={{ color: COLORS.secondaryDark }}>เคล็ดลับ</p>
+            <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>
               หน้านี้อัปเดตอัตโนมัติเมื่อเชฟเปลี่ยนสถานะ — ไม่ต้องรีเฟรช!
             </p>
           </div>
@@ -729,34 +707,53 @@ export default function OrderStatusPage() {
         >
           {bill ? (
             <Link href={`/bill/${order.id}`} className="block">
-              <Button variant="success" size="lg" className="w-full">
-                <Receipt size={18} />
+              <motion.button
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-4 rounded-full text-white text-lg font-semibold"
+                style={{
+                  background: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
+                  boxShadow: "0 12px 28px -6px rgba(79, 121, 66, 0.5)"
+                }}
+              >
+                <Receipt size={18} className="mr-2" />
                 ดูบิล ({bill.bill_number})
-              </Button>
+              </motion.button>
             </Link>
           ) : allServed ? (
-            <Button
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleRequestBill}
               disabled={requestingBill}
-              size="lg"
-              className="w-full"
+              className="w-full py-4 rounded-full text-white text-lg font-semibold"
+              style={{
+                background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`,
+                boxShadow: "0 12px 28px -6px rgba(200, 147, 47, 0.5)"
+              }}
             >
               {requestingBill ? (
-                <Loader2 size={18} className="animate-spin" />
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  🍳
+                </motion.span>
               ) : (
-                <Receipt size={18} />
+                <Receipt size={18} className="mr-2" />
               )}
               ขอบิล / Request Bill
-            </Button>
+            </motion.button>
           ) : null}
         </motion.div>
 
-        <a
+        <Link
           href="/"
-          className="flex items-center justify-center gap-2 text-sm text-stone-500 hover:text-stone-700 transition py-3 mt-2"
+          className="flex items-center justify-center gap-2 text-sm mt-4 py-3"
+          style={{ color: COLORS.textMuted }}
         >
           <ArrowLeft size={14} /> กลับหน้าหลัก
-        </a>
+        </Link>
       </main>
     </div>
   );

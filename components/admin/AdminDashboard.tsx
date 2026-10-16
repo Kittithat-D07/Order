@@ -20,6 +20,23 @@ import {
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
 
+const ADMIN_COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryDark: "#4A5942",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
+};
+
 // ============ Types ============
 interface DailyStats {
   date: string;
@@ -197,11 +214,11 @@ export function AdminDashboard() {
   }, [orders, dateRange]);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 space-y-4">
-      {/* ===== เมนูหลัก (Quick Menu Grid) — เห็นเด่นชัด ===== */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 space-y-4" style={{ color: ADMIN_COLORS.text }}>
+      {/* ===== เมนูหลัก (Quick Menu Grid) ===== */}
       <div>
-        <h2 className="text-sm font-bold text-stone-700 mb-2.5 flex items-center gap-1.5 px-1">
-          <Sparkles size={14} className="text-purple-500" />
+        <h2 className="text-sm font-bold mb-2.5 flex items-center gap-1.5 px-1" style={{ color: ADMIN_COLORS.text }}>
+          <Sparkles size={14} style={{ color: ADMIN_COLORS.accent }} />
           เมนูจัดการ
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -210,60 +227,60 @@ export function AdminDashboard() {
             icon={LayoutGrid}
             label="จัดการโต๊ะ"
             description="เปิด-ปิด โต๊ะ · QR Code"
-            gradient="from-orange-500 to-amber-500"
+            gradient={`from-[${ADMIN_COLORS.primary}] to-[${ADMIN_COLORS.accent}]`}
             shadow="shadow-orange-500/30"
-            iconBg="bg-orange-100"
-            iconColor="text-orange-600"
+            iconBg={ADMIN_COLORS.primaryLight}
+            iconColor={ADMIN_COLORS.primary}
           />
           <BigMenuCard
             href="/admin/menu"
             icon={Pizza}
             label="จัดการเมนู"
             description="เพิ่ม/ลบ/แก้ สินค้า"
-            gradient="from-green-500 to-emerald-500"
-            shadow="shadow-green-500/30"
-            iconBg="bg-green-100"
-            iconColor="text-green-600"
+            gradient="from-emerald-500 to-green-500"
+            shadow="shadow-emerald-500/30"
+            iconBg={ADMIN_COLORS.secondaryLight}
+            iconColor={ADMIN_COLORS.secondary}
           />
           <BigMenuCard
             href="/admin/history"
             icon={History}
             label="ประวัติเมนู"
             description="Audit log การแก้ไข"
-            gradient="from-indigo-500 to-blue-500"
-            shadow="shadow-indigo-500/30"
-            iconBg="bg-indigo-100"
-            iconColor="text-indigo-600"
+            gradient="from-amber-500 to-yellow-500"
+            shadow="shadow-amber-500/30"
+            iconBg={ADMIN_COLORS.accentLight}
+            iconColor={ADMIN_COLORS.accent}
           />
           <BigMenuCard
             href="/kitchen"
             icon={ChefHat}
             label="หน้าจอครัว"
             description="จอสำหรับพนักงานครัว"
-            gradient="from-amber-500 to-orange-500"
+            gradient={`from-[${ADMIN_COLORS.primary}] to-[${ADMIN_COLORS.primaryDark}]`}
             shadow="shadow-amber-500/30"
-            iconBg="bg-amber-100"
-            iconColor="text-amber-600"
+            iconBg={ADMIN_COLORS.primaryLight}
+            iconColor={ADMIN_COLORS.primary}
           />
           <BigMenuCard
             href="/server"
             icon={Utensils}
             label="หน้าจอเสิร์ฟ์"
             description="จอสำหรับพนักงานเสิร์ฟ"
-            gradient="from-blue-500 to-cyan-500"
-            shadow="shadow-blue-500/30"
-            iconBg="bg-blue-100"
-            iconColor="text-blue-600"
+            gradient="from-teal-500 to-emerald-500"
+            shadow="shadow-teal-500/30"
+            iconBg={ADMIN_COLORS.secondaryLight}
+            iconColor={ADMIN_COLORS.secondary}
           />
           <BigMenuCard
             href="/kitchen/stock"
             icon={AlertTriangle}
             label="จัดการสต็อก"
             description="เปิด-ปิด เมนูที่หมด"
-            gradient="from-rose-500 to-pink-500"
+            gradient="from-rose-500 to-red-500"
             shadow="shadow-rose-500/30"
-            iconBg="bg-rose-100"
-            iconColor="text-rose-600"
+            iconBg="#fce7e7"
+            iconColor="#dc2626"
           />
         </div>
       </div>

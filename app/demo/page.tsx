@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CheckCircle2,
   Clock,
@@ -11,21 +11,36 @@ import {
   Receipt,
   Flame,
   Leaf,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  BlurFade,
-  GradientBlob,
-  FloatingElement,
-  PulseDot,
-  Shimmer,
-} from "@/components/ui/magic-effects";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/utils";
 
-// Demo data
+/* ============================================================
+   🌅 ORGANIC WARM - Aura Bistro Demo
+============================================================ */
+
+const COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+};
+
+const STATUS_CONFIG = {
+  pending: { bg: "from-amber-50 to-orange-50", color: COLORS.primary, label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์", emoji: "🌿" },
+  preparing: { bg: "from-orange-50 to-red-50", color: COLORS.primary, label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ", emoji: "🍳" },
+  served: { bg: "from-green-50 to-emerald-50", color: COLORS.success, label: "เสิร์ฟแล้ว", desc: "อาหารถูกเสิร์ฟแล้ว 🍽️", emoji: "✨" },
+  cancelled: { bg: "from-stone-100 to-stone-200", color: "#6b7280", label: "ยกเลิก", desc: "ออร์เดอร์ถูกยกเลิก", emoji: "🍂" },
+};
+
 const DEMO_ORDER = {
   id: "demo-12345",
   status: "preparing" as const,
@@ -39,158 +54,215 @@ const DEMO_ORDER = {
   ],
 };
 
-const STATUS_CONFIG = {
-  pending: { bg: "from-amber-100 to-orange-100", color: "text-amber-600", label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์" },
-  preparing: { bg: "from-orange-100 to-red-100", color: "text-orange-600", label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ" },
-  served: { bg: "from-green-100 to-emerald-100", color: "text-green-600", label: "เสิร์ฟแล้ว", desc: "อาหารถูกเสิร์ฟแล้ว 🍽️" },
-  cancelled: { bg: "from-stone-100 to-stone-200", color: "text-stone-500", label: "ยกเลิก", desc: "ออร์เดอร์ถูกยกเลิก" },
-};
-
 export default function DemoPage() {
   const order = DEMO_ORDER;
   const cfg = STATUS_CONFIG[order.status];
-  const StatusIcon = order.status === "preparing" ? ChefHat : Clock;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-red-50 relative overflow-hidden">
-      {/* Animated gradient blobs background */}
-      <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
-      <GradientBlob className="top-[20%] right-[-150px]" color="bg-amber-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] left-[20%]" color="bg-red-300/30" delay={4} />
-
-      {/* Floating elements */}
-      <FloatingElement className="top-20 right-10" delay={0}>
-        <Sparkles className="w-8 h-8 text-orange-400/50" />
-      </FloatingElement>
-      <FloatingElement className="top-40 left-8" delay={1}>
-        <Flame className="w-6 h-6 text-red-400/50" />
-      </FloatingElement>
-      <FloatingElement className="bottom-40 right-20" delay={2}>
-        <Leaf className="w-7 h-7 text-green-400/50" />
-      </FloatingElement>
+    <div className="min-h-screen relative" style={{ background: COLORS.bg }}>
+      {/* Decorative leaves */}
+      <motion.div
+        animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="leaf-deco text-7xl"
+        style={{ top: "80px", right: "20px", color: COLORS.secondary, opacity: 0.12 }}
+      >
+        🌿
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="leaf-deco text-5xl"
+        style={{ top: "350px", left: "15px", color: COLORS.accent, opacity: 0.1 }}
+      >
+        🍃
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="leaf-deco text-5xl"
+        style={{ bottom: "100px", right: "30px", color: COLORS.primary, opacity: 0.1 }}
+      >
+        🌶️
+      </motion.div>
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
-        <BlurFade delay={0.1}>
-          <div className="flex items-center justify-between mb-6">
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                กลับ
-              </Button>
-            </Link>
-            <Badge variant="warning" className="animate-pulse">
-              <Sparkles className="w-3 h-3 mr-1" />
-              DEMO MODE
-            </Badge>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between mb-8"
+        >
+          <Link href="/">
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium"
+              style={{ background: COLORS.surface, color: COLORS.textMuted, boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.1)" }}
+            >
+              <ArrowLeft size={16} /> กลับ
+            </motion.button>
+          </Link>
+          <div
+            className="px-4 py-1.5 rounded-full text-xs font-bold"
+            style={{ background: COLORS.accentLight, color: COLORS.primaryDark }}
+          >
+            🌿 DEMO MODE
           </div>
-        </BlurFade>
+        </motion.div>
 
-        {/* Hero Header with gradient animation */}
-        <BlurFade delay={0.2}>
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm rounded-full shadow-sm mb-4">
-              <PulseDot color="bg-orange-500" />
-              <span className="text-sm font-medium text-stone-600">Live Preview</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-orange-600 via-amber-500 to-red-500 bg-clip-text text-transparent animate-gradient">
-              สถานะออร์เดอร์
-            </h1>
-            <p className="text-stone-500 mt-2">โต๊ะ {order.table_number} • #{order.id.slice(0, 8)}</p>
-          </div>
-        </BlurFade>
+        {/* Hero Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-center mb-8"
+        >
+          <p className="text-xs uppercase tracking-[0.3em] mb-2 font-semibold" style={{ color: COLORS.accent }}>
+            ✨ Welcome to
+          </p>
+          <h1
+            className="text-6xl text-sunset leading-none mb-1"
+            style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}
+          >
+            Aura
+          </h1>
+          <h2
+            className="text-3xl leading-none mb-3"
+            style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: COLORS.text }}
+          >
+            BISTRO
+          </h2>
+          <p className="text-sm" style={{ color: COLORS.textMuted }}>
+            โต๊ะ {order.table_number} • #{order.id.slice(0, 8)}
+          </p>
+        </motion.div>
 
         {/* Status Card */}
-        <BlurFade delay={0.3}>
-          <Card className="mb-6 overflow-hidden border-0 shadow-xl">
-            <div className={`bg-gradient-to-r ${cfg.bg} p-6 relative`}>
-              <Shimmer />
-              <div className="relative z-10 flex items-center gap-4">
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  className={`w-16 h-16 rounded-2xl bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg`}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-3xl overflow-hidden mb-6"
+          style={{ 
+            background: COLORS.surface,
+            boxShadow: "0 24px 60px -12px rgba(139, 63, 26, 0.18)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
+        >
+          <div
+            className="p-6 relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}
+          >
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")" }} />
+            <div className="relative z-10 flex items-center gap-4">
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="w-16 h-16 rounded-full flex items-center justify-center text-4xl"
+                style={{ background: "rgba(255,255,255,0.25)", backdropFilter: "blur(10px)" }}
+              >
+                {cfg.emoji}
+              </motion.div>
+              <div className="flex-1">
+                <div
+                  className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 text-white"
+                  style={{ background: "rgba(255,255,255,0.2)" }}
                 >
-                  <StatusIcon className={`w-8 h-8 ${cfg.color}`} />
-                </motion.div>
-                <div className="flex-1">
-                  <Badge variant="default" className="mb-2">
-                    {cfg.label}
-                  </Badge>
-                  <p className={`text-sm ${cfg.color} font-medium`}>{cfg.desc}</p>
+                  {cfg.label}
                 </div>
+                <p className="text-white text-sm opacity-90">{cfg.desc}</p>
               </div>
             </div>
-          </Card>
-        </BlurFade>
+          </div>
+        </motion.div>
 
         {/* Order Items */}
-        <BlurFade delay={0.4}>
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Utensils className="w-5 h-5 text-orange-500" />
-                รายการอาหาร
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <AnimatePresence>
-                {order.order_items.map((item, idx) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + idx * 0.1 }}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-orange-50/50 to-amber-50/50 hover:from-orange-100/80 hover:to-amber-100/80 transition-all hover-lift"
-                  >
-                    <span className="text-3xl">{item.menu_items.emoji}</span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-stone-800">{item.menu_items.name}</p>
-                      <p className="text-sm text-stone-500">x{item.quantity}</p>
-                    </div>
-                    <p className="font-bold text-orange-600">
-                      {formatPrice(item.menu_items.price * item.quantity)}
-                    </p>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </CardContent>
-          </Card>
-        </BlurFade>
-
-        {/* Total & Bill Button */}
-        <BlurFade delay={0.6}>
-          <Card className="border-0 shadow-xl bg-gradient-to-br from-orange-500 to-red-500 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-orange-100 text-sm">ยอดรวมทั้งหมด</p>
-                  <p className="text-4xl font-bold">{formatPrice(order.total_amount)}</p>
-                </div>
-                <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Receipt className="w-12 h-12 text-orange-200" />
-                </motion.div>
-              </div>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full bg-white text-orange-600 hover:bg-orange-50"
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="rounded-3xl p-5 mb-6"
+          style={{ 
+            background: COLORS.surface,
+            boxShadow: "0 12px 32px -6px rgba(139, 63, 26, 0.12)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
+        >
+          <h3 className="font-bold mb-4 flex items-center gap-2 text-base" style={{ color: COLORS.text }}>
+            <Utensils size={18} style={{ color: COLORS.primary }} />
+            รายการอาหาร
+          </h3>
+          <div className="space-y-3">
+            {order.order_items.map((item, idx) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + idx * 0.1 }}
+                className="flex items-center gap-3 p-3 rounded-2xl"
+                style={{ 
+                  background: `linear-gradient(135deg, ${COLORS.primaryLight}15 0%, ${COLORS.secondaryLight}15 100%)`,
+                  border: "1px solid rgba(232, 223, 208, 0.5)"
+                }}
               >
-                <Receipt className="w-4 h-4 mr-2" />
-                ขอบิล / เรียกเก็บเงิน
-              </Button>
-            </CardContent>
-          </Card>
-        </BlurFade>
+                <span className="text-4xl">{item.menu_items.emoji}</span>
+                <div className="flex-1">
+                  <p className="font-semibold" style={{ color: COLORS.text }}>{item.menu_items.name}</p>
+                  <p className="text-sm" style={{ color: COLORS.textMuted }}>×{item.quantity}</p>
+                </div>
+                <p className="font-bold text-lg" style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}>
+                  ฿{(item.menu_items.price * item.quantity).toLocaleString()}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
-        <BlurFade delay={0.7}>
-          <p className="text-center text-xs text-stone-400 mt-6">
-            ✨ This is a demo preview • UI effects by Magic UI + Framer Motion
-          </p>
-        </BlurFade>
+        {/* Total Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-3xl overflow-hidden mb-6"
+          style={{ 
+            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+            boxShadow: "0 24px 60px -12px rgba(184, 92, 56, 0.4)"
+          }}
+        >
+          <div className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm opacity-80">ยอดรวมทั้งหมด</p>
+              <p className="text-4xl font-bold text-white" style={{ fontFamily: "'Playfair Display', serif" }}>
+                ฿{order.total_amount.toLocaleString()}
+              </p>
+            </div>
+            <motion.div
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-6xl"
+            >
+              🍜
+            </motion.div>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-4 text-center font-semibold text-base"
+            style={{ background: "rgba(255,255,255,0.15)", color: "white", borderTop: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <Receipt size={16} className="inline mr-2" />
+            ขอบิล / เรียกเก็บเงิน
+          </motion.button>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="text-center text-xs"
+          style={{ color: COLORS.textMuted }}
+        >
+          🌿 This is a demo preview • UI effects by Magic UI + Framer Motion
+        </motion.p>
       </div>
     </div>
   );

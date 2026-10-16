@@ -62,15 +62,17 @@ function AdminOrdersContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 relative overflow-hidden flex items-center justify-center">
-        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-purple-300/30" />
-        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-pink-300/30" delay={1} />
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center" style={{ background: COLORS.bg }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-2xl shadow-purple-500/40"
+          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+          style={{ 
+            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+            boxShadow: "0 24px 60px -12px rgba(184, 92, 56, 0.4)"
+          }}
         >
-          <BarChart3 className="text-white" size={28} />
+          🍳
         </motion.div>
       </div>
     );

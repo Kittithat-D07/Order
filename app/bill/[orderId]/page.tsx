@@ -22,57 +22,65 @@ import {
   Leaf,
   ImageOff,
 } from "lucide-react";
-import {
-  BlurFade,
-  GradientBlob,
-  FloatingElement,
-  Shimmer,
-  PulseDot,
-} from "@/components/ui/magic-effects";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
 
-// สี/label ของแต่ละสถานะ item
+/* ============================================================
+   🌅 ORGANIC WARM - Aura Bistro Bill
+============================================================ */
+
+const COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
+};
+
 const ITEM_STATUS_CONFIG: Record<
   OrderItemStatus,
-  { label: string; color: string; bg: string; border: string; icon: any }
+  { label: string; color: string; bg: string; border: string; emoji: string }
 > = {
   pending: {
     label: "รอครัว",
-    color: "text-stone-500",
-    bg: "bg-stone-50",
-    border: "border-stone-200",
-    icon: Clock,
+    color: COLORS.textMuted,
+    bg: COLORS.secondaryLight,
+    border: COLORS.secondary,
+    emoji: "🌿",
   },
   preparing: {
     label: "กำลังทำ",
-    color: "text-orange-600",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    icon: ChefHat,
+    color: COLORS.primary,
+    bg: COLORS.primaryLight,
+    border: COLORS.primary,
+    emoji: "🔥",
   },
   ready: {
     label: "พร้อมเสิร์ฟ",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    icon: Bell,
+    color: COLORS.accent,
+    bg: COLORS.accentLight,
+    border: COLORS.accent,
+    emoji: "✨",
   },
   served: {
     label: "เสิร์ฟแล้ว",
-    color: "text-green-600",
-    bg: "bg-green-50",
-    border: "border-green-200",
-    icon: CheckCircle2,
+    color: COLORS.success,
+    bg: "#dcfce7",
+    border: COLORS.success,
+    emoji: "🌟",
   },
   cancelled: {
     label: "ยกเลิก",
-    color: "text-red-500",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    icon: XCircle,
+    color: "#9ca3af",
+    bg: "#f5f5f4",
+    border: "#9ca3af",
+    emoji: "🍂",
   },
 };
 
@@ -108,11 +116,7 @@ export default function BillPage() {
     const load = async () => {
       await loadOrder(true);
       const { data: billData } = await supabase
-        .from("bills")
-        .select("*")
-        .eq("order_id", orderId)
-        .maybeSingle();
-
+        .from("bills").select("*").eq("order_id", orderId).maybeSingle();
       if (billData) setBill(billData as Bill);
       setLoading(false);
     };
@@ -122,10 +126,7 @@ export default function BillPage() {
     const orderChannel = supabase
       .channel(`bill-order-${orderId}`)
       .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "orders",
-        filter: `id=eq.${orderId}`,
+        event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}`,
       }, (payload) => {
         setOrder((prev) => prev ? ({ ...prev, ...payload.new } as OrderWithItems) : prev);
       })
@@ -134,9 +135,7 @@ export default function BillPage() {
     const itemsChannel = supabase
       .channel(`bill-items-${orderId}`)
       .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "order_items",
+        event: "*", schema: "public", table: "order_items",
       }, (payload) => {
         const newItem = payload.new as { order_id?: string };
         const oldItem = payload.old as { order_id?: string };
@@ -149,10 +148,7 @@ export default function BillPage() {
     const billChannel = supabase
       .channel(`bill-${orderId}`)
       .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "bills",
-        filter: `order_id=eq.${orderId}`,
+        event: "*", schema: "public", table: "bills", filter: `order_id=eq.${orderId}`,
       }, (payload) => {
         if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
           setBill(payload.new as Bill);
@@ -183,35 +179,45 @@ export default function BillPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 relative overflow-hidden flex items-center justify-center">
-        <GradientBlob className="top-[-100px] right-[-100px]" color="bg-amber-300/30" />
-        <GradientBlob className="bottom-[-100px] left-[-100px]" color="bg-orange-300/30" delay={1} />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5" style={{ background: COLORS.bg }}>
         <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+          animate={{ rotate: [0, 8, -8, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="text-7xl"
         >
-          <Receipt className="text-white" size={28} />
+          🍳
         </motion.div>
+        <div className="text-center">
+          <p className="text-2xl text-sunset font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+            Aura Bistro
+          </p>
+          <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
+            กำลังโหลดบิล...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-amber-50 relative overflow-hidden flex items-center justify-center p-6">
-        <GradientBlob className="top-[-100px] right-[-100px]" color="bg-red-300/30" />
-        <BlurFade>
-          <Card className="max-w-sm">
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg">
-                <Clock className="text-white" size={28} />
-              </div>
-              <p className="text-stone-800 font-bold text-lg mb-2">เกิดข้อผิดพลาด</p>
-              <p className="text-stone-600 text-sm">{error ?? "ไม่พบออร์เดอร์"}</p>
-            </CardContent>
-          </Card>
-        </BlurFade>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.bg }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-sm text-center p-8"
+          style={{ 
+            background: COLORS.surface, 
+            borderRadius: "1.75rem", 
+            boxShadow: "0 20px 60px -10px rgba(139, 63, 26, 0.2)"
+          }}
+        >
+          <div className="text-7xl mb-4 animate-sway">🌿</div>
+          <p className="text-2xl text-sunset font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+            เกิดข้อผิดพลาด
+          </p>
+          <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
+        </motion.div>
       </div>
     );
   }
@@ -224,328 +230,347 @@ export default function BillPage() {
     served: items.filter((i) => (i as any).status === "served").length,
     cancelled: items.filter((i) => (i as any).status === "cancelled").length,
   };
-
   const totalItems = items.filter((i) => (i as any).status !== "cancelled").length;
   const allDone =
-    counts.pending === 0 &&
-    counts.preparing === 0 &&
-    counts.ready === 0 &&
-    counts.served > 0;
+    counts.pending === 0 && counts.preparing === 0 && counts.ready === 0 && counts.served > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 print:bg-white relative overflow-hidden">
-
+    <div className="min-h-screen pb-12 relative" style={{ background: COLORS.bg }}>
       <style jsx global>{`
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; }
-          .print-break { page-break-before: always; }
         }
       `}</style>
 
-      {/* Background */}
-      <GradientBlob className="top-[-150px] right-[-100px]" color="bg-amber-300/30" />
-      <GradientBlob className="top-[40%] left-[-100px]" color="bg-orange-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] right-[20%]" color="bg-red-300/30" delay={4} />
+      {/* Decorative leaves */}
+      <motion.div
+        animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="leaf-deco text-7xl"
+        style={{ top: "60px", right: "20px", color: COLORS.secondary, opacity: 0.1 }}
+      >
+        🍃
+      </motion.div>
 
-      <FloatingElement className="top-32 right-12" delay={0}>
-        <Receipt className="w-7 h-7 text-amber-400/50" />
-      </FloatingElement>
-      <FloatingElement className="top-52 left-10" delay={1}>
-        <Flame className="w-6 h-6 text-orange-400/50" />
-      </FloatingElement>
-      <FloatingElement className="bottom-52 right-20" delay={2}>
-        <Leaf className="w-5 h-5 text-green-400/50" />
-      </FloatingElement>
-
-      <div className="relative z-10 max-w-lg mx-auto px-3 py-4 print:p-0">
-
-        {/* Top bar */}
-        <BlurFade delay={0.05}>
-          <div className="no-print mb-4 flex items-center justify-between">
-            <Button onClick={() => router.back()} variant="ghost" size="sm">
-              <ArrowLeft size={14} className="mr-1.5" /> กลับ
-            </Button>
+      {/* Top bar */}
+      <BlurFade delay={0.05}>
+        <div className="no-print sticky top-0 z-30 backdrop-blur-md bg-white/80 border-b p-4" style={{ borderColor: "rgba(232, 223, 208, 0.5)" }}>
+          <div className="max-w-lg mx-auto flex items-center justify-between">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => router.back()}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+              style={{ background: COLORS.bg, color: COLORS.textMuted }}
+            >
+              <ArrowLeft size={14} /> กลับ
+            </motion.button>
             <div className="flex items-center gap-2">
-              <PulseDot color="bg-orange-500" />
-              <span className="text-xs text-stone-500">อัปเดตทุก 5 วินี</span>
+              <div className="w-2 h-2 rounded-full" style={{ background: COLORS.success }} />
+              <span className="text-xs" style={{ color: COLORS.textMuted }}>อัปเดตทุก 5 วินี</span>
             </div>
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={handlePrint}
-                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30"
-              >
-                <Printer size={14} className="mr-1.5" /> พิมพ์
-              </Button>
-            </motion.div>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handlePrint}
+              className="px-4 py-2 rounded-full text-white text-sm font-semibold"
+              style={{
+                background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                boxShadow: "0 6px 16px -3px rgba(184, 92, 56, 0.4)"
+              }}
+            >
+              <Printer size={14} className="mr-1.5" /> พิมพ์
+            </motion.button>
           </div>
-        </BlurFade>
+        </div>
+      </BlurFade>
+
+      <div className="relative z-10 max-w-lg mx-auto px-3 py-4">
 
         {/* Hero Header */}
-        <BlurFade delay={0.1}>
-          <div className="text-center mb-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/60 backdrop-blur-sm rounded-full shadow-sm mb-3">
-              <PulseDot color="bg-orange-500" />
-              <span className="text-xs font-medium text-stone-600">ใบเสร็จรับเงิน</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-orange-600 via-amber-500 to-red-500 bg-clip-text text-transparent">
-              สถานะออร์เดอร์
-            </h1>
-            <p className="text-stone-500 mt-1 text-sm">
-              โต๊ะ {order.tables?.table_number} • #{order.id.slice(0, 8).toUpperCase()}
-            </p>
-          </div>
-        </BlurFade>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="text-center mb-6"
+        >
+          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: COLORS.accent }}>
+            ✨ Welcome to
+          </p>
+          <h1 className="text-4xl text-sunset" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}>
+            Aura Bistro
+          </h1>
+          <h2 className="text-2xl" style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: COLORS.text }}>
+            ใบเสร็จรับเงิน
+          </h2>
+          <p className="text-sm mt-1" style={{ color: COLORS.textMuted }}>
+            โต๊ะ {order.tables?.table_number} • #{order.id.slice(0, 8).toUpperCase()}
+          </p>
+        </motion.div>
 
-        {/* Bill Card */}
-        <BlurFade delay={0.2}>
-          <Card className="bg-white/90 backdrop-blur-md shadow-2xl print:shadow-none print:rounded-none border-0 overflow-hidden mb-4">
-
-            {/* Bill Header Banner */}
-            <div className="relative bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 p-6 overflow-hidden">
-              <Shimmer />
-              <div className="relative z-10 flex items-center gap-4">
-                <motion.div
-                  animate={{ rotate: [0, 8, -8, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg flex-shrink-0"
-                >
-                  <Utensils className="w-7 h-7 text-white" />
-                </motion.div>
-                <div className="flex-1">
-                  <h2 className="text-white font-bold text-lg leading-tight">ร้านอาหาร QR Order</h2>
-                  <p className="text-orange-100 text-xs flex items-center gap-1 mt-0.5">
-                    <Sparkles size={11} />
-                    ใบเสร็จรับเงิน / Receipt
-                  </p>
-                  {bill?.bill_number && (
-                    <p className="text-white/80 text-xs font-mono mt-1">
-                      เลขที่ {bill.bill_number}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-3 py-1.5">
-                    <p className="text-white text-xs opacity-80">โต๊ะ</p>
-                    <p className="text-white font-bold text-xl leading-none">{order.tables?.table_number}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <CardContent className="p-5">
-
-              {/* Bill Meta */}
-              <div className="space-y-1.5 text-sm mb-4 pb-4 border-b-2 border-dashed border-stone-200">
-                <div className="flex justify-between">
-                  <span className="text-stone-400">วันที่สั่ง:</span>
-                  <span className="text-stone-700 font-medium">{formatDateTime(order.created_at)}</span>
-                </div>
-                {bill?.requested_at && (
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">ขอบิลเมื่อ:</span>
-                    <span className="text-stone-700 font-medium">{formatDateTime(bill.requested_at)}</span>
-                  </div>
-                )}
-                {bill?.printed_at && (
-                  <div className="flex justify-between">
-                    <span className="text-stone-400">พิมพ์บิล:</span>
-                    <span className="text-green-600 font-medium text-xs flex items-center gap-1">
-                      <CheckCircle2 size={12} /> {formatDateTime(bill.printed_at)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Per-item status summary */}
-              <div className="no-print mb-4">
-                <h3 className="text-sm font-semibold text-stone-700 mb-2.5 flex items-center gap-2">
-                  <Star className="w-4 h-4 text-amber-500" />
-                  สถานะอาหาร ({totalItems} รายการ)
-                </h3>
-                <div className="grid grid-cols-5 gap-1.5 text-center">
-                  {[
-                    { key: "pending", label: "รอ", icon: Clock, cls: "bg-stone-100 text-stone-600" },
-                    { key: "preparing", label: "ทำ", icon: ChefHat, cls: "bg-orange-100 text-orange-700" },
-                    { key: "ready", label: "ส่ง", icon: Bell, cls: "bg-blue-100 text-blue-700" },
-                    { key: "served", label: "เสร็จ", icon: CheckCircle2, cls: "bg-green-100 text-green-700" },
-                    { key: "cancelled", label: "ยกเลิก", icon: XCircle, cls: "bg-red-100 text-red-600" },
-                  ].map(({ key, label, icon: Icon, cls }) => {
-                    const c = counts[key as keyof typeof counts];
-                    return (
-                      <div key={key} className={`py-2 rounded-xl text-xs font-bold flex flex-col items-center gap-0.5 ${cls}`}>
-                        <Icon className="w-4 h-4" />
-                        <span>{c}</span>
-                        <span className="text-[10px] opacity-70">{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* All done banner */}
-              {allDone && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="no-print mb-4 p-3 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 flex items-center gap-3"
-                >
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-white" />
-                  </motion.div>
-                  <div>
-                    <p className="font-bold text-green-800 text-sm">ทุกเมนูเสิร์ฟเรียบร้อยแล้ว 🎉</p>
-                    <p className="text-xs text-green-600">ขอบคุณที่รอค่ะ</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Food Items */}
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-gradient-to-b from-orange-500 to-amber-500" />
-                รายการอาหาร ({items.length})
+        {/* Bill Card - Receipt Style */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-3xl overflow-hidden mb-4"
+          style={{ 
+            background: COLORS.surface,
+            boxShadow: "0 24px 60px -12px rgba(139, 63, 26, 0.2)",
+            border: "1px solid rgba(232, 223, 208, 0.5)"
+          }}
+        >
+          {/* Receipt Header */}
+          <div
+            className="p-6 text-center text-white relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}
+          >
+            {/* Paper texture */}
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")" }} />
+            
+            <div className="relative z-10">
+              <motion.div
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center text-4xl"
+                style={{ background: "rgba(255,255,255,0.25)" }}
+              >
+                🍜
+              </motion.div>
+              <h3 className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>
+                Aura Bistro
               </h3>
-
-              <div className="space-y-3">
-                <AnimatePresence>
-                  {items.map((item, idx) => {
-                    const status = ((item as any).status ?? "pending") as OrderItemStatus;
-                    const cfg = ITEM_STATUS_CONFIG[status] ?? ITEM_STATUS_CONFIG.pending;
-                    const ItemIcon = cfg.icon;
-                    const imageUrl = item.menu_items?.image_url;
-                    const isAnimating = status === "preparing" || status === "ready";
-
-                    return (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + idx * 0.06 }}
-                        className={`relative flex items-start gap-3 p-3 rounded-2xl border-2 ${cfg.bg} ${cfg.border} print:border-stone-200 print:bg-white overflow-hidden`}
-                      >
-                        {/* Food image */}
-                        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white shadow-sm border border-stone-100">
-                          {imageUrl ? (
-                            <Image
-                              src={imageUrl}
-                              alt={item.menu_items?.name ?? ""}
-                              fill
-                              className="object-cover"
-                              sizes="64px"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-stone-100">
-                              <ImageOff className="w-6 h-6 text-stone-300" />
-                            </div>
-                          )}
-                          {/* Status badge on image */}
-                          <div className={`absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm ${status === "served" ? "bg-green-500" : status === "cancelled" ? "bg-red-500" : status === "ready" ? "bg-blue-500" : status === "preparing" ? "bg-orange-500" : "bg-stone-400"}`}>
-                            <ItemIcon className="w-3 h-3 text-white" />
-                          </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0 pt-0.5">
-                          <p className="font-bold text-stone-800 text-sm leading-tight truncate">
-                            {item.menu_items?.name ?? "(เมนูถูกลบ)"}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-stone-500 text-xs">
-                              ฿{formatPrice((item as any).unit_price ?? item.menu_items?.price)} × {item.quantity}
-                            </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.color} bg-white/70 border ${cfg.border}`}>
-                              {cfg.label}
-                            </span>
-                          </div>
-                          {item.note && (
-                            <p className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg mt-1.5 italic">
-                              💬 {item.note}
-                            </p>
-                          )}
-                          {status === "served" && (item as any).served_by && (
-                            <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1">
-                              <CheckCircle2 size={10} /> เสิริฟ์โดย {(item as any).served_by}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Price + animating status */}
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className="font-bold text-stone-800 text-sm">
-                            ฿{formatPrice(item.subtotal)}
-                          </span>
-                          {isAnimating && (
-                            <motion.span
-                              animate={{ opacity: [0.5, 1, 0.5] }}
-                              transition={{ duration: 1.5, repeat: Infinity }}
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.color} ${cfg.bg}`}
-                            >
-                              {status === "preparing" ? "🔥 กำลังทำ" : "🔔 รอเสิริฟ์"}
-                            </motion.span>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-
-              {/* Total */}
-              <div className="mt-5 pt-4 border-t-2 border-dashed border-stone-300">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-base font-semibold text-stone-700">ยอดรวมทั้งหมด</p>
-                    <p className="text-xs text-stone-400">{totalItems} รายการ</p>
-                  </div>
-                  <motion.div
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    className="text-right"
-                  >
-                    <p className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-500 bg-clip-text text-transparent leading-none">
-                      ฿{formatPrice(order.total_amount)}
-                    </p>
-                  </motion.div>
+              <p className="text-xs opacity-80 mt-1">🌿 Thai Garden Kitchen</p>
+              {bill?.bill_number && (
+                <div className="mt-3 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-mono bg-white/20 backdrop-blur-sm">
+                  <Receipt size={14} />
+                  เลขที่ {bill.bill_number}
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Footer */}
-              <div className="mt-6 pt-4 border-t border-stone-200 text-center">
-                <p className="text-base text-stone-500">🙏 ขอบคุณที่ใช้บริการ</p>
-                <p className="text-xs text-stone-400 mt-0.5">Thank you for your visit</p>
+          {/* Receipt Body */}
+          <div className="p-5">
+            {/* Meta info */}
+            <div className="space-y-1.5 text-sm mb-5 pb-4" style={{ borderBottom: "2px dashed rgba(232, 223, 208, 0.8)" }}>
+              <div className="flex justify-between">
+                <span style={{ color: COLORS.textMuted }}>วันที่สั่ง:</span>
+                <span className="font-medium" style={{ color: COLORS.text }}>{formatDateTime(order.created_at)}</span>
               </div>
-            </CardContent>
-          </Card>
-        </BlurFade>
+              {bill?.requested_at && (
+                <div className="flex justify-between">
+                  <span style={{ color: COLORS.textMuted }}>ขอบิลเมื่อ:</span>
+                  <span className="font-medium" style={{ color: COLORS.text }}>{formatDateTime(bill.requested_at)}</span>
+                </div>
+              )}
+              {bill?.printed_at && (
+                <div className="flex justify-between">
+                  <span style={{ color: COLORS.textMuted }}>พิมพ์บิล:</span>
+                  <span className="font-medium text-sm flex items-center gap-1" style={{ color: COLORS.success }}>
+                    <CheckCircle2 size={12} /> {formatDateTime(bill.printed_at)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Status summary */}
+            <div className="no-print mb-4">
+              <h4 className="text-sm font-bold mb-2.5 flex items-center gap-2" style={{ color: COLORS.text }}>
+                <Star size={14} style={{ color: COLORS.accent }} />
+                สถานะอาหาร ({totalItems} รายการ)
+              </h4>
+              <div className="grid grid-cols-5 gap-1.5 text-center">
+                {[
+                  { key: "pending", label: "รอ", emoji: "🌿", bg: COLORS.secondaryLight, color: COLORS.secondary },
+                  { key: "preparing", label: "ทำ", emoji: "🔥", bg: COLORS.primaryLight, color: COLORS.primary },
+                  { key: "ready", label: "ส่ง", emoji: "✨", bg: COLORS.accentLight, color: COLORS.accent },
+                  { key: "served", label: "เสร็จ", emoji: "🌟", bg: "#dcfce7", color: COLORS.success },
+                  { key: "cancelled", label: "ยกเลิก", emoji: "🍂", bg: "#f5f5f4", color: "#9ca3af" },
+                ].map(({ key, label, emoji, bg, color }) => {
+                  const c = counts[key as keyof typeof counts];
+                  return (
+                    <div
+                      key={key}
+                      className="py-2 rounded-xl text-xs font-bold flex flex-col items-center gap-0.5"
+                      style={{ background: bg, color }}
+                    >
+                      <span className="text-base">{emoji}</span>
+                      <span>{c}</span>
+                      <span className="text-[10px] opacity-70">{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* All done banner */}
+            {allDone && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="no-print mb-4 p-3 rounded-2xl flex items-center gap-3"
+                style={{ background: "#dcfce7", border: `2px solid ${COLORS.success}` }}
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-2xl" style={{ background: COLORS.success }}>
+                  ✨
+                </div>
+                <div>
+                  <p className="font-bold text-sm" style={{ color: COLORS.success }}>ทุกเมนูเสิร์ฟเรียบร้อยแล้ว 🎉</p>
+                  <p className="text-xs" style={{ color: COLORS.textMuted }}>ขอบคุณที่รอค่ะ</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Food Items */}
+            <h4 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: COLORS.text }}>
+              <span className="text-lg">🍜</span>
+              รายการอาหาร ({items.length})
+            </h4>
+
+            <div className="space-y-3">
+              <AnimatePresence>
+                {items.map((item, idx) => {
+                  const status = ((item as any).status ?? "pending") as OrderItemStatus;
+                  const cfg = ITEM_STATUS_CONFIG[status] ?? ITEM_STATUS_CONFIG.pending;
+                  const imageUrl = item.menu_items?.image_url;
+
+                  return (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + idx * 0.06 }}
+                      className="flex items-start gap-3 p-3 rounded-2xl"
+                      style={{ 
+                        background: cfg.bg, 
+                        border: `1px solid ${cfg.border}20`,
+                      }}
+                    >
+                      {/* Food image */}
+                      <div
+                        className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0"
+                        style={{ background: "white", border: "1px solid rgba(232, 223, 208, 0.5)" }}
+                      >
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={item.menu_items?.name ?? ""} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-2xl">
+                            🍜
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <p className="font-bold text-sm leading-tight" style={{ color: COLORS.text }}>
+                          {item.menu_items?.name ?? "(เมนูถูกลบ)"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs" style={{ color: COLORS.textMuted }}>
+                            ฿{formatPrice((item as any).unit_price ?? item.menu_items?.price)} × {item.quantity}
+                          </span>
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "white", color: cfg.color, border: `1px solid ${cfg.border}40` }}
+                          >
+                            {cfg.emoji} {cfg.label}
+                          </span>
+                        </div>
+                        {item.note && (
+                          <p className="text-[10px] mt-1.5 px-2 py-1 rounded-lg italic" style={{ background: "white", color: COLORS.accent }}>
+                            💬 {item.note}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Price */}
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className="font-bold text-sm" style={{ color: COLORS.text }}>
+                          ฿{formatPrice(item.subtotal)}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+
+            {/* Total */}
+            <div className="mt-5 pt-4" style={{ borderTop: "2px dashed rgba(232, 223, 208, 0.8)" }}>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-base font-semibold" style={{ color: COLORS.text }}>ยอดรวมทั้งหมด</p>
+                  <p className="text-xs" style={{ color: COLORS.textMuted }}>{totalItems} รายการ</p>
+                </div>
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className="text-right"
+                >
+                  <p className="text-4xl font-bold text-sunset" style={{ fontFamily: "'Playfair Display', serif" }}>
+                    ฿{formatPrice(order.total_amount)}
+                  </p>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-6 pt-4 text-center" style={{ borderTop: "1px solid rgba(232, 223, 208, 0.5)" }}>
+              <p className="text-base" style={{ color: COLORS.textMuted, fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+                🙏 ขอบคุณที่ใช้บริการ
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>Thank you for your visit</p>
+              <p className="text-xs mt-2" style={{ color: COLORS.secondary }}>🌿 Aura Bistro • Thai Garden Kitchen</p>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Pending bill notice */}
         {!bill && (
-          <BlurFade delay={0.4}>
-            <Card className="no-print border-amber-200 bg-amber-50/80 backdrop-blur-sm">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-amber-800 text-sm">⏳ กำลังรอเปิดบิล</p>
-                  <p className="text-xs text-amber-700 mt-0.5">กดปุ่ม "ขอบิล" ในหน้าออร์เดอร์ หรือรอให้ทางร้านเปิดบิลให้</p>
-                </div>
-              </CardContent>
-            </Card>
-          </BlurFade>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="no-print p-4 rounded-2xl mb-4"
+            style={{ background: COLORS.accentLight, border: `1px solid ${COLORS.accent}30` }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl" style={{ background: COLORS.accent }}>
+                ⏳
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: COLORS.primaryDark }}>⏳ กำลังรอเปิดบิล</p>
+                <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>
+                  กดปุ่ม "ขอบิล" ในหน้าออร์เดอร์ หรือรอให้ทางร้านเปิดบิลให้
+                </p>
+              </div>
+            </div>
+          </motion.div>
         )}
 
-        <BlurFade delay={0.5}>
-          <p className="no-print text-center text-xs text-stone-400 mt-3">
-            อัปเดตอัตโนมัติทุก 5 วินาที
-          </p>
-        </BlurFade>
-
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="no-print text-center text-xs"
+          style={{ color: COLORS.textMuted }}
+        >
+          อัปเดตอัตโนมัติทุก 5 วินาที
+        </motion.p>
       </div>
     </div>
+  );
+}
+
+function BlurFade({ delay, children }: { delay: number; children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+    >
+      {children}
+    </motion.div>
   );
 }

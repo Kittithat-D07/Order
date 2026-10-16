@@ -26,32 +26,44 @@ function AdminContent() {
 
   return (
     <div className="min-h-screen bg-stone-50 overflow-x-hidden">
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50" />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-stone-100" />
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-purple-300/30" />
-        <GradientBlob className="top-[40%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-pink-300/30" delay={2} />
-        <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-rose-300/30" delay={4} />
+        <div
+          className="absolute top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96 rounded-full opacity-20"
+          style={{ background: `radial-gradient(circle, ${ADMIN_COLORS.primaryLight} 0%, transparent 70%)` }}
+        />
+        <div
+          className="absolute top-[40%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96 rounded-full opacity-15"
+          style={{ background: `radial-gradient(circle, ${ADMIN_COLORS.secondaryLight} 0%, transparent 70%)`, animationDelay: "2s" }}
+        />
+        <div
+          className="absolute bottom-[-100px] right-[30%] w-72 h-72 sm:w-96 sm:h-96 rounded-full opacity-15"
+          style={{ background: `radial-gradient(circle, ${ADMIN_COLORS.accentLight} 0%, transparent 70%)`, animationDelay: "4s" }}
+        />
       </div>
 
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <FloatingElement className="top-32 left-4 sm:left-12" delay={0}>
-          <Settings className="w-6 h-6 sm:w-7 sm:h-7 text-purple-400/30" />
+          <Settings className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: ADMIN_COLORS.secondary, opacity: 0.3 }} />
         </FloatingElement>
         <FloatingElement className="top-48 right-4 sm:right-16" delay={1}>
-          <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400/30" />
+          <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: ADMIN_COLORS.accent, opacity: 0.3 }} />
         </FloatingElement>
       </div>
 
-      {/* Header (ผู้จัดการ) - Sticky: ติดบนสุดจอตลอดเวลา scroll */}
+      {/* Header (ผู้จัดการ) */}
       <header
         className={cn(
           "sticky top-0 z-50 text-white",
-          "bg-gradient-to-r from-purple-500/95 via-pink-500/95 to-rose-500/95",
           "transition-all duration-300 ease-out",
           scrolled
-            ? "shadow-2xl shadow-purple-500/40 backdrop-blur-xl border-b border-white/10"
-            : "shadow-lg shadow-purple-500/30 backdrop-blur-md"
+            ? "shadow-2xl backdrop-blur-xl border-b"
+            : "shadow-lg backdrop-blur-md"
         )}
+        style={{ 
+          background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accent} 100%)`,
+          borderColor: "rgba(255,255,255,0.1)"
+        }}
       >
         <div
           className={cn(

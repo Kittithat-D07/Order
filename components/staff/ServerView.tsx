@@ -11,6 +11,26 @@ import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus, AlertTriangle,
 import { StockToggleModal } from "./StockToggleModal";
 import { AddItemModal, BillPaymentModal } from "./AddItemModal";
 
+/* ============================================================
+   🌅 ORGANIC WARM - Aura Bistro Server View
+============================================================ */
+
+const COLORS = {
+  primary: "#B85C38",
+  primaryDark: "#8B3F1A",
+  primaryLight: "#F4DCC4",
+  secondary: "#6B7B5F",
+  secondaryLight: "#DDE3D2",
+  accent: "#C8932F",
+  accentLight: "#F0D78C",
+  bg: "#FAF6F0",
+  surface: "#FFFFFF",
+  text: "#2C2620",
+  textMuted: "#6B5F54",
+  success: "#4F7942",
+  danger: "#A03826",
+};
+
 export function ServerView() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -39,48 +59,28 @@ export function ServerView() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
-        () => {
-          console.log("🔄 [realtime] order_items changed");
-          loadOrders();
-        }
+        () => { loadOrders(); }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bills" },
-        () => {
-          console.log("🔄 [realtime] bills changed");
-          loadBills();
-        }
+        () => { loadBills(); }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => {
-          console.log("🔄 [realtime] orders changed");
-          loadOrders();
-        }
+        () => { loadOrders(); }
       )
       .subscribe((status) => {
-        console.log("📡 [realtime] channel status:", status);
-        if (status === "SUBSCRIBED") {
-          setRealtimeStatus("online");
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          setRealtimeStatus("offline");
-        }
+        if (status === "SUBSCRIBED") setRealtimeStatus("online");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setRealtimeStatus("offline");
       });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Auto-refresh ทุก 3s เป็น fallback (responsive ขึ้น)
   useEffect(() => {
-    const interval = setInterval(() => {
-      console.log("⏰ [polling] refresh");
-      loadOrders();
-      loadBills();
-    }, 3000);
+    const interval = setInterval(() => { loadOrders(); loadBills(); }, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -89,24 +89,17 @@ export function ServerView() {
       .from("orders")
       .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
       .order("created_at", { ascending: false });
-
-    if (data) {
-      setOrders(data as any as OrderWithItems[]);
-      setLastUpdate(new Date());
-    }
+    if (data) { setOrders(data as any as OrderWithItems[]); setLastUpdate(new Date()); }
   };
 
   const loadBills = async () => {
     const { data } = await supabase
-      .from("bills")
-      .select("*")
-      .order("requested_at", { ascending: false });
+      .from("bills").select("*").order("requested_at", { ascending: false });
     if (data) setBills(data as Bill[]);
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
     const supabase = createClient();
-    // อัพเดท order_item
     const { data: item } = await supabase
       .from("order_items")
       .update({
@@ -120,29 +113,18 @@ export function ServerView() {
 
     if (!item) return;
 
-    // คำนวณ order status
     const { data: items } = await supabase
-      .from("order_items")
-      .select("status")
-      .eq("order_id", item.order_id);
-
+      .from("order_items").select("status").eq("order_id", item.order_id);
     if (!items) return;
 
     const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
     const anyPreparing = items.some((i) => i.status === "preparing" || i.status === "ready" || i.status === "served");
 
     let orderStatus: "pending" | "preparing" | "served" = "pending";
-    if (allServed) {
-      orderStatus = "served";
-    } else if (anyPreparing) {
-      orderStatus = "preparing";
-    }
+    if (allServed) orderStatus = "served";
+    else if (anyPreparing) orderStatus = "preparing";
 
-    // อัพเดท orders.status (trigger realtime ให้ลูกค้าเห็น)
-    await supabase
-      .from("orders")
-      .update({ status: orderStatus })
-      .eq("id", item.order_id);
+    await supabase.from("orders").update({ status: orderStatus }).eq("id", item.order_id);
   };
 
   const claimOrder = async (orderId: string) => {
@@ -152,16 +134,14 @@ export function ServerView() {
       .eq("id", orderId);
   };
 
-  // แยก items ตาม filter (กรองเฉพาะ order ที่ยังไม่ paid)
   const itemsByFilter = (orderList: OrderWithItems[]) => {
     return orderList
-      .filter((o) => !o.paid_at) // ซ่อน order ที่จ่ายเงินแล้ว
+      .filter((o) => !o.paid_at)
       .flatMap((o) =>
         (o.order_items ?? [])
           .filter((it) => {
             if (filter === "ready") return it.status === "ready";
-            if (filter === "active")
-              return ["pending", "preparing"].includes(it.status);
+            if (filter === "active") return ["pending", "preparing"].includes(it.status);
             if (filter === "completed") return it.status === "served";
             return false;
           })
@@ -171,7 +151,6 @@ export function ServerView() {
 
   const filteredItems = itemsByFilter(orders);
 
-  // Group by table
   const groupedByTable = filteredItems.reduce((acc, it) => {
     const tableNum = it.order.tables?.table_number ?? "?";
     if (!acc[tableNum]) acc[tableNum] = [];
@@ -188,73 +167,85 @@ export function ServerView() {
 
   return (
     <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
-      {/* Realtime status badge */}
+      {/* Realtime status */}
       <div className="mb-3 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full border border-stone-200 shadow-sm">
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+          style={{ background: COLORS.surface, boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.1)", border: "1px solid rgba(232, 223, 208, 0.5)" }}
+        >
           <span className={`relative flex w-2 h-2 rounded-full ${
-            realtimeStatus === "online" ? "bg-green-500" :
-            realtimeStatus === "offline" ? "bg-red-500" : "bg-amber-500"
+            realtimeStatus === "online" ? "bg-green-500" : realtimeStatus === "offline" ? "bg-red-500" : "bg-amber-500"
           }`}>
             {realtimeStatus === "online" && (
               <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
             )}
           </span>
-          <span className="text-stone-600 font-medium">
+          <span style={{ color: COLORS.textMuted }}>
             {realtimeStatus === "online" && "🟢 Realtime เชื่อมต่ออยู่"}
-            {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ (ใช้ polling)"}
+            {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ"}
             {realtimeStatus === "connecting" && "🟡 กำลังเชื่อมต่อ..."}
           </span>
         </div>
         {lastUpdate && (
-          <span className="text-stone-400 text-[10px]">
+          <span className="text-xs" style={{ color: COLORS.textMuted }}>
             อัปเดต {lastUpdate.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </span>
         )}
       </div>
 
       {/* Name input */}
-      <div className="mb-4 bg-white rounded-2xl p-4 border-2 border-stone-200 flex items-center gap-3 shadow-sm">
-        <span className="text-sm text-stone-500 font-medium">เสริฟ์ชื่อ:</span>
+      <div
+        className="mb-4 p-4 rounded-2xl flex items-center gap-3"
+        style={{ background: COLORS.surface, boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.1)", border: "1px solid rgba(232, 223, 208, 0.5)" }}
+      >
+        <span className="text-sm font-medium" style={{ color: COLORS.textMuted }}>🍽️ เสริฟ์ชื่อ:</span>
         <input
           value={serverName}
           onChange={(e) => setServerName(e.target.value)}
-          className="flex-1 outline-none text-base font-semibold text-stone-800 py-1"
+          className="flex-1 outline-none text-base font-semibold py-1"
+          style={{ color: COLORS.text, background: "transparent" }}
           placeholder="พิมพ์ชื่อเสริฟ์..."
         />
       </div>
 
       {/* Action bar */}
-      <div className="mb-4 flex gap-2">
-        <button
+      <div className="mb-4">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={() => setShowAddItem(true)}
-          className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-base font-bold flex items-center justify-center gap-2 shadow-md active:scale-95"
+          className="w-full py-4 rounded-2xl text-white text-base font-semibold flex items-center justify-center gap-2"
+          style={{
+            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+            boxShadow: "0 12px 28px -6px rgba(184, 92, 56, 0.5)"
+          }}
         >
-          <Plus size={20} /> เพิ่มเมนูให้โต๊ะ
-        </button>
+          <Plus size={20} strokeWidth={2.5} /> เพิ่มเมนูให้โต๊ะ
+        </motion.button>
       </div>
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
-        <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} icon={Bell} label="พร้อมเสิร์ฟ" count={counts.ready} color="blue" />
-        <FilterTab active={filter === "active"} onClick={() => setFilter("active")} icon={Clock} label="กำลังทำ" count={counts.active} color="amber" />
-        <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} icon={Check} label="เสร็จแล้ว" count={counts.completed} color="green" />
-        <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} icon={Receipt} label="บิล" count={counts.bills} color="orange" />
+        <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} emoji="✨" label="พร้อมเสิร์ฟ" count={counts.ready} color={COLORS.accent} />
+        <FilterTab active={filter === "active"} onClick={() => setFilter("active")} emoji="🔥" label="กำลังทำ" count={counts.active} color={COLORS.primary} />
+        <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} emoji="✅" label="เสร็จแล้ว" count={counts.completed} color={COLORS.success} />
+        <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} emoji="🧾" label="บิล" count={counts.bills} color={COLORS.primary} />
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowStockModal(true)}
-          className="flex flex-col items-center justify-center gap-1 px-2 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition min-w-[64px]"
+          className="flex flex-col items-center justify-center gap-1 px-3 py-2.5 rounded-2xl min-w-[64px]"
+          style={{ background: "#fef3c7", color: "#92400e" }}
         >
-          <Package size={18} />
+          <span className="text-lg">📦</span>
           <span className="text-[10px] font-bold">สต็อก</span>
         </motion.button>
       </div>
 
-      {/* Bills View OR Table groups */}
+      {/* Bills View */}
       {filter === "bills" ? (
         <div className="space-y-3">
           {bills.length === 0 ? (
-            <div className="text-center py-20 text-stone-400">
-              <Receipt size={48} className="mx-auto mb-3 opacity-50" />
+            <div className="text-center py-20" style={{ color: COLORS.textMuted }}>
+              <div className="text-6xl mb-3 animate-sway">🌿</div>
               <p className="text-sm">ยังไม่มีลูกค้าขอบิล</p>
             </div>
           ) : (
@@ -265,26 +256,29 @@ export function ServerView() {
                   key={bill.id}
                   href={`/bill/${bill.order_id}`}
                   target="_blank"
-                  className="block bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 border-2 border-orange-200 hover:border-orange-400 transition active:scale-[0.98]"
+                  className="block rounded-2xl p-5 transition-all"
+                  style={{ 
+                    background: COLORS.surface,
+                    boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
+                    border: `1px solid ${COLORS.accent}40`
+                  }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono font-bold text-orange-700 text-xl">
+                    <span className="font-mono font-bold text-xl" style={{ color: COLORS.primary }}>
                       🧾 {bill.bill_number}
                     </span>
-                    <span className="text-sm text-stone-500">
+                    <span className="text-sm" style={{ color: COLORS.textMuted }}>
                       {formatDateTime(bill.requested_at)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-base text-stone-700">
-                        โต๊ะ <span className="font-bold text-stone-900 text-lg">{order?.tables?.table_number ?? "?"}</span>
+                      <p className="text-base" style={{ color: COLORS.text }}>
+                        โต๊ะ <span className="font-bold text-xl" style={{ color: COLORS.text }}>{order?.tables?.table_number ?? "?"}</span>
                       </p>
-                      <p className="text-sm text-stone-500">
-                        กดเพื่อดู/พิมพ์บิล
-                      </p>
+                      <p className="text-sm" style={{ color: COLORS.textMuted }}>กดเพื่อดู/พิมพ์บิล</p>
                     </div>
-                    <span className="text-2xl font-bold text-orange-600">
+                    <span className="text-2xl font-bold" style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}>
                       ฿{formatPrice(bill.total_amount)}
                     </span>
                   </div>
@@ -296,131 +290,143 @@ export function ServerView() {
       ) : (
         <>
           {Object.keys(groupedByTable).length === 0 ? (
-        <div className="text-center py-20 text-stone-400">
-          <Utensils size={48} className="mx-auto mb-3 opacity-50" />
-          <p className="text-sm">ไม่มีรายการในหมวดนี้</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {Object.entries(groupedByTable).map(([tableNum, items]) => {
-            const order = items[0].order;
-            return (
-              <div key={tableNum + order.id} className="bg-white rounded-2xl border-2 border-stone-200 overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-stone-900 text-white flex items-center justify-center font-bold text-xl">
-                      {tableNum}
+            <div className="text-center py-20" style={{ color: COLORS.textMuted }}>
+              <div className="text-6xl mb-3 animate-sway">🍃</div>
+              <p className="text-sm">ไม่มีรายการในหมวดนี้</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(groupedByTable).map(([tableNum, items]) => {
+                const order = items[0].order;
+                return (
+                  <div
+                    key={tableNum + order.id}
+                    className="rounded-2xl overflow-hidden"
+                    style={{ 
+                      background: COLORS.surface,
+                      boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
+                      border: "1px solid rgba(232, 223, 208, 0.5)"
+                    }}
+                  >
+                    <div
+                      className="p-4 flex items-center justify-between"
+                      style={{ background: `linear-gradient(135deg, ${COLORS.secondary} 0%, ${COLORS.secondaryDark} 100%)` }}
+                    >
+                      <div className="flex items-center gap-3 text-white">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-2xl">
+                          {tableNum}
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg">โต๊ะ {tableNum}</p>
+                          <p className="text-xs opacity-80">
+                            {order.server_name ? `🍽️ ${order.server_name}` : "ยังไม่มีเสริฟ์รับ"}
+                            {" • "}
+                            {formatDateTime(order.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      {!order.server_name && serverName && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => claimOrder(order.id)}
+                          className="px-4 py-2.5 rounded-xl text-white text-sm font-bold"
+                          style={{ background: COLORS.success }}
+                        >
+                          รับออร์เดอร์
+                        </motion.button>
+                      )}
+                      {order.server_name && filter === "completed" && !order.paid_at && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowBillModal(order.id)}
+                          className="px-4 py-2.5 rounded-xl text-white text-sm font-bold"
+                          style={{
+                            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`
+                          }}
+                        >
+                          <Receipt size={14} className="mr-1 inline" /> ปิดบิล
+                        </motion.button>
+                      )}
+                      {order.paid_at && (
+                        <span className="px-3 py-1.5 rounded-full text-sm font-bold text-white" style={{ background: "#3b82f6" }}>
+                          💰 จ่ายแล้ว
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <p className="font-bold text-stone-800 text-lg">โต๊ะ {tableNum}</p>
-                      <p className="text-sm text-stone-500">
-                        {order.server_name ? `🍽️ ${order.server_name}` : "ยังไม่มีเสริฟ์รับ"}
-                        {" • "}
-                        {formatDateTime(order.created_at)}
-                      </p>
+
+                    <div className="p-4 space-y-3">
+                      {items.map((it) => (
+                        <div
+                          key={it.id}
+                          className="flex items-center gap-3 p-3 rounded-xl"
+                          style={{ background: COLORS.bg }}
+                        >
+                          <div className="flex-1">
+                            <p className="text-base font-semibold" style={{ color: COLORS.text }}>
+                              <span style={{ color: COLORS.primary }}>{it.quantity}×</span> {it.menu_items?.name}
+                            </p>
+                            {it.note && (
+                              <p className="text-sm mt-1 italic" style={{ color: COLORS.accent }}>💬 {it.note}</p>
+                            )}
+                            {it.served_by && (
+                              <p className="text-sm mt-1" style={{ color: COLORS.success }}>✓ เสริฟ์โดย {it.served_by}</p>
+                            )}
+                          </div>
+
+                          {it.status === "ready" && (
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => updateItem(it.id, "served")}
+                              className="px-4 py-2.5 rounded-xl text-white text-sm font-bold"
+                              style={{ background: COLORS.success, boxShadow: `0 4px 12px -2px ${COLORS.success}60` }}
+                            >
+                              <Check size={14} className="mr-1 inline" /> นำไปเสิร์ฟ
+                            </motion.button>
+                          )}
+                          {it.status === "preparing" && (
+                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: COLORS.primaryLight, color: COLORS.primaryDark }}>
+                              🔥 กำลังทำ
+                            </span>
+                          )}
+                          {it.status === "pending" && (
+                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: "#fef3c7", color: "#92400e" }}>
+                              ⏳ รอครัว
+                            </span>
+                          )}
+                          {it.status === "served" && (
+                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: "#dcfce7", color: COLORS.success }}>
+                              ✓ แล้ว
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  {!order.server_name && serverName && (
-                    <button
-                      onClick={() => claimOrder(order.id)}
-                      className="px-4 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-bold active:scale-95"
-                    >
-                      รับออร์เดอร์
-                    </button>
-                  )}
-                  {order.server_name && filter === "completed" && !order.paid_at && (
-                    <button
-                      onClick={() => setShowBillModal(order.id)}
-                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold flex items-center gap-1 active:scale-95"
-                    >
-                      <Receipt size={14} /> ปิดบิล/รับเงิน
-                    </button>
-                  )}
-                  {order.paid_at && (
-                    <span className="px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-bold flex items-center gap-1">
-                      💰 จ่ายแล้ว
-                    </span>
-                  )}
-                </div>
-
-                <div className="p-4 space-y-3">
-                  {items.map((it) => (
-                    <div
-                      key={it.id}
-                      className="flex items-center gap-3 p-3 rounded-xl bg-stone-50"
-                    >
-                      <div className="flex-1">
-                        <p className="text-base font-semibold text-stone-800">
-                          <span className="text-orange-600">{it.quantity}×</span> {it.menu_items?.name}
-                        </p>
-                        {it.note && <p className="text-sm text-stone-500 italic mt-1">💬 {it.note}</p>}
-                        {it.served_by && (
-                          <p className="text-sm text-green-600 mt-1">✓ เสริฟ์โดย {it.served_by}</p>
-                        )}
-                      </div>
-
-                      {it.status === "ready" && (
-                        <button
-                          onClick={() => updateItem(it.id, "served")}
-                          className="px-4 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-bold flex items-center gap-1 active:scale-95 shadow-sm"
-                        >
-                          <Check size={14} /> นำไปเสิร์ฟ
-                        </button>
-                      )}
-                      {it.status === "preparing" && (
-                        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 text-sm font-bold">
-                          🔥 กำลังทำ
-                        </span>
-                      )}
-                      {it.status === "pending" && (
-                        <span className="px-3 py-1.5 rounded-full bg-stone-200 text-stone-600 text-sm font-bold">
-                          ⏳ รอครัว
-                        </span>
-                      )}
-                      {it.status === "served" && (
-                        <span className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-sm font-bold">
-                          ✓ แล้ว
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
-      {/* Add Item Modal */}
       {showAddItem && (
         <AddItemModal
           orders={orders}
           onClose={() => setShowAddItem(false)}
-          onAdded={() => {
-            setShowAddItem(false);
-            loadOrders();
-          }}
+          onAdded={() => { setShowAddItem(false); loadOrders(); }}
           serverName={serverName}
         />
       )}
 
-      {/* Bill Payment Modal */}
       {showBillModal && (
         <BillPaymentModal
           orderId={showBillModal}
           orders={orders}
           onClose={() => setShowBillModal(null)}
-          onPaid={() => {
-            setShowBillModal(null);
-            loadOrders();
-            loadBills();
-          }}
+          onPaid={() => { setShowBillModal(null); loadOrders(); loadBills(); }}
         />
       )}
 
-      {/* Stock Toggle Modal */}
       {showStockModal && (
         <StockToggleModal onClose={() => setShowStockModal(false)} />
       )}
@@ -431,40 +437,43 @@ export function ServerView() {
 function FilterTab({
   active,
   onClick,
-  icon: Icon,
+  emoji,
   label,
   count,
   color,
 }: {
   active: boolean;
   onClick: () => void;
-  icon: any;
+  emoji: string;
   label: string;
   count: number;
-  color: "blue" | "amber" | "green" | "orange";
+  color: string;
 }) {
-  const colorMap = {
-    blue: "from-blue-500 to-cyan-500",
-    amber: "from-amber-500 to-orange-500",
-    green: "from-green-500 to-emerald-500",
-    orange: "from-orange-500 to-amber-500",
-  };
   return (
-    <button
+    <motion.button
+      whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={`px-4 py-2.5 rounded-2xl text-base font-bold flex items-center gap-2 transition whitespace-nowrap active:scale-95 ${
-        active
-          ? `bg-gradient-to-r ${colorMap[color]} text-white shadow-md`
-          : "bg-white text-stone-600 border-2 border-stone-200 hover:border-stone-300"
-      }`}
+      className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all"
+      style={active ? {
+        background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
+        color: "white",
+        boxShadow: `0 6px 16px -3px ${color}40`
+      } : {
+        background: COLORS.surface,
+        color: COLORS.textMuted,
+        border: "1px solid rgba(232, 223, 208, 0.5)"
+      }}
     >
-      <Icon size={16} />
+      <span>{emoji}</span>
       {label}
       {count > 0 && (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${active ? "bg-white/25" : "bg-stone-100"}`}>
+        <span
+          className="px-2 py-0.5 rounded-full text-xs font-bold"
+          style={active ? { background: "rgba(255,255,255,0.25)" } : { background: COLORS.bg }}
+        >
           {count}
         </span>
       )}
-    </button>
+    </motion.button>
   );
 }

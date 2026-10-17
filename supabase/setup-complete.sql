@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS public.menu_categories (
 );
 
 -- MENU ITEMS (รายการอาหาร)
+-- หมายเหตุ: prep_time_minutes/low_stock_threshold/stock_count/is_signature/allergens
+-- จะถูกเพิ่มผ่าน ALTER TABLE ด้านล่าง เพื่อให้รันซ้ำได้
 CREATE TABLE IF NOT EXISTS public.menu_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   category_id UUID NOT NULL REFERENCES public.menu_categories(id) ON DELETE CASCADE,
@@ -45,28 +47,37 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
   image_url TEXT,
   is_available BOOLEAN NOT NULL DEFAULT TRUE,
   display_order INT NOT NULL DEFAULT 0,
-  prep_time_minutes INT NOT NULL DEFAULT 10,                  -- เวลาที่ใช้ทำ (นาที)
-  low_stock_threshold INT NOT NULL DEFAULT 0,                 -- แจ้งเตือนเมื่อสต็อกเหลือน้อยกว่า
-  stock_count INT NOT NULL DEFAULT 0,                        -- จำนวนคงเหลือ (0 = หมด)
-  is_signature BOOLEAN NOT NULL DEFAULT FALSE,               -- เมนูแนะนำ
-  allergens TEXT[],                                          -- ส่วนผสมที่แพ้ง่าย (nuts, gluten, dairy...)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category_id);
 
+-- เพิ่มคอลัมน์ใหม่ (idempotent)
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS prep_time_minutes INT NOT NULL DEFAULT 10;
+
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS low_stock_threshold INT NOT NULL DEFAULT 0;
+
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS stock_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS is_signature BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS allergens TEXT[];
+
 -- ORDERS (ออร์เดอร์)
+-- หมายเหตุ: คอลัมน์ order_number/cancelled_at/cancel_reason/estimated_ready_at
+-- จะถูกเพิ่มผ่าน ALTER TABLE ด้านล่าง เพื่อให้รันซ้ำได้
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   table_id UUID NOT NULL REFERENCES public.tables(id) ON DELETE CASCADE,
-  order_number TEXT UNIQUE,                              -- human-readable: A-001, A-002
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'preparing', 'served', 'cancelled')),
   total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
   note TEXT,
-  cancelled_at TIMESTAMPTZ,                                -- เวลาที่ยกเลิก
-  cancel_reason TEXT,                                       -- เหตุผลที่ยกเลิก
-  estimated_ready_at TIMESTAMPTZ,                          -- เวลาที่คาดว่าจะเสร็จ
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -74,6 +85,20 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE INDEX IF NOT EXISTS idx_orders_table ON public.orders(table_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
+
+-- เพิ่มคอลัมน์ใหม่ (idempotent)
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS order_number TEXT;
+
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+
+ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS estimated_ready_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
 
 -- Auto-generate order_number เมื่อ INSERT (รูปแบบ: A-001, A-002, ...)
@@ -116,6 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id)
 -- =====================================================
 -- PART 3: Staff PINs (hashed + rate limit table)
 -- =====================================================
+-- 1) สร้างตาราง staff_pins ถ้ายังไม่มี (กรณี fresh install)
 CREATE TABLE IF NOT EXISTS public.staff_pins (
   role TEXT PRIMARY KEY CHECK (role IN ('kitchen', 'server', 'admin')),
   pin_hash TEXT NOT NULL,
@@ -123,7 +149,27 @@ CREATE TABLE IF NOT EXISTS public.staff_pins (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Hash จาก PIN เริ่มต้น: 123456 / 567890 / 000000
+-- 2) Migration: ถ้าตาราง staff_pins เดิมมีคอลัมน์ 'pin' (เก่า) → เพิ่ม pin_hash
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'staff_pins'
+      AND column_name = 'pin'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'staff_pins'
+      AND column_name = 'pin_hash'
+  ) THEN
+    ALTER TABLE public.staff_pins ADD COLUMN pin_hash TEXT;
+    -- copy ข้อมูลเก่าไปก่อน (hash จะถูกแทนด้านล่าง)
+    UPDATE public.staff_pins SET pin_hash = '$2a$10$placeholder_dummy_hash_replace_me';
+  END IF;
+END $$;
+
+-- 3) Hash จาก PIN เริ่มต้น: 123456 / 567890 / 000000
 -- (bcrypt hash - generated via bcrypt.hashSync('PIN', 10))
 INSERT INTO public.staff_pins (role, pin_hash, display_name) VALUES
   ('kitchen', '$2a$10$1hZgjTCsj124SnAy3utLdOKeFAVInc6LXu2FLoUWD59n0wg0c4uaq', '👨‍🍳 ครัว'),
@@ -131,6 +177,12 @@ INSERT INTO public.staff_pins (role, pin_hash, display_name) VALUES
   ('admin', '$2a$10$yEwUc0j58FpXzOCmujr6/e0F1VzSrMfY9R/dVZIqSyIFa4yMW8gAG', '⚙️ ผู้จัดการ')
 ON CONFLICT (role) DO UPDATE
   SET pin_hash = EXCLUDED.pin_hash, display_name = EXCLUDED.display_name, updated_at = NOW();
+
+-- 4) ลบคอลัมน์ pin เก่า (ถ้ามี)
+ALTER TABLE public.staff_pins DROP COLUMN IF EXISTS pin;
+
+-- 5) บังคับให้ pin_hash ไม่เป็น NULL
+ALTER TABLE public.staff_pins ALTER COLUMN pin_hash SET NOT NULL;
 
 -- Staff login attempts (rate limit + audit)
 CREATE TABLE IF NOT EXISTS public.staff_login_attempts (
@@ -152,7 +204,36 @@ ADD COLUMN IF NOT EXISTS server_name TEXT;
 ALTER TABLE public.orders
 ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
 
+-- Backfill order_number ให้ออร์เดอร์เก่าที่ยังไม่มี
+DO $$
+DECLARE
+  rec RECORD;
+  next_num INTEGER := 1;
+BEGIN
+  FOR rec IN
+    SELECT id FROM public.orders
+    WHERE order_number IS NULL
+    ORDER BY created_at ASC
+  LOOP
+    UPDATE public.orders
+    SET order_number = 'A-' || LPAD(next_num::TEXT, 3, '0')
+    WHERE id = rec.id;
+    next_num := next_num + 1;
+  END LOOP;
+END $$;
+
+-- Unique index (ถ้ายังไม่มี)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_number_unique
+  ON public.orders(order_number)
+  WHERE order_number IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_orders_server ON public.orders(server_name);
+
+-- =====================================================
+-- PART 4.5: Menu item extensions (คอลัมน์ใหม่ถูกเพิ่มด้านบนแล้ว)
+-- =====================================================
+-- (เพิ่ม prep_time_minutes, low_stock_threshold, stock_count,
+--  is_signature, allergens ที่ด้านบนของ PART 2)
 
 -- =====================================================
 -- PART 5: Migration 003 - Item Status

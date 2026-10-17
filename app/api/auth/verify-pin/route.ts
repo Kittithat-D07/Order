@@ -77,12 +77,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use service-role key to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } }
-    );
+    // Use anon key + RLS (public SELECT on staff_pins is allowed)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("[PIN VERIFY] missing env", { hasUrl: !!supabaseUrl, hasKey: !!supabaseAnonKey });
+      return NextResponse.json(
+        { ok: false, error: "server_misconfigured" },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false },
+    });
 
     // Get the PIN hash + display name
     const { data, error } = await supabase
@@ -92,6 +101,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error || !data) {
+      console.error("[PIN VERIFY] staff_pins query error:", error);
       return NextResponse.json({ ok: false, error: "role_not_found" }, { status: 404 });
     }
 
@@ -118,7 +128,10 @@ export async function POST(req: NextRequest) {
       displayName: data.display_name,
     });
   } catch (e: any) {
-    console.error("[PIN VERIFY] error:", e);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+    console.error("[PIN VERIFY] error:", e?.message || e, e?.stack);
+    return NextResponse.json(
+      { ok: false, error: "server_error", detail: e?.message || String(e) },
+      { status: 500 }
+    );
   }
 }

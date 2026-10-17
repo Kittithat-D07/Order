@@ -141,35 +141,46 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id)
 -- =====================================================
 -- PART 3: Staff PINs (hashed + rate limit table)
 -- =====================================================
--- 1) สร้างตาราง staff_pins ถ้ายังไม่มี (กรณี fresh install)
-CREATE TABLE IF NOT EXISTS public.staff_pins (
-  role TEXT PRIMARY KEY CHECK (role IN ('kitchen', 'server', 'admin')),
-  pin_hash TEXT NOT NULL,
-  display_name TEXT NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 2) Migration: ถ้าตาราง staff_pins เดิมมีคอลัมน์ 'pin' (เก่า) → เพิ่ม pin_hash
+-- 1) ตรวจสอบว่าตารางมีอยู่จริงไหม และมีคอลัมน์อะไรบ้าง
 DO $$
+DECLARE
+  has_pin BOOLEAN;
+  has_pin_hash BOOLEAN;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'staff_pins'
-      AND column_name = 'pin'
-  ) AND NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'staff_pins'
-      AND column_name = 'pin_hash'
+  -- ถ้ายังไม่มีตาราง → สร้างใหม่ (มี pin_hash เป็น NOT NULL)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'staff_pins'
   ) THEN
-    ALTER TABLE public.staff_pins ADD COLUMN pin_hash TEXT;
-    -- copy ข้อมูลเก่าไปก่อน (hash จะถูกแทนด้านล่าง)
-    UPDATE public.staff_pins SET pin_hash = '$2a$10$placeholder_dummy_hash_replace_me';
+    CREATE TABLE public.staff_pins (
+      role TEXT PRIMARY KEY CHECK (role IN ('kitchen', 'server', 'admin')),
+      pin_hash TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  ELSE
+    -- ตารางมีอยู่แล้ว → เช็คว่ามี pin หรือ pin_hash
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'staff_pins' AND column_name = 'pin'
+    ) INTO has_pin;
+
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'staff_pins' AND column_name = 'pin_hash'
+    ) INTO has_pin_hash;
+
+    -- ถ้ามี 'pin' เก่า แต่ไม่มี 'pin_hash' → ลด NOT NULL ของ pin, เพิ่ม pin_hash
+    IF has_pin AND NOT has_pin_hash THEN
+      -- ลด NOT NULL constraint ของ pin
+      ALTER TABLE public.staff_pins ALTER COLUMN pin DROP NOT NULL;
+      -- เพิ่มคอลัมน์ pin_hash (NULL ก่อน)
+      ALTER TABLE public.staff_pins ADD COLUMN pin_hash TEXT;
+    END IF;
   END IF;
 END $$;
 
--- 3) Hash จาก PIN เริ่มต้น: 123456 / 567890 / 000000
+-- 2) Hash จาก PIN เริ่มต้น: 123456 / 567890 / 000000
 -- (bcrypt hash - generated via bcrypt.hashSync('PIN', 10))
 INSERT INTO public.staff_pins (role, pin_hash, display_name) VALUES
   ('kitchen', '$2a$10$1hZgjTCsj124SnAy3utLdOKeFAVInc6LXu2FLoUWD59n0wg0c4uaq', '👨‍🍳 ครัว'),
@@ -178,11 +189,32 @@ INSERT INTO public.staff_pins (role, pin_hash, display_name) VALUES
 ON CONFLICT (role) DO UPDATE
   SET pin_hash = EXCLUDED.pin_hash, display_name = EXCLUDED.display_name, updated_at = NOW();
 
--- 4) ลบคอลัมน์ pin เก่า (ถ้ามี)
-ALTER TABLE public.staff_pins DROP COLUMN IF EXISTS pin;
+-- 3) ลบคอลัมน์ pin เก่า (ถ้ามี) + บังคับ NOT NULL บน pin_hash
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'staff_pins' AND column_name = 'pin'
+  ) THEN
+    ALTER TABLE public.staff_pins DROP COLUMN pin;
+  END IF;
 
--- 5) บังคับให้ pin_hash ไม่เป็น NULL
-ALTER TABLE public.staff_pins ALTER COLUMN pin_hash SET NOT NULL;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'staff_pins' AND column_name = 'pin_hash'
+  ) THEN
+    -- อัปเดต pin_hash ที่อาจยังเป็น NULL
+    UPDATE public.staff_pins SET pin_hash = '$2a$10$1hZgjTCsj124SnAy3utLdOKeFAVInc6LXu2FLoUWD59n0wg0c4uaq'
+      WHERE role = 'kitchen' AND pin_hash IS NULL;
+    UPDATE public.staff_pins SET pin_hash = '$2a$10$Ffhw/yiyi/PHvVixQKwdTuJPdhE6axRJWb0sKcT24RkjmMjcMFil6'
+      WHERE role = 'server' AND pin_hash IS NULL;
+    UPDATE public.staff_pins SET pin_hash = '$2a$10$yEwUc0j58FpXzOCmujr6/e0F1VzSrMfY9R/dVZIqSyIFa4yMW8gAG'
+      WHERE role = 'admin' AND pin_hash IS NULL;
+
+    -- เปลี่ยนเป็น NOT NULL
+    ALTER TABLE public.staff_pins ALTER COLUMN pin_hash SET NOT NULL;
+  END IF;
+END $$;
 
 -- Staff login attempts (rate limit + audit)
 CREATE TABLE IF NOT EXISTS public.staff_login_attempts (

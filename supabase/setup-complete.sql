@@ -440,34 +440,56 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =====================================================
 -- PART 10: Migration 006b - Auto-sync order status
 -- =====================================================
-CREATE OR REPLACE FUNCTION public.calculate_order_status(p_order_id UUID)
-RETURNS TEXT AS $$
-DECLARE
-  v_total INT;
-  v_active INT;
+-- ใช้ dynamic SQL เพื่อหลีกเลี่ยง parse error ตอน column ยังไม่มี
+DO $$
 BEGIN
-  SELECT
-    COUNT(*),
-    COUNT(*) FILTER (WHERE status IN ('pending', 'preparing', 'ready'))
-  INTO v_total, v_active
-  FROM public.order_items
-  WHERE order_id = p_order_id;
-
-  IF v_total > 0 AND v_active = 0 THEN
-    RETURN 'served';
-  END IF;
-
+  -- เช็คก่อนว่า order_items มี status column
   IF EXISTS (
-    SELECT 1 FROM public.order_items
-    WHERE order_id = p_order_id
-    AND status IN ('preparing', 'ready', 'served')
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'order_items' AND column_name = 'status'
   ) THEN
-    RETURN 'preparing';
-  END IF;
+    EXECUTE $func$
+      CREATE OR REPLACE FUNCTION public.calculate_order_status(p_order_id UUID)
+      RETURNS TEXT AS $body$
+      DECLARE
+        v_total INT;
+        v_active INT;
+      BEGIN
+        SELECT
+          COUNT(*),
+          COUNT(*) FILTER (WHERE status IN ('pending', 'preparing', 'ready'))
+        INTO v_total, v_active
+        FROM public.order_items
+        WHERE order_id = p_order_id;
 
-  RETURN 'pending';
-END;
-$$ LANGUAGE plpgsql;
+        IF v_total > 0 AND v_active = 0 THEN
+          RETURN 'served';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM public.order_items
+          WHERE order_id = p_order_id
+          AND status IN ('preparing', 'ready', 'served')
+        ) THEN
+          RETURN 'preparing';
+        END IF;
+
+        RETURN 'pending';
+      END;
+      $body$ LANGUAGE plpgsql;
+    $func$;
+  ELSE
+    -- Fallback: simple version (ไม่ query status)
+    EXECUTE $func$
+      CREATE OR REPLACE FUNCTION public.calculate_order_status(p_order_id UUID)
+      RETURNS TEXT AS $body$
+      BEGIN
+        RETURN 'pending';
+      END;
+      $body$ LANGUAGE plpgsql;
+    $func$;
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.sync_order_status()
 RETURNS TRIGGER AS $$

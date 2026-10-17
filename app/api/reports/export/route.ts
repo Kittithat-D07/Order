@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/client";
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 /**
  * Daily revenue report export as CSV.
  * Query params: from, to (YYYY-MM-DD), table_id (optional)

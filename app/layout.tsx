@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Prompt, Playfair_Display, Cormorant_Garamond, Caveat } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -36,8 +36,13 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Aura Bistro - ร้านอาหารสวนไทย",
   description: "ระบบสั่งอาหารผ่าน QR Code - Aura Bistro Thai Garden Kitchen",
+};
+
+export const viewport: Viewport = {
   themeColor: "#FAF6F0",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

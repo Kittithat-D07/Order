@@ -396,12 +396,18 @@ export default function HomePage() {
                     {n}
                   </motion.button>
                 ))}
-                <div />
+                <div aria-hidden="true" />
                 <motion.button
+                  key="zero"
+                  type="button"
                   whileTap={{ scale: 0.92 }}
-                  onClick={() => handlePinKeyPress("0")}
+                  onClick={() => {
+                    console.log("[PIN] pressed: 0");
+                    handlePinKeyPress("0");
+                  }}
                   disabled={pinLoading}
-                  className="aspect-square rounded-2xl text-2xl font-semibold"
+                  data-testid="pin-key-0"
+                  className="aspect-square rounded-2xl text-2xl font-semibold cursor-pointer relative z-10"
                   style={{ 
                     background: COLORS.bg,
                     color: COLORS.text,

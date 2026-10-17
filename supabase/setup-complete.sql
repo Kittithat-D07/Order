@@ -126,6 +126,7 @@ CREATE TRIGGER trg_generate_order_number
   EXECUTE FUNCTION generate_order_number();
 
 -- ORDER ITEMS (รายการย่อยในออร์เดอร์)
+-- หมายเหตุ: คอลัมน์ status ถูกเพิ่มผ่าน ALTER TABLE ด้านล่าง
 CREATE TABLE IF NOT EXISTS public.order_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
@@ -137,6 +138,16 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
+
+-- เพิ่มคอลัมน์ status (idempotent)
+ALTER TABLE public.order_items
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
+  CHECK (status IN ('pending', 'preparing', 'ready', 'served', 'cancelled'));
+
+ALTER TABLE public.order_items
+ADD COLUMN IF NOT EXISTS prepared_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_order_items_status ON public.order_items(status);
 
 -- =====================================================
 -- PART 3: Staff PINs (hashed + rate limit table)

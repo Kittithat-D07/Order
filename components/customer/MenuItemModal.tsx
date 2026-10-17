@@ -115,35 +115,35 @@ export function MenuItemModal({
           />
 
           {/* Sheet - bottom on mobile, center on desktop */}
-          <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{
-              type: "spring",
-              damping: 32,
-              stiffness: 320,
-              mass: 0.8,
-            }}
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 120 || info.velocity.y > 500) {
-                onClose();
-              }
-            }}
-            className="fixed z-50 left-0 right-0 bottom-0 sm:left-1/2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[440px] sm:max-h-[90vh] bg-white shadow-2xl flex flex-col overflow-hidden"
-            style={{
-              borderTopLeftRadius: "28px",
-              borderTopRightRadius: "28px",
-              maxHeight: "92vh",
-              border: "1px solid rgba(232, 223, 208, 0.5)",
-            }}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="menu-modal-title"
-          >
+          <div className="fixed inset-0 z-50 pointer-events-none flex items-end sm:items-center justify-center sm:p-4">
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{
+                type: "spring",
+                damping: 32,
+                stiffness: 320,
+                mass: 0.8,
+              }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.6 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 500) {
+                  onClose();
+                }
+              }}
+              className="pointer-events-auto bg-white shadow-2xl flex flex-col overflow-hidden w-full sm:w-[440px] max-h-[92vh] sm:max-h-[90vh]"
+              style={{
+                borderTopLeftRadius: "28px",
+                borderTopRightRadius: "28px",
+                border: "1px solid rgba(232, 223, 208, 0.5)",
+              }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="menu-modal-title"
+            >
             {/* Drag handle (mobile) */}
             <div className="sm:hidden pt-2 pb-1 flex justify-center">
               <div
@@ -502,7 +502,8 @@ export function MenuItemModal({
                 </motion.button>
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Prompt, Playfair_Display, Cormorant_Garamond, Caveat } from "next/font/google";
 import "./globals.css";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const prompt = Prompt({
   subsets: ["thai", "latin"],
@@ -47,7 +48,9 @@ export default function RootLayout({
   return (
     <html lang="th" className={`${prompt.variable} ${playfair.variable} ${cormorant.variable} ${caveat.variable}`}>
       <body className={`min-h-screen text-stone-900 antialiased ${prompt.className}`}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

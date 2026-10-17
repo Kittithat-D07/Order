@@ -82,29 +82,42 @@ export function useStaffSession() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   };
 
-  // Login แบบเดิม (เช็ค PIN) — เก็บไว้ใช้กรณีต้องการ
+  // Login แบบ PIN — verify ผ่าน server API (bcrypt + rate limit)
   const login = async (role: StaffRole, pin: string) => {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("staff_pins")
-      .select("pin, display_name")
-      .eq("role", role)
-      .single();
+    try {
+      const res = await fetch("/api/auth/verify-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, pin }),
+      });
 
-    if (error || !data) {
-      return { ok: false, error: "ไม่พบ role นี้" };
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 429) {
+          return { ok: false, error: "ลองเยอะเกินไป กรุณารอ 15 นาที" };
+        }
+        if (data.error === "invalid_pin" || data.error === "invalid_pin_format") {
+          return { ok: false, error: "PIN ไม่ถูกต้อง" };
+        }
+        if (data.error === "role_not_found") {
+          return { ok: false, error: "ไม่พบ role นี้" };
+        }
+        return { ok: false, error: "เข้าสู่ระบบไม่สำเร็จ" };
+      }
+
+      const newSession: StaffSession = {
+        role,
+        displayName: data.displayName || ROLE_LABELS[role],
+        loggedInAt: new Date().toISOString(),
+      };
+      setSessionState(newSession);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+      return { ok: true };
+    } catch (e) {
+      console.error("Login error:", e);
+      return { ok: false, error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
     }
-    if (data.pin !== pin) {
-      return { ok: false, error: "PIN ไม่ถูกต้อง" };
-    }
-    const newSession: StaffSession = {
-      role,
-      displayName: data.display_name,
-      loggedInAt: new Date().toISOString(),
-    };
-    setSessionState(newSession);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
-    return { ok: true };
   };
 
   const logout = () => {

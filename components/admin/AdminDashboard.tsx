@@ -856,6 +856,37 @@ function ReportsTab({
           <p className="text-center text-stone-400 text-sm py-8">ไม่มีข้อมูลในช่วงที่เลือก</p>
         )}
       </div>
+
+      {/* Export CSV button */}
+      <div
+        className="mt-4 p-4 rounded-2xl flex items-center justify-between"
+        style={{
+          background: `linear-gradient(135deg, ${ADMIN_COLORS.accentLight}40 0%, ${ADMIN_COLORS.secondaryLight}40 100%)`,
+          border: `1px solid ${ADMIN_COLORS.accent}30`,
+        }}
+      >
+        <div>
+          <p className="font-bold text-sm" style={{ color: ADMIN_COLORS.text }}>
+            🌿 Export รายงานยอดขาย
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: ADMIN_COLORS.textMuted }}>
+            ดาวน์โหลด CSV (Excel-compatible)
+          </p>
+        </div>
+        <motion.a
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          href={`/api/reports/export?from=${dateRange.start}&to=${dateRange.end}`}
+          download
+          className="px-4 py-2.5 rounded-full text-white text-sm font-semibold flex items-center gap-2"
+          style={{
+            background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accent} 100%)`,
+            boxShadow: "0 8px 20px -4px rgba(184, 92, 56, 0.4)",
+          }}
+        >
+          📊 Download CSV
+        </motion.a>
+      </div>
     </>
   );
 }

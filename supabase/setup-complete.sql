@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
   image_url TEXT,
   is_available BOOLEAN NOT NULL DEFAULT TRUE,
   display_order INT NOT NULL DEFAULT 0,
+  prep_time_minutes INT NOT NULL DEFAULT 10,                  -- เวลาที่ใช้ทำ (นาที)
+  low_stock_threshold INT NOT NULL DEFAULT 0,                 -- แจ้งเตือนเมื่อสต็อกเหลือน้อยกว่า
+  stock_count INT NOT NULL DEFAULT 0,                        -- จำนวนคงเหลือ (0 = หมด)
+  is_signature BOOLEAN NOT NULL DEFAULT FALSE,               -- เมนูแนะนำ
+  allergens TEXT[],                                          -- ส่วนผสมที่แพ้ง่าย (nuts, gluten, dairy...)
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -54,10 +59,14 @@ CREATE INDEX IF NOT EXISTS idx_menu_items_category ON public.menu_items(category
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   table_id UUID NOT NULL REFERENCES public.tables(id) ON DELETE CASCADE,
+  order_number TEXT UNIQUE,                              -- human-readable: A-001, A-002
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'preparing', 'served', 'cancelled')),
   total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
   note TEXT,
+  cancelled_at TIMESTAMPTZ,                                -- เวลาที่ยกเลิก
+  cancel_reason TEXT,                                       -- เหตุผลที่ยกเลิก
+  estimated_ready_at TIMESTAMPTZ,                          -- เวลาที่คาดว่าจะเสร็จ
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -65,6 +74,31 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE INDEX IF NOT EXISTS idx_orders_table ON public.orders(table_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
+
+-- Auto-generate order_number เมื่อ INSERT (รูปแบบ: A-001, A-002, ...)
+CREATE OR REPLACE FUNCTION generate_order_number() RETURNS TRIGGER AS $$
+DECLARE
+  next_num INTEGER;
+BEGIN
+  IF NEW.order_number IS NULL THEN
+    SELECT COALESCE(MAX(
+      CAST(SPLIT_PART(order_number, '-', 2) AS INTEGER)
+    ), 0) + 1
+    INTO next_num
+    FROM public.orders
+    WHERE order_number LIKE 'A-%';
+    NEW.order_number := 'A-' || LPAD(next_num::TEXT, 3, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_generate_order_number ON public.orders;
+CREATE TRIGGER trg_generate_order_number
+  BEFORE INSERT ON public.orders
+  FOR EACH ROW
+  EXECUTE FUNCTION generate_order_number();
 
 -- ORDER ITEMS (รายการย่อยในออร์เดอร์)
 CREATE TABLE IF NOT EXISTS public.order_items (
@@ -80,21 +114,34 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON public.order_items(order_id);
 
 -- =====================================================
--- PART 3: Staff PINs
+-- PART 3: Staff PINs (hashed + rate limit table)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.staff_pins (
   role TEXT PRIMARY KEY CHECK (role IN ('kitchen', 'server', 'admin')),
-  pin TEXT NOT NULL,
+  pin_hash TEXT NOT NULL,
   display_name TEXT NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-INSERT INTO public.staff_pins (role, pin, display_name) VALUES
-  ('kitchen', '123456', '👨‍🍳 ครัว'),
-  ('server', '567890', '🍽️ เสริฟ์'),
-  ('admin', '000000', '⚙️ ผู้จัดการ')
+-- Hash จาก PIN เริ่มต้น: 123456 / 567890 / 000000
+-- (bcrypt hash - generated via bcrypt.hashSync('PIN', 10))
+INSERT INTO public.staff_pins (role, pin_hash, display_name) VALUES
+  ('kitchen', '$2a$10$1hZgjTCsj124SnAy3utLdOKeFAVInc6LXu2FLoUWD59n0wg0c4uaq', '👨‍🍳 ครัว'),
+  ('server', '$2a$10$Ffhw/yiyi/PHvVixQKwdTuJPdhE6axRJWb0sKcT24RkjmMjcMFil6', '🍽️ เสริฟ์'),
+  ('admin', '$2a$10$yEwUc0j58FpXzOCmujr6/e0F1VzSrMfY9R/dVZIqSyIFa4yMW8gAG', '⚙️ ผู้จัดการ')
 ON CONFLICT (role) DO UPDATE
-  SET pin = EXCLUDED.pin, display_name = EXCLUDED.display_name, updated_at = NOW();
+  SET pin_hash = EXCLUDED.pin_hash, display_name = EXCLUDED.display_name, updated_at = NOW();
+
+-- Staff login attempts (rate limit + audit)
+CREATE TABLE IF NOT EXISTS public.staff_login_attempts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  role TEXT NOT NULL,
+  success BOOLEAN NOT NULL,
+  ip_address TEXT,
+  attempted_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_attempts_role_time ON public.staff_login_attempts(role, attempted_at DESC);
 
 -- =====================================================
 -- PART 4: Migration 002 - Server Name

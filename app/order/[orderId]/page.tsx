@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -360,6 +360,41 @@ export default function OrderStatusPage() {
     (it) => (it as any).status === "served" || (it as any).status === "cancelled"
   ) ?? false;
 
+  // Cancel window: 5 นาที หลังสั่ง + ต้องเป็น pending
+  const canCancel = useMemo(() => {
+    if (!order) return false;
+    if (order.status !== "pending") return false;
+    const ageMin = (Date.now() - new Date(order.created_at).getTime()) / 60000;
+    return ageMin < 5;
+  }, [order]);
+
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const handleCancel = async () => {
+    if (!order) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "ลูกค้ายกเลิก" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "ยกเลิกไม่สำเร็จ");
+        return;
+      }
+      // รีเฟรชข้อมูล
+      await fetchOrder();
+      setShowCancelConfirm(false);
+    } catch (e: any) {
+      alert("เกิดข้อผิดพลาด: " + e.message);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleRequestBill = async () => {
     if (!order || bill) return;
     setRequestingBill(true);
@@ -712,13 +747,14 @@ export default function OrderStatusPage() {
               <motion.button
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
+                aria-label="ดูบิลและชำระเงิน"
                 className="w-full py-4 rounded-full text-white text-lg font-semibold"
                 style={{
                   background: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
                   boxShadow: "0 12px 28px -6px rgba(79, 121, 66, 0.5)"
                 }}
               >
-                <Receipt size={18} className="mr-2" />
+                <Receipt size={18} className="mr-2" aria-hidden="true" />
                 ดูบิล ({bill.bill_number})
               </motion.button>
             </Link>
@@ -747,7 +783,92 @@ export default function OrderStatusPage() {
               ขอบิล / Request Bill
             </motion.button>
           ) : null}
+
+          {/* Cancel button - only if eligible */}
+          {canCancel && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowCancelConfirm(true)}
+              className="w-full mt-3 py-3 rounded-full text-sm font-medium flex items-center justify-center gap-2"
+              style={{
+                background: "transparent",
+                color: COLORS.textMuted,
+                border: `1px solid ${COLORS.textMuted}40`,
+              }}
+            >
+              <XCircle size={14} /> ยกเลิกออร์เดอร์
+            </motion.button>
+          )}
         </motion.div>
+
+        {/* Cancel confirm modal */}
+        <AnimatePresence>
+          {showCancelConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !cancelling && setShowCancelConfirm(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              style={{ background: "rgba(44, 38, 32, 0.6)", backdropFilter: "blur(8px)" }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.8, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl p-6"
+                style={{
+                  background: COLORS.surface,
+                  boxShadow: "0 30px 80px -20px rgba(139, 63, 26, 0.4)",
+                }}
+              >
+                <div className="text-center mb-4">
+                  <div
+                    className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl"
+                    style={{ background: COLORS.danger + "15" }}
+                  >
+                    🍂
+                  </div>
+                  <h3
+                    className="text-xl font-bold mb-1"
+                    style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}
+                  >
+                    ยืนยันการยกเลิก?
+                  </h3>
+                  <p className="text-sm" style={{ color: COLORS.textMuted }}>
+                    เมื่อยกเลิกแล้วจะไม่สามารถสั่งอาหารชุดนี้อีกครั้งได้
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowCancelConfirm(false)}
+                    disabled={cancelling}
+                    className="flex-1 py-3 rounded-2xl text-sm font-medium"
+                    style={{ background: COLORS.bg, color: COLORS.textMuted }}
+                  >
+                    ไม่ยกเลิก
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white"
+                    style={{
+                      background: `linear-gradient(135deg, ${COLORS.danger} 0%, #7f1d1d 100%)`,
+                      boxShadow: `0 8px 20px -4px ${COLORS.danger}40`,
+                    }}
+                  >
+                    {cancelling ? "กำลังยกเลิก..." : "ยืนยันยกเลิก"}
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Link
           href="/"

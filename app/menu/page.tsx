@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/lib/store/cart";
 import { MenuItem, MenuCategory, Table } from "@/lib/types";
 import { CartDrawer } from "@/components/customer/CartDrawer";
+import { MenuItemModal } from "@/components/customer/MenuItemModal";
 import {
   Leaf,
   Loader2,
@@ -90,6 +91,7 @@ function MenuContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -581,6 +583,7 @@ function MenuContent() {
               favorites={favorites}
               toggleFavorite={toggleFavorite}
               onAdd={quickAdd}
+              onItemClick={setSelectedItem}
             />
           ) : (
             <div className="space-y-10">
@@ -591,6 +594,7 @@ function MenuContent() {
                   favorites={favorites}
                   toggleFavorite={toggleFavorite}
                   onAdd={quickAdd}
+                  onItemClick={setSelectedItem}
                 />
               )}
 
@@ -607,6 +611,7 @@ function MenuContent() {
                     favorites={favorites}
                     toggleFavorite={toggleFavorite}
                     onAdd={quickAdd}
+                    onItemClick={setSelectedItem}
                     onMount={(el) => (categoryRefs.current[cat.id] = el)}
                   />
                 );
@@ -676,6 +681,26 @@ function MenuContent() {
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} onCheckout={handleCheckout} />
 
+      <MenuItemModal
+        item={selectedItem}
+        open={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        isFav={selectedItem ? favorites.has(selectedItem.id) : false}
+        onToggleFav={() => selectedItem && toggleFavorite(selectedItem.id)}
+        onAdd={(item, qty, note) => {
+          for (let i = 0; i < qty; i++) {
+            addItem({
+              menu_item_id: item.id,
+              name: item.name,
+              price: item.price,
+              image_url: item.image_url ?? null,
+              quantity: 1,
+              note,
+            });
+          }
+        }}
+      />
+
       {submitting && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -739,11 +764,13 @@ function FeaturedSection({
   favorites,
   toggleFavorite,
   onAdd,
+  onItemClick,
 }: {
   items: MenuItem[];
   favorites: Set<string>;
   toggleFavorite: (id: string) => void;
   onAdd: (item: MenuItem) => void;
+  onItemClick: (item: MenuItem) => void;
 }) {
   return (
     <section>
@@ -773,6 +800,7 @@ function FeaturedSection({
             isFav={favorites.has(item.id)}
             onFav={() => toggleFavorite(item.id)}
             onAdd={() => onAdd(item)}
+            onItemClick={() => onItemClick(item)}
           />
         ))}
       </div>
@@ -786,12 +814,14 @@ function FeaturedCard({
   isFav,
   onFav,
   onAdd,
+  onItemClick,
 }: {
   item: MenuItem;
   idx: number;
   isFav: boolean;
   onFav: () => void;
   onAdd: () => void;
+  onItemClick: () => void;
 }) {
   const gradients = [
     `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${COLORS.secondaryLight} 100%)`,
@@ -805,10 +835,12 @@ function FeaturedCard({
 
   return (
     <motion.div
+      onClick={onItemClick}
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.1 }}
       whileHover={{ y: -4, rotate: 0 }}
+      whileTap={{ scale: 0.98 }}
       className="flex gap-4 p-4 bg-white rounded-3xl cursor-pointer"
       style={{ 
         boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
@@ -837,7 +869,7 @@ function FeaturedCard({
           </h3>
           <motion.button
             whileTap={{ scale: 0.8 }}
-            onClick={onFav}
+            onClick={(e) => { e.stopPropagation(); onFav(); }}
             className="w-7 h-7 flex items-center justify-center rounded-full shrink-0"
           >
             <Heart size={16} className={isFav ? "fill-current" : ""} style={{ color: isFav ? COLORS.primary : "#D4CFC8" }} />
@@ -858,7 +890,7 @@ function FeaturedCard({
           <motion.button
             whileTap={{ scale: 0.85 }}
             whileHover={{ scale: 1.05 }}
-            onClick={onAdd}
+            onClick={(e) => { e.stopPropagation(); onAdd(); }}
             className="w-10 h-10 rounded-full flex items-center justify-center text-white"
             style={{ 
               background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
@@ -880,6 +912,7 @@ function CategorySection({
   favorites,
   toggleFavorite,
   onAdd,
+  onItemClick,
   onMount,
 }: {
   category: MenuCategory;
@@ -888,6 +921,7 @@ function CategorySection({
   favorites: Set<string>;
   toggleFavorite: (id: string) => void;
   onAdd: (item: MenuItem) => void;
+  onItemClick: (item: MenuItem) => void;
   onMount: (el: HTMLElement | null) => void;
 }) {
   return (
@@ -919,6 +953,7 @@ function CategorySection({
             isFav={favorites.has(item.id)}
             onFav={() => toggleFavorite(item.id)}
             onAdd={() => onAdd(item)}
+            onItemClick={() => onItemClick(item)}
           />
         ))}
       </div>
@@ -932,12 +967,14 @@ function ListItem({
   isFav,
   onFav,
   onAdd,
+  onItemClick,
 }: {
   item: MenuItem;
   idx: number;
   isFav: boolean;
   onFav: () => void;
   onAdd: () => void;
+  onItemClick: () => void;
 }) {
   const gradients = [
     `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${COLORS.secondaryLight} 100%)`,
@@ -950,10 +987,12 @@ function ListItem({
 
   return (
     <motion.div
+      onClick={onItemClick}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.04 }}
-      whileHover={{ x: 4 }}
+      whileHover={{ x: 4, y: -2 }}
+      whileTap={{ scale: 0.98 }}
       className="bg-white rounded-2xl p-4 flex gap-4 cursor-pointer"
       style={{ 
         boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.08)",
@@ -1017,12 +1056,14 @@ function SearchResults({
   favorites,
   toggleFavorite,
   onAdd,
+  onItemClick,
 }: {
   query: string;
   items: MenuItem[];
   favorites: Set<string>;
   toggleFavorite: (id: string) => void;
   onAdd: (item: MenuItem) => void;
+  onItemClick: (item: MenuItem) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -1053,6 +1094,7 @@ function SearchResults({
             isFav={favorites.has(item.id)}
             onFav={() => toggleFavorite(item.id)}
             onAdd={() => onAdd(item)}
+            onItemClick={() => onItemClick(item)}
           />
         ))}
       </div>

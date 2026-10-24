@@ -295,18 +295,18 @@ function AdminTablesContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 relative overflow-hidden flex flex-col items-center justify-center gap-3">
-        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-orange-300/30" />
-        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-amber-300/30" delay={1} />
+      <div className="min-h-screen bg-canvas relative overflow-hidden flex flex-col items-center justify-center gap-3">
+        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-brand/10" />
+        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-accent/10" delay={1} />
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-orange-500/40"
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-2xl shadow-brand/30"
         >
           <QrCodeIcon className="text-white" size={28} />
         </motion.div>
         <div className="flex items-center gap-2">
-          <PulseDot color="bg-orange-500" />
+          <PulseDot color="bg-brand" />
           <p className="text-sm text-stone-600 font-medium">กำลังโหลดโต๊ะ...</p>
         </div>
       </div>
@@ -314,22 +314,22 @@ function AdminTablesContent() {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-gradient-to-br from-amber-50/30 via-orange-50/30 to-red-50/30 relative overflow-hidden">
+    <div className="min-h-screen pb-24 bg-canvas relative overflow-hidden">
       {/* Background blobs */}
-      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-orange-300/20" />
-      <GradientBlob className="top-[40%] left-[-100px]" color="bg-amber-300/20" delay={3} />
-      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-red-300/15" delay={5} />
+      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-brand/10" />
+      <GradientBlob className="top-[40%] left-[-100px]" color="bg-accent/10" delay={3} />
+      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-warn/10" delay={5} />
 
       {/* Floating */}
       <FloatingElement className="top-32 right-12" delay={0}>
-        <Grid3x3 className="w-6 h-6 text-orange-400/40" />
+        <Grid3x3 className="w-6 h-6 text-brand/40" />
       </FloatingElement>
       <FloatingElement className="bottom-32 left-12" delay={2}>
-        <Sparkles className="w-5 h-6 text-amber-400/40" />
+        <Sparkles className="w-5 h-6 text-accent/40" />
       </FloatingElement>
 
       {/* Header */}
-      <header className="sticky top-0 z-30 glass border-b border-stone-200/60 backdrop-blur-md bg-white/70">
+      <header className="sticky top-0 z-30 glass border-b border-line bg-surface/80 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"
@@ -338,7 +338,7 @@ function AdminTablesContent() {
             <ArrowLeft size={18} />
           </Link>
           <div className="flex items-center gap-2.5 flex-1">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md">
               <QrCodeIcon size={18} className="text-white" />
             </div>
             <div>
@@ -364,7 +364,7 @@ function AdminTablesContent() {
         {/* Add Table */}
         <div className="card p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand to-accent flex items-center justify-center">
               <Plus size={14} className="text-white" />
             </div>
             <h2 className="font-bold text-sm">เพิ่มโต๊ะใหม่</h2>
@@ -420,7 +420,7 @@ function AdminTablesContent() {
             {selectedIds.size > 0 && (
               <button
                 onClick={deleteSelected}
-                className="text-xs px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition flex items-center gap-1.5 whitespace-nowrap"
+                className="text-xs px-3 py-2 rounded-xl bg-bad-light border border-bad/40 text-bad-text hover:bg-bad/20 transition flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Trash2 size={14} /> ลบ {selectedIds.size} โต๊ะ
               </button>
@@ -431,8 +431,8 @@ function AdminTablesContent() {
         {/* Tables Grid */}
         {tables.length === 0 ? (
           <div className="card p-10 text-center">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-orange-100 flex items-center justify-center">
-              <QrCodeIcon size={28} className="text-orange-500" />
+            <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-brand-light flex items-center justify-center">
+              <QrCodeIcon size={28} className="text-brand" />
             </div>
             <p className="font-semibold text-stone-700">ยังไม่มีโต๊ะ</p>
             <p className="text-sm text-stone-500 mt-1">เพิ่มโต๊ะแรกเพื่อสร้าง QR Code</p>
@@ -465,11 +465,11 @@ function AdminTablesContent() {
                   }}
                   whileHover={{ y: -4 }}
                   className={`card-interactive overflow-hidden transition-all ${
-                    isSelected ? "ring-2 ring-orange-400 ring-offset-2" : ""
+                    isSelected ? "ring-2 ring-brand ring-offset-2" : ""
                   }`}
                 >
                   {/* Header */}
-                  <div className="bg-gradient-to-br from-orange-500 to-amber-500 p-3 text-white flex items-center justify-between">
+                  <div className="bg-gradient-to-br from-brand to-accent p-3 text-white flex items-center justify-between">
                     <div className="flex-1">
                       <p className="text-[10px] uppercase tracking-wider opacity-80 font-semibold">
                         Table
@@ -504,7 +504,7 @@ function AdminTablesContent() {
                       }`}
                     >
                       {isSelected && (
-                        <Check size={14} className="text-orange-500" strokeWidth={3} />
+                        <Check size={14} className="text-brand" strokeWidth={3} />
                       )}
                     </button>
                   </div>
@@ -516,7 +516,7 @@ function AdminTablesContent() {
                         onClick={() => setZoomedTable(t)}
                         className="relative group"
                       >
-                        <div className="absolute -inset-2 bg-gradient-to-br from-orange-200 to-amber-200 rounded-2xl blur opacity-50 group-hover:opacity-75 transition" />
+                        <div className="absolute -inset-2 bg-gradient-to-br from-brand-light to-accent-light rounded-2xl blur opacity-50 group-hover:opacity-75 transition" />
                         <img
                           src={qrImages[t.id]}
                           alt={`QR for ${t.table_number}`}
@@ -540,8 +540,8 @@ function AdminTablesContent() {
                     >
                       {copiedId === t.id ? (
                         <>
-                          <Check size={12} className="text-green-600 shrink-0" />
-                          <span className="text-green-600 font-semibold">คัดลอกแล้ว</span>
+                          <Check size={12} className="text-ok-text shrink-0" />
+                          <span className="text-ok-text font-semibold">คัดลอกแล้ว</span>
                         </>
                       ) : (
                         <>
@@ -570,7 +570,7 @@ function AdminTablesContent() {
                     {isEditing ? (
                       <button
                         onClick={() => saveEdit(t.id)}
-                        className="w-11 h-auto rounded-xl bg-green-50 border border-green-200 text-green-600 flex items-center justify-center transition active:scale-95"
+                        className="w-11 h-auto rounded-xl bg-ok-light border border-ok/40 text-ok-text flex items-center justify-center transition active:scale-95"
                         title="บันทึก"
                       >
                         <Save size={14} />
@@ -578,7 +578,7 @@ function AdminTablesContent() {
                     ) : (
                       <button
                         onClick={() => startEdit(t)}
-                        className="w-11 h-auto rounded-xl border border-stone-200 hover:bg-blue-50 hover:border-blue-200 text-stone-500 hover:text-blue-600 flex items-center justify-center transition active:scale-95"
+                        className="w-11 h-auto rounded-xl border border-stone-200 hover:bg-accent-light hover:border-accent/40 text-stone-500 hover:text-accent-dark flex items-center justify-center transition active:scale-95"
                         title="แก้ไขชื่อ"
                       >
                         <Edit2 size={14} />
@@ -586,7 +586,7 @@ function AdminTablesContent() {
                     )}
                     <button
                       onClick={() => deleteTable(t.id)}
-                      className="w-11 h-auto rounded-xl border border-stone-200 hover:bg-red-50 hover:border-red-200 text-stone-500 hover:text-red-600 flex items-center justify-center transition active:scale-95"
+                      className="w-11 h-auto rounded-xl border border-stone-200 hover:bg-bad-light hover:border-bad/40 text-stone-500 hover:text-bad-text flex items-center justify-center transition active:scale-95"
                       title="ลบโต๊ะ"
                     >
                       <Trash2 size={14} />
@@ -606,6 +606,10 @@ function AdminTablesContent() {
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`QR โต๊ะ ${zoomedTable.table_number}`}
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
@@ -618,6 +622,7 @@ function AdminTablesContent() {
               </div>
               <button
                 onClick={() => setZoomedTable(null)}
+                aria-label="ปิด"
                 className="w-9 h-9 rounded-full hover:bg-stone-100 flex items-center justify-center"
               >
                 <X size={18} />
@@ -655,10 +660,10 @@ function AdminTablesContent() {
             key={t.id}
             className={`px-4 py-3 rounded-xl shadow-lg font-medium text-sm pointer-events-auto animate-slide-up ${
               t.type === "success"
-                ? "bg-green-500 text-white"
+                ? "bg-ok text-white"
                 : t.type === "error"
-                ? "bg-red-500 text-white"
-                : "bg-stone-800 text-white"
+                ? "bg-bad text-white"
+                : "bg-ink text-white"
             }`}
           >
             {t.message}

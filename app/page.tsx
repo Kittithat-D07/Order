@@ -1,33 +1,15 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChefHat, Utensils, Settings, Sparkles, ArrowRight, Lock, X } from "lucide-react";
+import { ChefHat, Utensils, Settings, ArrowRight, Lock, X } from "lucide-react";
 import { useStaffSession, StaffRole } from "@/hooks/useStaffSession";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { COLORS } from "@/lib/theme";
 
 /* ============================================================
    🌅 ORGANIC WARM - Aura Bistro Home
 ============================================================ */
-
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
 
 interface RoleOption {
   role: StaffRole;
@@ -77,6 +59,8 @@ export default function HomePage() {
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
+  const pinPanelRef = useRef<HTMLDivElement>(null);
+  const pinErrorRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -140,6 +124,34 @@ export default function HomePage() {
     setPin((prev) => prev.slice(0, -1));
     setPinError("");
   };
+
+  // The PIN pad is a dialog: Escape closes it, focus moves into it, and the
+  // error is announced instead of being a silent red sentence.
+  useEffect(() => {
+    if (!showPinModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !pinLoading) {
+        setShowPinModal(false);
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        handlePinKeyPress(e.key);
+      } else if (e.key === "Backspace") {
+        handlePinDelete();
+      } else if (e.key === "Enter") {
+        handlePinSubmit();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    pinPanelRef.current?.focus();
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPinModal, pinLoading]);
+
+  // Move focus to the error so a screen reader announces the failure.
+  useEffect(() => {
+    if (pinError) pinErrorRef.current?.focus();
+  }, [pinError]);
 
   if (!hydrated) {
     return (
@@ -207,7 +219,7 @@ export default function HomePage() {
             ✨ Welcome to
           </p>
           <h1
-            className="text-5xl text-sunset mb-1"
+            className="text-5xl text-brand mb-1"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}
           >
             Aura Bistro
@@ -287,24 +299,6 @@ export default function HomePage() {
             );
           })}
         </div>
-
-        {/* Demo link */}
-        <motion.a
-          href="/demo"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="mt-6 w-full text-center block rounded-2xl p-4 text-sm font-medium"
-          style={{ 
-            color: COLORS.textMuted,
-            border: `2px dashed ${COLORS.accent}40`,
-            background: `${COLORS.accentLight}20`
-          }}
-        >
-          🌿 ดู UI Demo (ไม่ต้อง login)
-        </motion.a>
       </div>
 
       {/* PIN Modal */}
@@ -319,11 +313,17 @@ export default function HomePage() {
             style={{ background: "rgba(44, 38, 32, 0.6)", backdropFilter: "blur(8px)" }}
           >
             <motion.div
+              ref={pinPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="pin-modal-title"
+              aria-describedby="pin-modal-desc"
+              tabIndex={-1}
               initial={{ scale: 0.8, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-3xl p-6"
+              className="w-full max-w-sm rounded-3xl p-6 outline-none"
               style={{ 
                 background: COLORS.surface,
                 boxShadow: "0 30px 80px -20px rgba(139, 63, 26, 0.4)"
@@ -335,9 +335,13 @@ export default function HomePage() {
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
                     style={{ background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)` }}
                   >
-                    <Lock size={20} className="text-white" />
+                    <Lock size={20} className="text-white" aria-hidden="true" />
                   </div>
-                  <h2 className="text-xl font-bold" style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}>
+                  <h2
+                    id="pin-modal-title"
+                    className="text-xl font-bold"
+                    style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}
+                  >
                     ใส่ PIN ผู้จัดการ
                   </h2>
                 </div>
@@ -345,15 +349,20 @@ export default function HomePage() {
                   whileTap={{ scale: 0.9, rotate: 90 }}
                   onClick={() => setShowPinModal(false)}
                   disabled={pinLoading}
-                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  className="w-11 h-11 rounded-full flex items-center justify-center"
                   style={{ background: COLORS.bg }}
+                  aria-label="ปิดหน้าต่างใส่ PIN"
                 >
-                  <X size={18} style={{ color: COLORS.textMuted }} />
+                  <X size={18} style={{ color: COLORS.textMuted }} aria-hidden="true" />
                 </motion.button>
               </div>
 
-              {/* PIN dots */}
-              <div className="flex justify-center gap-3 mb-4">
+              <p id="pin-modal-desc" className="text-sm text-center mb-4" style={{ color: COLORS.textMuted }}>
+                กรอก PIN 4-6 หลักของผู้จัดการ
+              </p>
+
+              {/* PIN dots — hidden from AT, the text field below carries the value */}
+              <div className="flex justify-center gap-3 mb-4" aria-hidden="true">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <motion.div
                     key={i}
@@ -367,22 +376,47 @@ export default function HomePage() {
                 ))}
               </div>
 
+              {/* Real input so the PIN is announced, masked, and pasteable */}
+              <label htmlFor="pin-input" className="sr-only">
+                PIN ผู้จัดการ
+              </label>
+              <input
+                id="pin-input"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={6}
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setPinError("");
+                }}
+                className="sr-only"
+                aria-invalid={!!pinError}
+                aria-describedby={pinError ? "pin-error" : undefined}
+              />
+
               {pinError && (
                 <motion.p
+                  id="pin-error"
+                  ref={pinErrorRef}
+                  tabIndex={-1}
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-center text-sm mb-3"
+                  className="text-center text-sm mb-3 outline-none"
                   style={{ color: "#A03826" }}
+                  role="alert"
                 >
                   {pinError}
                 </motion.p>
               )}
 
               {/* Number pad */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-3 gap-2 mb-4" role="group" aria-label="แป้นตัวเลข PIN">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                   <motion.button
                     key={n}
+                    type="button"
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handlePinKeyPress(String(n))}
                     disabled={pinLoading}
@@ -392,6 +426,7 @@ export default function HomePage() {
                       color: COLORS.text,
                       border: "1px solid rgba(232, 223, 208, 0.5)"
                     }}
+                    aria-label={`เลข ${n}`}
                   >
                     {n}
                   </motion.button>
@@ -401,10 +436,7 @@ export default function HomePage() {
                   key="zero"
                   type="button"
                   whileTap={{ scale: 0.92 }}
-                  onClick={() => {
-                    console.log("[PIN] pressed: 0");
-                    handlePinKeyPress("0");
-                  }}
+                  onClick={() => handlePinKeyPress("0")}
                   disabled={pinLoading}
                   data-testid="pin-key-0"
                   className="aspect-square rounded-2xl text-2xl font-semibold cursor-pointer relative z-10"
@@ -413,25 +445,29 @@ export default function HomePage() {
                     color: COLORS.text,
                     border: "1px solid rgba(232, 223, 208, 0.5)"
                   }}
+                  aria-label="เลข 0"
                 >
                   0
                 </motion.button>
                 <motion.button
+                  type="button"
                   whileTap={{ scale: 0.92 }}
                   onClick={handlePinDelete}
                   disabled={pinLoading}
                   className="aspect-square rounded-2xl flex items-center justify-center"
                   style={{ background: COLORS.bg, border: "1px solid rgba(232, 223, 208, 0.5)" }}
+                  aria-label="ลบตัวเลขสุดท้าย"
                 >
                   ←
                 </motion.button>
               </div>
 
               <motion.button
+                type="button"
                 whileTap={{ scale: 0.98 }}
                 onClick={handlePinSubmit}
                 disabled={pin.length < 4 || pinLoading}
-                className="w-full py-4 rounded-2xl text-white font-semibold text-lg disabled:opacity-50"
+                className="w-full py-4 min-h-[56px] rounded-2xl text-white font-semibold text-lg disabled:opacity-50"
                 style={{
                   background: pin.length >= 4
                     ? `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`

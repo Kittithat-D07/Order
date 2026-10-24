@@ -9,22 +9,11 @@ import { LogOut, Utensils, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { StaffNameModal } from "@/components/auth/StaffNameModal";
+import { COLORS, ROLE_COLORS } from "@/lib/theme";
 
-const SERVER_COLORS = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-};
+/** The server role wears the deep-clay accent — a different depth of the same
+ *  terracotta family, never a stock hue. */
+const SERVER = ROLE_COLORS.server;
 
 function ServerContent() {
   const router = useRouter();
@@ -42,20 +31,20 @@ function ServerContent() {
     return () => window.removeEventListener("server-realtime-status", onStatus);
   }, []);
 
-  // Default to online for SSR consistency, then update
+  // The realtime pill reports what the subscription actually says — never a
+  // hardcoded "online", which would lie during a network drop.
   useEffect(() => {
-    setRealtimeStatus("online");
     setLastUpdate(new Date());
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden" style={{ background: SERVER_COLORS.bg }}>
+    <div className="min-h-screen relative overflow-x-hidden" style={{ background: COLORS.bg }}>
       {/* Decorative leaves */}
       <motion.div
         animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         className="leaf-deco text-7xl pointer-events-none fixed"
-        style={{ top: "120px", right: "20px", color: SERVER_COLORS.secondary, opacity: 0.1, zIndex: 0 }}
+        style={{ top: "120px", right: "20px", color: SERVER.light, opacity: 0.35, zIndex: 0 }}
       >
         🌿
       </motion.div>
@@ -63,7 +52,7 @@ function ServerContent() {
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
         className="leaf-deco text-6xl pointer-events-none fixed"
-        style={{ top: "400px", left: "15px", color: SERVER_COLORS.accent, opacity: 0.08, zIndex: 0 }}
+        style={{ top: "400px", left: "15px", color: SERVER.base, opacity: 0.16, zIndex: 0 }}
       >
         🍃
       </motion.div>
@@ -72,8 +61,8 @@ function ServerContent() {
       <header
         className="sticky top-0 z-50 text-white"
         style={{
-          background: `linear-gradient(135deg, ${SERVER_COLORS.primary} 0%, ${SERVER_COLORS.accent} 100%)`,
-          boxShadow: "0 8px 24px -4px rgba(184, 92, 56, 0.3)"
+          background: `linear-gradient(135deg, ${SERVER.base} 0%, ${SERVER.dark} 100%)`,
+          boxShadow: "0 8px 24px -4px rgba(92, 36, 16, 0.3)"
         }}
       >
         <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-2.5 pb-2 flex items-center justify-between gap-2">
@@ -134,10 +123,10 @@ function ServerContent() {
         >
           <div className="flex items-center gap-1.5 max-w-3xl mx-auto w-full">
             <span className={`relative flex w-2 h-2 rounded-full shrink-0 ${
-              realtimeStatus === "online" ? "bg-green-400" : realtimeStatus === "offline" ? "bg-red-400" : "bg-amber-400"
+              realtimeStatus === "online" ? "bg-ok" : realtimeStatus === "offline" ? "bg-bad" : "bg-warn"
             }`}>
               {realtimeStatus === "online" && (
-                <span className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-75" />
+                <span className="absolute inset-0 rounded-full bg-ok animate-ping opacity-75" />
               )}
             </span>
             <span className="font-medium">

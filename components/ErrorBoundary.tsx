@@ -4,6 +4,7 @@ import { Component, ReactNode } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
+import { COLORS, alpha } from "@/lib/theme";
 
 interface Props {
   children: ReactNode;
@@ -14,17 +15,6 @@ interface State {
   hasError: boolean;
   error?: Error;
 }
-
-const COLORS = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  danger: "#A03826",
-};
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -69,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-5xl"
               style={{
-                background: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, #fce7e7 100%)`,
+                background: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${alpha("danger-light", 0.6)} 100%)`,
               }}
             >
               🌿
@@ -86,7 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
               เกิดข้อผิดพลาด
             </h1>
             <p className="text-sm mb-6" style={{ color: COLORS.textMuted }}>
-              Something went wrong. ขออภัยในความไม่สะดวก
+              ขออภัยในความไม่สะดวก กรุณาลองใหม่อีกครั้ง
             </p>
 
             {this.state.error && (

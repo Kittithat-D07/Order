@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderStatus, Bill } from "@/lib/types";
 import { formatPrice, formatDateTime, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { COLORS, alpha } from "@/lib/theme";
+import { ToastStack, useToasts } from "@/components/ui/toast";
 import {
   CheckCircle2,
   Clock,
@@ -31,66 +33,55 @@ import {
    🌅 ORGANIC WARM - Aura Bistro Order Status
 ============================================================ */
 
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
-
 const STATUS_CONFIG: Record<
   OrderStatus,
-  { bg: string; gradient: string; color: string; label: string; desc: string; emoji: string }
+  {
+    gradient: string;
+    color: string;
+    label: string;
+    title: string;
+    desc: string;
+    emoji: string;
+  }
 > = {
   pending: {
-    bg: "from-amber-50 to-orange-50",
     gradient: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`,
     color: COLORS.primary,
     label: "รอยืนยัน",
+    title: "รับออร์เดอร์แล้ว",
     desc: "ร้านกำลังตรวจสอบออร์เดอร์ของคุณ",
     emoji: "🌿",
   },
   preparing: {
-    bg: "from-orange-50 to-red-50",
     gradient: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.danger} 100%)`,
     color: COLORS.primary,
     label: "กำลังทำ",
+    title: "กำลังทำอาหารให้คุณ",
     desc: "เชฟกำลังทำอาหารให้คุณ รอสักครู่นะคะ",
     emoji: "🍳",
   },
   served: {
-    bg: "from-green-50 to-emerald-50",
-    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
+    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successText} 100%)`,
     color: COLORS.success,
     label: "เสิร์ฟแล้ว",
-    desc: "อาหารถูกเสิร์ฟแล้ว 🍽️",
+    title: "เสิร์ฟเรียบร้อย",
+    desc: "อาหารถูกเสิร์ฟแล้ว ทานเลยครับ 🍽️",
     emoji: "✨",
   },
   completed: {
-    bg: "from-green-50 to-emerald-50",
-    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
+    gradient: `linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successText} 100%)`,
     color: COLORS.success,
     label: "เสร็จสิ้น",
+    title: "ออร์เดอร์เสร็จสิ้น",
     desc: "ออร์เดอร์เสร็จเรียบร้อยแล้ว",
     emoji: "🎉",
   },
   cancelled: {
-    bg: "from-stone-100 to-stone-200",
-    gradient: `linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)`,
-    color: "#6B7280",
+    gradient: `linear-gradient(135deg, ${COLORS.textSoft} 0%, ${COLORS.textMuted} 100%)`,
+    color: COLORS.textMuted,
     label: "ยกเลิก",
-    desc: "ออร์เดอร์ถูกยกเลิก",
+    title: "ออร์เดอร์ถูกยกเลิก",
+    desc: "ออร์เดอร์นี้ถูกยกเลิกแล้ว",
     emoji: "🍃",
   },
 };
@@ -103,17 +94,17 @@ const ITEM_STATUS_CONFIG: Record<
   pending: {
     label: "รอครัว",
     sublabel: "ยังไม่เริ่มทำ",
-    bg: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, #f5f5f4 100%)`,
-    ring: "ring-amber-200",
+    bg: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, ${COLORS.surface3} 100%)`,
+    ring: "ring-warn/30",
     color: COLORS.textMuted,
-    dot: "#f59e0b",
+    dot: COLORS.warning,
     emoji: "🌿",
   },
   preparing: {
     label: "กำลังทำ",
     sublabel: "เชฟกำลังปรุงอยู่",
-    bg: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, #fff7ed 100%)`,
-    ring: "ring-orange-200",
+    bg: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${COLORS.accentLight} 100%)`,
+    ring: "ring-brand/30",
     color: COLORS.primary,
     dot: COLORS.primary,
     emoji: "🔥",
@@ -121,8 +112,8 @@ const ITEM_STATUS_CONFIG: Record<
   ready: {
     label: "พร้อมเสิร์ฟ",
     sublabel: "รอเสริฟ์นำไปเสิร์ฟ",
-    bg: `linear-gradient(135deg, ${COLORS.accentLight} 0%, #fef3c7 100%)`,
-    ring: "ring-amber-300",
+    bg: `linear-gradient(135deg, ${COLORS.accentLight} 0%, ${COLORS.warningLight} 100%)`,
+    ring: "ring-accent/40",
     color: COLORS.accent,
     dot: COLORS.accent,
     emoji: "✨",
@@ -130,9 +121,9 @@ const ITEM_STATUS_CONFIG: Record<
   served: {
     label: "เสร็จแล้ว",
     sublabel: "เสิร์ฟเรียบร้อย",
-    bg: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, #dcfce7 100%)`,
-    ring: "ring-green-200",
-    color: COLORS.success,
+    bg: `linear-gradient(135deg, ${COLORS.successLight} 0%, ${COLORS.surface2} 100%)`,
+    ring: "ring-ok/30",
+    color: COLORS.successText,
     dot: COLORS.success,
     emoji: "🌟",
   },
@@ -141,8 +132,8 @@ const ITEM_STATUS_CONFIG: Record<
     sublabel: "เมนูนี้ถูกยกเลิก",
     bg: "bg-stone-100",
     ring: "ring-stone-200",
-    color: "#9ca3af",
-    dot: "#9ca3af",
+    color: COLORS.textMuted,
+    dot: COLORS.textSoft,
     emoji: "🍂",
   },
 };
@@ -218,7 +209,7 @@ function ItemStatusRow({ item, status }: { item: any; status: keyof typeof ITEM_
               key={s}
               className={`flex-1 h-1 rounded-full transition-all ${
                 isPast
-                  ? "bg-green-400"
+                  ? "bg-ok"
                   : isCurrent
                   ? isActive
                     ? "animate-pulse"
@@ -239,6 +230,7 @@ export default function OrderStatusPage() {
   const orderId = params.orderId;
 
   const [order, setOrder] = useState<OrderWithItems | null>(null);
+  const [tableToken, setTableToken] = useState<string | null>(null);
   const [bill, setBill] = useState<Bill | null>(null);
   const [requestingBill, setRequestingBill] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -265,14 +257,13 @@ export default function OrderStatusPage() {
     } else {
       const newOrder = data as OrderWithItems;
       setOrder(newOrder);
+      setTableToken(newOrder.tables?.qr_token ?? null);
       setLastUpdate(new Date());
       if (orderStatusRef.current && orderStatusRef.current !== newOrder.status) {
-        console.log("📡 Status changed:", orderStatusRef.current, "→", newOrder.status);
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate(200);
-        }
+        // No vibration: this phone is lying face-up on the customer's table,
+        // and a buzz that nobody can explain reads as a malfunction.
+        orderStatusRef.current = newOrder.status;
       }
-      orderStatusRef.current = newOrder.status;
     }
     if (!silent) setIsRefreshing(false);
   };
@@ -370,6 +361,7 @@ export default function OrderStatusPage() {
 
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const { toasts, toast, dismiss } = useToasts();
 
   const handleCancel = async () => {
     if (!order) return;
@@ -381,15 +373,16 @@ export default function OrderStatusPage() {
         body: JSON.stringify({ reason: "ลูกค้ายกเลิก" }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "ยกเลิกไม่สำเร็จ");
+        const data = await res.json().catch(() => ({}));
+        toast(data.error || "ยกเลิกออร์เดอร์ไม่สำเร็จ กรุณาลองใหม่", "bad");
         return;
       }
       // รีเฟรชข้อมูล
       await fetchOrder();
       setShowCancelConfirm(false);
-    } catch (e: any) {
-      alert("เกิดข้อผิดพลาด: " + e.message);
+      toast("ยกเลิกออร์เดอร์เรียบร้อยแล้ว", "info");
+    } catch {
+      toast("เกิดข้อผิดพลาดในการยกเลิก กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต", "bad");
     } finally {
       setCancelling(false);
     }
@@ -400,13 +393,14 @@ export default function OrderStatusPage() {
     setRequestingBill(true);
     try {
       const supabase = createClient();
-      await supabase.from("bills").insert({
+      const { error: billErr } = await supabase.from("bills").insert({
         order_id: order.id,
         total_amount: order.total_amount,
       });
-    } catch (e: any) {
-      console.error("Failed:", e);
-      alert("ไม่สามารถสร้างบิลได้: " + (e?.message ?? ""));
+      if (billErr) throw billErr;
+      toast("ส่งคำขอบิลแล้ว พนักงานจะนำบิลมาให้", "ok");
+    } catch {
+      toast("ไม่สามารถส่งคำขอบิลได้ กรุณาแจ้งพนักงานที่โต๊ะ", "bad");
     } finally {
       setRequestingBill(false);
     }
@@ -423,7 +417,7 @@ export default function OrderStatusPage() {
           🍳
         </motion.div>
         <div className="text-center">
-          <p className="text-2xl text-sunset font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             Aura Bistro
           </p>
           <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
@@ -448,11 +442,11 @@ export default function OrderStatusPage() {
           }}
         >
           <div className="text-7xl mb-4 animate-sway">🌿</div>
-          <p className="text-2xl text-sunset font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             เกิดข้อผิดพลาด
           </p>
           <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
-          <Link href="/menu?table=t01-demo-aaaa">
+          <Link href={tableToken ? `/menu?table=${tableToken}` : "/menu"}>
             <motion.button
               whileTap={{ scale: 0.95 }}
               className="mt-6 btn-primary"
@@ -524,7 +518,7 @@ export default function OrderStatusPage() {
             </div>
 
             <h1 className="text-3xl font-bold mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
-              สั่งอาหารสำเร็จ!
+              {status === "cancelled" ? "ออร์เดอร์ถูกยกเลิก" : cfg.title}
             </h1>
             <p className="text-sm opacity-80 font-mono">#{order.id.slice(0, 8).toUpperCase()}</p>
 
@@ -543,7 +537,7 @@ export default function OrderStatusPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                    isConnected ? "bg-green-500/30 text-white" : "bg-red-500/30 text-white"
+                    isConnected ? "bg-ok/30 text-white" : "bg-bad/30 text-white"
                   }`}
                 >
                   {isConnected ? <Wifi size={10} /> : <WifiOff size={10} />}
@@ -594,10 +588,13 @@ export default function OrderStatusPage() {
           {/* Progress Steps */}
           <div className="mt-5 flex items-center gap-1">
             {(["pending", "preparing", "served"] as OrderStatus[]).map((s, i) => {
-              const isActive = status === s;
+              // `completed` is the paid/closed twin of `served` — both mean the
+              // last step is behind the customer.
+              const effective = status === "completed" ? "served" : status;
+              const isActive = effective === s;
               const isPast =
-                (status === "preparing" && s === "pending") ||
-                (status === "served" && (s === "pending" || s === "preparing"));
+                (effective === "preparing" && s === "pending") ||
+                (effective === "served" && (s === "pending" || s === "preparing"));
               const cfg2 = STATUS_CONFIG[s];
               const emojis = ["🌿", "🔥", "✨"];
 
@@ -713,7 +710,7 @@ export default function OrderStatusPage() {
           </div>
           <div className="flex justify-between items-baseline mt-4 pt-3">
             <span className="text-sm" style={{ color: COLORS.textMuted }}>รวมทั้งหมด</span>
-            <span className="text-2xl font-bold text-sunset" style={{ fontFamily: "'Playfair Display', serif" }}>
+            <span className="text-2xl font-bold text-brand" style={{ fontFamily: "'Playfair Display', serif" }}>
               ฿{formatPrice(order.total_amount)}
             </span>
           </div>
@@ -727,11 +724,11 @@ export default function OrderStatusPage() {
           className="flex items-start gap-3 p-4 rounded-2xl mb-4"
           style={{ background: COLORS.secondaryLight }}
         >
-          <span className="text-2xl">🌿</span>
+          <span className="text-2xl" aria-hidden="true">🌿</span>
           <div>
-            <p className="text-sm font-bold" style={{ color: COLORS.secondaryDark }}>เคล็ดลับ</p>
+            <p className="text-sm font-bold" style={{ color: COLORS.secondaryDark }}>ระหว่างรอ</p>
             <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>
-              หน้านี้อัปเดตอัตโนมัติเมื่อเชฟเปลี่ยนสถานะ — ไม่ต้องรีเฟรช!
+              สั่งเพิ่มได้เลยครับ — รายการใหม่จะเข้าไปในออร์เดอร์เดียวกันนี้
             </p>
           </div>
         </motion.div>
@@ -750,8 +747,8 @@ export default function OrderStatusPage() {
                 aria-label="ดูบิลและชำระเงิน"
                 className="w-full py-4 rounded-full text-white text-lg font-semibold"
                 style={{
-                  background: `linear-gradient(135deg, ${COLORS.success} 0%, #059669 100%)`,
-                  boxShadow: "0 12px 28px -6px rgba(79, 121, 66, 0.5)"
+                  background: `linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successText} 100%)`,
+                  boxShadow: "0 12px 28px -6px rgba(63, 107, 52, 0.5)"
                 }}
               >
                 <Receipt size={18} className="mr-2" aria-hidden="true" />
@@ -778,28 +775,43 @@ export default function OrderStatusPage() {
                   🍳
                 </motion.span>
               ) : (
-                <Receipt size={18} className="mr-2" />
+                <Receipt size={18} className="mr-2" aria-hidden="true" />
               )}
-              ขอบิล / Request Bill
+              ขอบิล
             </motion.button>
           ) : null}
 
           {/* Cancel button - only if eligible */}
           {canCancel && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowCancelConfirm(true)}
-              className="w-full mt-3 py-3 rounded-full text-sm font-medium flex items-center justify-center gap-2"
-              style={{
-                background: "transparent",
-                color: COLORS.textMuted,
-                border: `1px solid ${COLORS.textMuted}40`,
-              }}
-            >
-              <XCircle size={14} /> ยกเลิกออร์เดอร์
-            </motion.button>
+            <>
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowCancelConfirm(true)}
+                className="w-full mt-3 py-3 min-h-[44px] rounded-full text-sm font-medium flex items-center justify-center gap-2"
+                style={{
+                  background: "transparent",
+                  color: COLORS.textMuted,
+                  border: `1px solid ${alpha("text-muted", 0.25)}`,
+                }}
+              >
+                <XCircle size={14} aria-hidden="true" /> ยกเลิกออร์เดอร์
+              </motion.button>
+              {/* Say *why* the window is short, and when it closes — a button
+                  that silently disappears looks like a bug. */}
+              <p className="text-center text-[11px] mt-2" style={{ color: COLORS.textSoft }}>
+                ยกเลิกได้ภายใน 5 นาทีหลังสั่ง
+              </p>
+            </>
+          )}
+
+          {/* Once the window closes, say so instead of leaving a mystery. */}
+          {!canCancel && order.status === "pending" && (
+            <p className="text-center text-[11px] mt-3" style={{ color: COLORS.textSoft }}>
+              เลยเวลายกเลิกแล้ว (5 นาทีหลังสั่ง) — หากต้องการเปลี่ยนแปลง
+              กรุณาแจ้งพนักงานที่โต๊ะ
+            </p>
           )}
         </motion.div>
 
@@ -828,7 +840,7 @@ export default function OrderStatusPage() {
                 <div className="text-center mb-4">
                   <div
                     className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center text-3xl"
-                    style={{ background: COLORS.danger + "15" }}
+                    style={{ background: alpha("danger", 0.08) }}
                   >
                     🍂
                   </div>
@@ -858,8 +870,8 @@ export default function OrderStatusPage() {
                     disabled={cancelling}
                     className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white"
                     style={{
-                      background: `linear-gradient(135deg, ${COLORS.danger} 0%, #7f1d1d 100%)`,
-                      boxShadow: `0 8px 20px -4px ${COLORS.danger}40`,
+                      background: `linear-gradient(135deg, ${COLORS.danger} 0%, ${COLORS.dangerText} 100%)`,
+                      boxShadow: `0 8px 20px -4px ${alpha("danger", 0.25)}`,
                     }}
                   >
                     {cancelling ? "กำลังยกเลิก..." : "ยืนยันยกเลิก"}
@@ -871,13 +883,15 @@ export default function OrderStatusPage() {
         </AnimatePresence>
 
         <Link
-          href="/"
+          href={order.tables?.qr_token ? `/menu?table=${order.tables.qr_token}` : "/"}
           className="flex items-center justify-center gap-2 text-sm mt-4 py-3"
           style={{ color: COLORS.textMuted }}
         >
-          <ArrowLeft size={14} /> กลับหน้าหลัก
+          <ArrowLeft size={14} /> สั่งเพิ่มหรือดูเมนู
         </Link>
       </main>
+
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

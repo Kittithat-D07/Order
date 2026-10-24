@@ -16,21 +16,21 @@ function KitchenDoneContent() {
   const { session, logout } = useStaffSession();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 relative overflow-x-hidden">
-      <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-blue-300/30" />
-      <GradientBlob className="top-[30%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-cyan-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-sky-300/30" delay={4} />
+    <div className="min-h-screen bg-canvas relative overflow-x-hidden">
+      <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-ok/10" />
+      <GradientBlob className="top-[30%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-accent/10" delay={2} />
+      <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-brand/10" delay={4} />
 
       <FloatingElement className="top-24 right-4 sm:right-12" delay={0}>
-        <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-400/50" />
+        <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-ok/40" />
       </FloatingElement>
       <FloatingElement className="top-40 left-4 sm:left-12" delay={1}>
-        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400/50" />
+        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-accent/40" />
       </FloatingElement>
 
       {/* Header (ครัว-เสร็จ) - ชิดบนสุด */}
       <header
-        className="sticky top-0 z-30 bg-gradient-to-r from-blue-500/95 via-cyan-500/95 to-blue-500/95 text-white shadow-lg shadow-blue-500/30"
+        className="sticky top-0 z-30 bg-gradient-to-r from-ok to-ok-text text-white shadow-lg shadow-ok/20"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 pb-2.5 sm:pb-2 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>

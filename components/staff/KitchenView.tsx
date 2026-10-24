@@ -1,38 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
-import { formatDateTime } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChefHat, Check, Clock, CheckCircle2, Flame, Sparkles } from "lucide-react";
+import { COLORS, alpha } from "@/lib/theme";
+import { Check, Flame, Sparkles, ChefHat } from "lucide-react";
 
 /* ============================================================
-   🌅 ORGANIC WARM - Aura Bistro Kitchen View
+   👨‍🍳 KITCHEN BOARD — built for the hot line.
+   Oldest ticket first. Live age. One tap per state change.
 ============================================================ */
 
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
+/** Minutes after which a ticket is considered late. */
+const LATE_MINUTES = 20;
+/** Minutes after which a ticket is critical. */
+const CRITICAL_MINUTES = 30;
+
+type ItemStage = "new" | "doing" | "ready" | "done" | "cancelled";
 
 export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const supabase = createClient();
+
+  const loadOrders = useCallback(async () => {
+    const { data } = await supabase
+      .from("orders")
+      .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
+      // Oldest first — the cook's first question is "what has been waiting longest?"
+      .order("created_at", { ascending: true })
+      .limit(200);
+
+    if (data) {
+      const all = data as unknown as OrderWithItems[];
+      const filtered = all.filter((o) => {
+        const items = o.order_items ?? [];
+        if (mode === "active") {
+          return items.some((it) => it.status !== "served" && it.status !== "cancelled");
+        }
+        return (
+          items.length > 0 && items.every((it) => it.status === "served" || it.status === "cancelled")
+        );
+      });
+      setOrders(filtered);
+    }
+    setLoading(false);
+  }, [supabase, mode]);
 
   useEffect(() => {
     loadOrders();
@@ -53,28 +68,13 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [mode]);
+  }, [supabase, mode, loadOrders]);
 
-  const loadOrders = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      const all = data as any as OrderWithItems[];
-      const filtered = all.filter((o) => {
-        const items = o.order_items ?? [];
-        if (mode === "active") {
-          return items.some((it) => it.status !== "served" && it.status !== "cancelled");
-        } else {
-          return items.length > 0 && items.every((it) => it.status === "served" || it.status === "cancelled");
-        }
-      });
-      setOrders(filtered);
-    }
-    setLoading(false);
-  };
+  // The age counter has to actually tick — a frozen number is worse than none.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
     const { data: item } = await supabase
@@ -94,72 +94,136 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
     if (!items) return;
 
     const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
-    const anyPreparing = items.some(
+    const anyStarted = items.some(
       (i) => i.status === "preparing" || i.status === "ready" || i.status === "served"
     );
 
-    let orderStatus: "pending" | "preparing" | "served" = "pending";
-    if (allServed) orderStatus = "served";
-    else if (anyPreparing) orderStatus = "preparing";
+    const orderStatus: "pending" | "preparing" | "served" = allServed
+      ? "served"
+      : anyStarted
+        ? "preparing"
+        : "pending";
 
     await supabase.from("orders").update({ status: orderStatus }).eq("id", item.order_id);
+    await loadOrders();
   };
 
-  const getItemStatus = (status: string): "new" | "doing" | "ready" => {
+  /** The single next state for a dish — one tap, not two. */
+  const nextStatus = (status: OrderItemStatus): OrderItemStatus | null => {
+    if (status === "pending") return "preparing";
+    if (status === "preparing") return "ready";
+    if (status === "ready") return "served";
+    return null;
+  };
+
+  const stageOf = (status: string): ItemStage => {
     if (status === "pending") return "new";
     if (status === "preparing") return "doing";
     if (status === "ready") return "ready";
+    if (status === "served") return "done";
+    if (status === "cancelled") return "cancelled";
     return "new";
   };
 
+  const worstAge = useMemo(() => {
+    if (orders.length === 0) return 0;
+    return Math.max(
+      ...orders.map((o) => Math.floor((now - new Date(o.created_at).getTime()) / 60000))
+    );
+  }, [orders, now]);
+
+  const dishCount = useMemo(
+    () => orders.reduce((sum, o) => sum + (o.order_items ?? []).filter((i) => i.status !== "served" && i.status !== "cancelled").length, 0),
+    [orders]
+  );
+
   return (
     <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
-      {/* Header */}
+      {/* Header — the oldest ticket is the number that matters */}
       <div
-        className="mb-4 flex items-center justify-between p-4 rounded-2xl"
-        style={{ 
+        className="mb-4 flex items-center justify-between gap-3 p-4 rounded-2xl"
+        style={{
           background: COLORS.surface,
-          boxShadow: "0 8px 24px -4px rgba(139, 63, 26, 0.1)",
-          border: "1px solid rgba(232, 223, 208, 0.5)"
+          boxShadow: "var(--shadow-sm)",
+          border: `1px solid ${COLORS.border}`,
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl"
-            style={{ 
-              background: mode === "active" 
-                ? `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`
-                : `linear-gradient(135deg, ${COLORS.secondary} 0%, ${COLORS.secondaryDark} 100%)`
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+            style={{
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
             }}
+            aria-hidden="true"
           >
             {mode === "active" ? "👨‍🍳" : "✨"}
           </div>
-          <div>
-            <h2 className="text-lg font-bold" style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}>
-              {mode === "active" ? "ออร์เดอร์ที่กำลังทำ" : "เสร็จแล้ว"}
+          <div className="min-w-0">
+            <h2
+              className="text-lg font-bold leading-tight truncate"
+              style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}
+            >
+              {mode === "active" ? "ออร์เดอร์ในครัว" : "เสร็จแล้ว"}
             </h2>
-            <p className="text-xs" style={{ color: COLORS.textMuted }}>
-              {mode === "active" ? "🍳 เชฟกำลังทำอาหาร" : "✅ เสริฟ์นำไปแล้ว"}
+            <p className="text-xs truncate" style={{ color: COLORS.textMuted }}>
+              {mode === "active"
+                ? `${dishCount} จาน · เก่าสุด ${worstAge} นาที`
+                : `${orders.length} ออร์เดอร์`}
             </p>
           </div>
         </div>
-        <div
-          className="px-4 py-2 rounded-full text-sm font-bold"
-          style={{ 
-            background: mode === "active" ? COLORS.primaryLight : COLORS.secondaryLight,
-            color: mode === "active" ? COLORS.primaryDark : COLORS.secondaryDark
-          }}
-        >
-          {orders.length} ออร์เดอร์
-        </div>
+
+        {/* Worst-case indicator — the only number a hot line needs */}
+        {mode === "active" && orders.length > 0 && (
+          <div
+            className="px-3.5 py-2 rounded-2xl text-center shrink-0"
+            style={{
+              background:
+                worstAge >= CRITICAL_MINUTES
+                  ? COLORS.dangerLight
+                  : worstAge >= LATE_MINUTES
+                    ? COLORS.warningLight
+                    : COLORS.surface2,
+            }}
+            aria-label={`ออร์เดอร์เก่าสุด ${worstAge} นาที`}
+          >
+            <p
+              className="text-xl font-bold leading-none tabular-nums"
+              style={{
+                color:
+                  worstAge >= CRITICAL_MINUTES
+                    ? COLORS.dangerText
+                    : worstAge >= LATE_MINUTES
+                      ? COLORS.warningText
+                      : COLORS.text,
+              }}
+            >
+              {worstAge}
+            </p>
+            <p
+              className="text-[10px] font-semibold mt-0.5"
+              style={{
+                color:
+                  worstAge >= CRITICAL_MINUTES
+                    ? COLORS.dangerText
+                    : worstAge >= LATE_MINUTES
+                      ? COLORS.warningText
+                      : COLORS.textMuted,
+              }}
+            >
+              นาที
+            </p>
+          </div>
+        )}
       </div>
 
       {loading ? (
-        <div className="text-center py-20" style={{ color: COLORS.textMuted }}>
+        <div className="text-center py-20" style={{ color: COLORS.textMuted }} role="status">
           <motion.div
             animate={{ rotate: [0, 8, -8, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
             className="text-5xl mb-3"
+            aria-hidden="true"
           >
             🍳
           </motion.div>
@@ -172,24 +236,27 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
           className="text-center py-20"
           style={{ color: COLORS.textMuted }}
         >
-          <div className="text-6xl mb-3 animate-sway">🌿</div>
-          <p className="text-sm">
+          <div className="text-5xl mb-3" aria-hidden="true">
+            🍳
+          </div>
+          <p className="text-sm font-medium" style={{ color: COLORS.text }}>
             {mode === "active" ? "ยังไม่มีออร์เดอร์" : "ยังไม่มีออร์เดอร์ที่เสร็จแล้ว"}
           </p>
+          <p className="text-xs mt-1">ออร์เดอร์ใหม่จะปรากฏที่นี่ทันที</p>
         </motion.div>
       ) : (
         <div className="space-y-4">
-          <AnimatePresence>
-            {orders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onUpdateItem={updateItem}
-                mode={mode}
-                getItemStatus={getItemStatus}
-              />
-            ))}
-          </AnimatePresence>
+          {orders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              now={now}
+              onUpdateItem={updateItem}
+              nextStatus={nextStatus}
+              stageOf={stageOf}
+              mode={mode}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -198,146 +265,167 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
 
 function OrderCard({
   order,
+  now,
   onUpdateItem,
-  getItemStatus,
+  nextStatus,
+  stageOf,
   mode = "active",
 }: {
   order: OrderWithItems;
+  now: number;
   onUpdateItem: (id: string, status: OrderItemStatus) => void;
-  getItemStatus: (s: string) => "new" | "doing" | "ready";
+  nextStatus: (status: OrderItemStatus) => OrderItemStatus | null;
+  stageOf: (status: string) => ItemStage;
   mode?: "active" | "done";
 }) {
-  const ageMin = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60000);
-  const isOld = ageMin > 10;
+  const ageMin = Math.floor((now - new Date(order.created_at).getTime()) / 60000);
+  const isLate = ageMin >= LATE_MINUTES && mode === "active";
+  const isCritical = ageMin >= CRITICAL_MINUTES && mode === "active";
 
-  const itemsByStatus = {
-    new: (order.order_items ?? []).filter((it) => it.status === "pending"),
-    doing: (order.order_items ?? []).filter((it) => it.status === "preparing"),
-    ready: (order.order_items ?? []).filter((it) => it.status === "ready"),
-  };
+  const items = order.order_items ?? [];
+  const totalItems = items.length;
+  const doneItems = items.filter((it) => it.status === "ready" || it.status === "served").length;
 
-  const totalItems = (order.order_items ?? []).length;
-  const doneItems = itemsByStatus.ready.length;
-
-  const headerBg = mode === "done" 
-    ? `linear-gradient(135deg, ${COLORS.secondary} 0%, ${COLORS.secondaryDark} 100%)`
-    : isOld
-    ? `linear-gradient(135deg, ${COLORS.danger} 0%, #7f1d1d 100%)`
-    : `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`;
+  const headerBg = isCritical
+    ? `linear-gradient(135deg, ${COLORS.danger} 0%, ${COLORS.dangerText} 100%)`
+    : isLate
+      ? `linear-gradient(135deg, ${COLORS.warning} 0%, ${COLORS.warningText} 100%)`
+      : `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
       className="rounded-2xl overflow-hidden"
-      style={{ 
+      style={{
         background: COLORS.surface,
-        boxShadow: "0 12px 32px -6px rgba(139, 63, 26, 0.12)",
-        border: `1px solid ${isOld && mode === "active" ? COLORS.danger + "40" : "rgba(232, 223, 208, 0.5)"}`
+        boxShadow: "var(--shadow)",
+        border: `1px solid ${isCritical || isLate ? alpha("danger", 0.25) : COLORS.border}`,
       }}
     >
-      {/* Header */}
-      <div
-        className="p-4 flex items-center justify-between text-white"
-        style={{ background: headerBg }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl">
+      {/* Header — table, age, progress */}
+      <div className="p-4 flex items-center justify-between text-white" style={{ background: headerBg }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-bold text-2xl shrink-0">
             {order.tables?.table_number ?? "?"}
           </div>
-          <div>
-            <p className="text-xs opacity-80 font-mono">#{order.id.slice(0, 8)}</p>
-            <p className={`text-sm font-bold ${isOld && mode === "active" ? "text-red-100" : ""}`}>
-              ⏱ {ageMin} นาทีที่แล้ว
+          <div className="min-w-0">
+            <p className="text-xs opacity-85 tabular-nums">#{order.id.slice(0, 8)}</p>
+            <p className="text-sm font-bold flex items-center gap-1.5">
+              <span aria-hidden="true">⏱</span>
+              {ageMin < 1 ? "เพิ่งเข้ามา" : `${ageMin} นาที`}
+              {isLate && (
+                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-white/25">
+                  {isCritical ? "ช้ามาก" : "ใกล้สาย"}
+                </span>
+              )}
             </p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs opacity-80">{formatDateTime(order.created_at)}</p>
-          <p className="text-sm font-bold">
+        <div className="text-right shrink-0">
+          <p className="text-sm font-bold tabular-nums">
             {doneItems}/{totalItems} เสร็จ
           </p>
+          <p className="text-xs opacity-85">เก่าสุดก่อน</p>
         </div>
       </div>
 
       {/* Items */}
-      <div className="p-4 space-y-3">
-        {(order.order_items ?? []).map((item) => {
-          const status = getItemStatus(item.status);
+      <div className="p-3 sm:p-4 space-y-2.5">
+        {items.map((item) => {
+          const stage = stageOf(item.status);
+          if (stage === "cancelled") return null;
+          const next = nextStatus(item.status);
           return (
             <div
               key={item.id}
-              className="rounded-xl p-4"
-              style={{ 
-                background: status === "doing" 
-                  ? COLORS.primaryLight 
-                  : status === "ready"
-                  ? COLORS.accentLight
-                  : status === "new"
-                  ? "#fef3c7"
-                  : "#f5f5f4",
+              className="rounded-xl p-3.5"
+              style={{
+                background:
+                  stage === "doing"
+                    ? COLORS.primaryLight
+                    : stage === "ready"
+                      ? COLORS.successLight
+                      : COLORS.surface2,
                 border: `1px solid ${
-                  status === "doing" 
-                    ? COLORS.primary 
-                    : status === "ready"
-                    ? COLORS.accent
-                    : status === "new"
-                    ? "#f59e0b"
-                    : "#9ca3af"
-                }30`
+                  stage === "doing"
+                    ? alpha("primary", 0.25)
+                    : stage === "ready"
+                      ? alpha("success", 0.25)
+                      : COLORS.border
+                }`,
               }}
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <p className="font-bold text-lg flex-1" style={{ color: COLORS.text }}>
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="font-bold text-lg flex-1 leading-tight" style={{ color: COLORS.text }}>
                   <span style={{ color: COLORS.primary }}>{item.quantity}×</span>{" "}
-                  {item.menu_items?.name}
+                  {item.menu_items?.name ?? "เมนู"}
                 </p>
-                <StatusBadge status={status} />
+                <StatusBadge stage={stage} />
               </div>
 
+              {/* The note is the highest-value datum on the ticket — make it loud */}
               {item.note && (
-                <p
-                  className="text-sm p-2.5 rounded-xl mb-3"
-                  style={{ 
-                    background: "white", 
-                    color: COLORS.accent,
-                    border: `1px solid ${COLORS.accent}30`
+                <div
+                  className="text-sm font-semibold px-3 py-2 rounded-xl mb-3 flex items-start gap-2"
+                  style={{
+                    background: COLORS.surface,
+                    color: COLORS.primaryDark,
+                    border: `1px solid ${alpha("primary", 0.19)}`,
                   }}
                 >
-                  💬 {item.note}
-                </p>
+                  <span aria-hidden="true">💬</span>
+                  <span>{item.note}</span>
+                </div>
               )}
 
-              {mode === "active" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onUpdateItem(item.id, "preparing")}
-                    disabled={item.status === "preparing"}
-                    className="py-3.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
-                    style={
-                      item.status === "preparing"
-                        ? { background: COLORS.primary, color: "white", boxShadow: `0 6px 16px -3px ${COLORS.primary}60` }
-                        : { background: "white", color: COLORS.primary, border: `2px solid ${COLORS.primary}30` }
-                    }
-                  >
-                    🔥 กำลังทำ
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => onUpdateItem(item.id, "ready")}
-                    disabled={item.status === "ready"}
-                    className="py-3.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
-                    style={
-                      item.status === "ready"
-                        ? { background: COLORS.success, color: "white", boxShadow: `0 6px 16px -3px ${COLORS.success}60` }
-                        : { background: "white", color: COLORS.success, border: `2px solid ${COLORS.success}30` }
-                    }
-                  >
-                    ✨ รอเสริฟ
-                  </motion.button>
-                </div>
+              {mode === "active" && next && (
+                <button
+                  onClick={() => onUpdateItem(item.id, next)}
+                  className="w-full min-h-[48px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                  style={
+                    stage === "new"
+                      ? {
+                          background: COLORS.primary,
+                          color: COLORS.onPrimary,
+                          boxShadow: "0 6px 16px -4px rgba(168, 72, 42, 0.5)",
+                        }
+                      : stage === "doing"
+                        ? {
+                            background: COLORS.success,
+                            color: "#FFFFFF",
+                            boxShadow: "0 6px 16px -4px rgba(63, 107, 52, 0.45)",
+                          }
+                        : {
+                            background: COLORS.accent,
+                            color: "#FFFFFF",
+                            boxShadow: "0 6px 16px -4px rgba(92, 36, 16, 0.45)",
+                          }
+                  }
+                  aria-label={
+                    next === "preparing"
+                      ? `เริ่มทำ ${item.menu_items?.name}`
+                      : next === "ready"
+                        ? `พร้อมเสิร์ฟ ${item.menu_items?.name}`
+                        : `เสิร์ฟแล้ว ${item.menu_items?.name}`
+                  }
+                >
+                  {next === "preparing" && (
+                    <>
+                      <Flame size={16} aria-hidden="true" /> เริ่มทำ
+                    </>
+                  )}
+                  {next === "ready" && (
+                    <>
+                      <Sparkles size={16} aria-hidden="true" /> พร้อมเสิร์ฟ
+                    </>
+                  )}
+                  {next === "served" && (
+                    <>
+                      <Check size={16} aria-hidden="true" /> เสิร์ฟแล้ว
+                    </>
+                  )}
+                </button>
               )}
             </div>
           );
@@ -347,34 +435,20 @@ function OrderCard({
   );
 }
 
-function StatusBadge({ status }: { status: "new" | "doing" | "ready" }) {
-  const map = {
-    new: {
-      label: "รอครัว",
-      bg: "#fef3c7",
-      color: "#92400e",
-      emoji: "🌿",
-    },
-    doing: {
-      label: "กำลังทำ",
-      bg: COLORS.primaryLight,
-      color: COLORS.primaryDark,
-      emoji: "🔥",
-    },
-    ready: {
-      label: "พร้อมเสริฟ",
-      bg: COLORS.accentLight,
-      color: COLORS.accent,
-      emoji: "✨",
-    },
+function StatusBadge({ stage }: { stage: ItemStage }) {
+  const map: Record<ItemStage, { label: string; bg: string; color: string }> = {
+    new: { label: "รอครัว", bg: COLORS.surface3, color: COLORS.text },
+    doing: { label: "กำลังทำ", bg: COLORS.primary, color: COLORS.onPrimary },
+    ready: { label: "พร้อมเสิร์ฟ", bg: COLORS.success, color: "#FFFFFF" },
+    done: { label: "เสิร์ฟแล้ว", bg: COLORS.successLight, color: COLORS.successText },
+    cancelled: { label: "ยกเลิก", bg: COLORS.dangerLight, color: COLORS.dangerText },
   };
-  const s = map[status];
+  const s = map[stage];
   return (
     <span
-      className="text-sm font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+      className="text-xs font-bold px-2.5 py-1 rounded-full shrink-0"
       style={{ background: s.bg, color: s.color }}
     >
-      <span>{s.emoji}</span>
       {s.label}
     </span>
   );

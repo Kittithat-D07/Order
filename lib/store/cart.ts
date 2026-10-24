@@ -32,14 +32,23 @@ export const useCart = create<CartState>()(
       },
 
       addItem: (item) => {
-        const items = [...get().items];
+        const qty = item.quantity ?? 1;
+        const items = get().items;
         const existing = items.find((i) => i.menu_item_id === item.menu_item_id);
         if (existing) {
-          existing.quantity += item.quantity ?? 1;
+          // Pure update — never mutate the item object in place. Mutating here
+          // rewrites the persisted state under Zustand's feet, so the quantity
+          // change can be lost and React can miss the re-render.
+          set({
+            items: items.map((i) =>
+              i.menu_item_id === item.menu_item_id
+                ? { ...i, quantity: i.quantity + qty }
+                : i
+            ),
+          });
         } else {
-          items.push({ ...item, quantity: item.quantity ?? 1 });
+          set({ items: [...items, { ...item, quantity: qty }] });
         }
-        set({ items });
       },
 
       updateQuantity: (menuItemId, quantity) => {

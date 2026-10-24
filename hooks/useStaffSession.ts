@@ -13,7 +13,8 @@ interface StaffSession {
 
 const STORAGE_KEY = "staff-session";
 
-const ROLE_LABELS: Record<StaffRole, string> = {
+/** Human-readable role names — staff must never see a raw enum. */
+export const ROLE_LABELS: Record<StaffRole, string> = {
   kitchen: "พนักงานครัว",
   server: "พนักงานเสิร์ฟ",
   admin: "ผู้จัดการ",

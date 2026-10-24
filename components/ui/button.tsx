@@ -3,33 +3,41 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+/**
+ * Shared button — one visual language across customer, staff and admin.
+ *
+ * Colours use the semantic tokens so the terracotta remap applies everywhere.
+ * `asChild` renders the child element *instead of* a button — it must never
+ * wrap one, or the DOM ends up with a button inside a button, which is invalid
+ * and breaks keyboard activation.
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97]",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:from-orange-600 hover:to-amber-600",
+          "bg-brand text-on-primary shadow-lg shadow-brand/30 hover:bg-brand-dark hover:shadow-xl",
         destructive:
-          "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40",
+          "bg-bad text-white shadow-lg shadow-bad/30 hover:bg-bad-text hover:shadow-xl",
         outline:
-          "border-2 border-stone-200 bg-white text-stone-700 hover:bg-stone-50 hover:border-orange-300",
+          "border-2 border-line bg-surface text-ink hover:bg-surface-2 hover:border-brand",
         secondary:
-          "bg-stone-100 text-stone-900 hover:bg-stone-200",
-        ghost: "text-stone-700 hover:bg-stone-100",
-        link: "text-orange-600 underline-offset-4 hover:underline",
+          "bg-surface-2 text-ink hover:bg-brand-light",
+        ghost: "text-ink-muted hover:bg-surface-2",
+        link: "text-brand underline-offset-4 hover:underline",
         success:
-          "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40",
+          "bg-ok text-white shadow-lg shadow-ok/30 hover:bg-ok-text hover:shadow-xl",
       },
       size: {
-        default: "h-10 px-5 py-2",
-        sm: "h-9 rounded-lg px-3 text-xs",
-        lg: "h-12 rounded-2xl px-8 text-base",
-        xl: "h-14 rounded-2xl px-10 text-lg",
-        icon: "h-10 w-10",
+        default: "min-h-[44px] px-5 py-2",
+        sm: "min-h-[38px] rounded-lg px-3 text-xs",
+        lg: "min-h-[52px] rounded-2xl px-8 text-base",
+        xl: "min-h-[56px] rounded-2xl px-10 text-lg",
+        icon: "min-h-[44px] min-w-[44px]",
       },
     },
     defaultVariants: {
@@ -40,25 +48,40 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<HTMLMotionProps<"button">, "ref" | "children">,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  children?: React.ReactNode;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
+  (
+    { className, variant, size, asChild = false, type, children, ...props },
+    ref
+  ) => {
+    const classes = cn(buttonVariants({ variant, size, className }));
+
+    // `asChild` means the consumer supplies the element — we must not also
+    // render a button around it.
+    if (asChild) {
+      return (
+        <Slot ref={ref} className={classes} {...(props as React.HTMLAttributes<HTMLElement>)}>
+          {children}
+        </Slot>
+      );
+    }
+
     return (
       <motion.button
+        ref={ref}
+        type={type ?? "button"}
         whileHover={props.disabled ? undefined : { scale: 1.02, y: -1 }}
         whileTap={props.disabled ? undefined : { scale: 0.98 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        className={classes}
+        {...props}
       >
-        <Comp
-          className={cn(buttonVariants({ variant, size, className }))}
-          ref={ref}
-          {...props}
-        />
+        {children}
       </motion.button>
     );
   }

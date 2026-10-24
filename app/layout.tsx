@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Prompt, Playfair_Display, Cormorant_Garamond, Caveat } from "next/font/google";
+import { Prompt, Playfair_Display, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -26,13 +26,6 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 
-const caveat = Caveat({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-caveat",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Aura Bistro - ร้านอาหารสวนไทย",
   description: "ระบบสั่งอาหารผ่าน QR Code - Aura Bistro Thai Garden Kitchen",
@@ -42,7 +35,7 @@ export const viewport: Viewport = {
   themeColor: "#FAF6F0",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // Pinch-to-zoom stays enabled — disabling it is a WCAG 1.4.4 failure.
 };
 
 export default function RootLayout({
@@ -51,11 +44,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" className={`${prompt.variable} ${playfair.variable} ${cormorant.variable} ${caveat.variable}`}>
-      <body className={`min-h-screen text-stone-900 antialiased ${prompt.className}`}>
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+    <html
+      lang="th"
+      className={`${prompt.variable} ${playfair.variable} ${cormorant.variable}`}
+    >
+      <body className={`min-h-screen antialiased ${prompt.className}`}>
+        <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
   );

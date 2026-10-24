@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus, Bill, MenuItem } from "@/lib/types";
 import { formatDateTime, formatPrice } from "@/lib/utils";
+import { COLORS, alpha } from "@/lib/theme";
 import { useStaffSession } from "@/hooks/useStaffSession";
+import { useServerName } from "@/hooks/useServerName";
 import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus, AlertTriangle, Package } from "lucide-react";
 import { StockToggleModal } from "./StockToggleModal";
 import { AddItemModal, BillPaymentModal } from "./AddItemModal";
@@ -15,42 +17,23 @@ import { AddItemModal, BillPaymentModal } from "./AddItemModal";
    🌅 ORGANIC WARM - Aura Bistro Server View
 ============================================================ */
 
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
-
 export function ServerView() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [filter, setFilter] = useState<"ready" | "active" | "completed" | "bills">("ready");
-  const [serverName, setServerName] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [showBillModal, setShowBillModal] = useState<string | null>(null);
   const [showStockModal, setShowStockModal] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const supabase = createClient();
   const { session } = useStaffSession();
+  // The server's name is persisted — it used to live in component state, so it
+  // was wiped on every navigation and every order went unclaimed.
+  const { name: serverName, setServerName, hydrated: nameHydrated } = useServerName(
+    session?.displayName
+  );
   const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "online" | "offline">("connecting");
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setServerName(session?.displayName ?? "");
-  }, [session]);
 
   useEffect(() => {
     loadOrders();
@@ -187,18 +170,28 @@ export function ServerView() {
     <div className="px-3 sm:px-4 pb-6 max-w-3xl mx-auto">
       {/* Realtime status now in sticky header */}
 
-      {/* Name input */}
+      {/* Name input — persisted, so the name survives navigation */}
       <div
-        className="mb-4 p-4 rounded-2xl flex items-center gap-3"
+        className="mb-4 p-3 sm:p-4 rounded-2xl flex items-center gap-3"
         style={{ background: COLORS.surface, boxShadow: "0 4px 12px -2px rgba(139, 63, 26, 0.1)", border: "1px solid rgba(232, 223, 208, 0.5)" }}
       >
-        <span className="text-sm font-medium" style={{ color: COLORS.textMuted }}>🍽️ เสริฟ์ชื่อ:</span>
+        <label
+          htmlFor="server-name-input"
+          className="text-sm font-medium shrink-0"
+          style={{ color: COLORS.textMuted }}
+        >
+          🍽️ เสริฟ์ชื่อ:
+        </label>
         <input
+          id="server-name-input"
           value={serverName}
           onChange={(e) => setServerName(e.target.value)}
-          className="flex-1 outline-none text-base font-semibold py-1"
+          onBlur={() => setServerName(serverName)}
+          disabled={!nameHydrated}
+          className="flex-1 outline-none text-base font-semibold py-2 min-h-[44px]"
           style={{ color: COLORS.text, background: "transparent" }}
           placeholder="พิมพ์ชื่อเสริฟ์..."
+          autoComplete="name"
         />
       </div>
 
@@ -219,15 +212,15 @@ export function ServerView() {
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
-        <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} emoji="✨" label="พร้อมเสิร์ฟ" count={counts.ready} color={COLORS.accent} />
-        <FilterTab active={filter === "active"} onClick={() => setFilter("active")} emoji="🔥" label="กำลังทำ" count={counts.active} color={COLORS.primary} />
-        <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} emoji="✅" label="เสร็จแล้ว" count={counts.completed} color={COLORS.success} />
-        <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} emoji="🧾" label="บิล" count={counts.bills} color={COLORS.primary} />
+        <FilterTab active={filter === "ready"} onClick={() => setFilter("ready")} emoji="✨" label="พร้อมเสิร์ฟ" count={counts.ready} token="accent" />
+        <FilterTab active={filter === "active"} onClick={() => setFilter("active")} emoji="🔥" label="กำลังทำ" count={counts.active} token="primary" />
+        <FilterTab active={filter === "completed"} onClick={() => setFilter("completed")} emoji="✅" label="เสร็จแล้ว" count={counts.completed} token="success" />
+        <FilterTab active={filter === "bills"} onClick={() => setFilter("bills")} emoji="🧾" label="บิล" count={counts.bills} token="primary" />
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowStockModal(true)}
           className="flex flex-col items-center justify-center gap-1 px-3 py-2.5 rounded-2xl min-w-[64px]"
-          style={{ background: "#fef3c7", color: "#92400e" }}
+          style={{ background: COLORS.warningLight, color: COLORS.warningText }}
         >
           <span className="text-lg">📦</span>
           <span className="text-[10px] font-bold">สต็อก</span>
@@ -342,7 +335,7 @@ export function ServerView() {
                         </motion.button>
                       )}
                       {order.paid_at && (
-                        <span className="px-3 py-1.5 rounded-full text-sm font-bold text-white" style={{ background: "#3b82f6" }}>
+                        <span className="px-3 py-1.5 rounded-full text-sm font-bold text-white" style={{ background: COLORS.success }}>
                           💰 จ่ายแล้ว
                         </span>
                       )}
@@ -383,12 +376,12 @@ export function ServerView() {
                             </span>
                           )}
                           {it.status === "pending" && (
-                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: "#fef3c7", color: "#92400e" }}>
+                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: COLORS.warningLight, color: COLORS.warningText }}>
                               ⏳ รอครัว
                             </span>
                           )}
                           {it.status === "served" && (
-                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: "#dcfce7", color: COLORS.success }}>
+                            <span className="px-3 py-1.5 rounded-full text-sm font-bold" style={{ background: COLORS.successLight, color: COLORS.successText }}>
                               ✓ แล้ว
                             </span>
                           )}
@@ -434,24 +427,25 @@ function FilterTab({
   emoji,
   label,
   count,
-  color,
+  token,
 }: {
   active: boolean;
   onClick: () => void;
   emoji: string;
   label: string;
   count: number;
-  color: string;
+  token: "primary" | "accent" | "success";
 }) {
+  const color = `rgb(var(--rgb-${token}))`;
   return (
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className="px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 whitespace-nowrap transition-all"
       style={active ? {
-        background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
+        background: `linear-gradient(135deg, ${color} 0%, ${alpha(token, 0.8)} 100%)`,
         color: "white",
-        boxShadow: `0 6px 16px -3px ${color}40`
+        boxShadow: `0 6px 16px -3px ${alpha(token, 0.25)}`
       } : {
         background: COLORS.surface,
         color: COLORS.textMuted,

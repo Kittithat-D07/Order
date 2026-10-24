@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
+import { COLORS, alpha } from "@/lib/theme";
 import {
   CheckCircle2,
   Clock,
@@ -19,29 +20,11 @@ import Link from "next/link";
    🌅 ORGANIC WARM - Aura Bistro Demo
 ============================================================ */
 
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
-
 const STATUS_CONFIG = {
-  pending: { bg: "from-amber-50 to-orange-50", color: COLORS.primary, label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์", emoji: "🌿" },
-  preparing: { bg: "from-orange-50 to-red-50", color: COLORS.primary, label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ", emoji: "🍳" },
-  served: { bg: "from-green-50 to-emerald-50", color: COLORS.success, label: "เสิร์ฟแล้ว", desc: "อาหารถูกเสิร์ฟแล้ว 🍽️", emoji: "✨" },
-  cancelled: { bg: "from-stone-100 to-stone-200", color: "#6b7280", label: "ยกเลิก", desc: "ออร์เดอร์ถูกยกเลิก", emoji: "🍂" },
+  pending: { color: COLORS.primary, label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์", emoji: "🌿" },
+  preparing: { color: COLORS.primary, label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ", emoji: "🍳" },
+  served: { color: COLORS.success, label: "เสิร์ฟแล้ว", desc: "อาหารถูกเสิร์ฟแล้ว 🍽️", emoji: "✨" },
+  cancelled: { color: COLORS.textMuted, label: "ยกเลิก", desc: "ออร์เดอร์ถูกยกเลิก", emoji: "🍂" },
 };
 
 const DEMO_ORDER = {
@@ -124,7 +107,7 @@ export default function DemoPage() {
             ✨ Welcome to
           </p>
           <h1
-            className="text-6xl text-sunset leading-none mb-1"
+            className="text-6xl text-brand leading-none mb-1"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}
           >
             Aura
@@ -204,7 +187,7 @@ export default function DemoPage() {
                 transition={{ delay: 0.4 + idx * 0.1 }}
                 className="flex items-center gap-3 p-3 rounded-2xl"
                 style={{ 
-                  background: `linear-gradient(135deg, ${COLORS.primaryLight}15 0%, ${COLORS.secondaryLight}15 100%)`,
+                  background: `linear-gradient(135deg, ${alpha("primary-light", 0.08)} 0%, ${alpha("accent-light", 0.08)} 100%)`,
                   border: "1px solid rgba(232, 223, 208, 0.5)"
                 }}
               >

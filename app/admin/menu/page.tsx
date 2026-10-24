@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { MenuItem, MenuCategory } from "@/lib/types";
 import { formatPrice } from "@/lib/utils";
+import { ToastStack, useToasts } from "@/components/ui/toast";
 import {
   Plus,
   Edit2,
@@ -45,6 +46,7 @@ function AdminMenuContent() {
 
   const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const { toasts, toast, dismiss } = useToasts();
 
   const load = async () => {
     const supabase = createClient();
@@ -113,28 +115,38 @@ function AdminMenuContent() {
       const supabase = createClient();
       const { error } = await supabase
         .from("menu_items")
-        .update({ is_available: !item.is_available })
+        .update({
+          is_available: !item.is_available,
+          marked_unavailable_at: item.is_available ? new Date().toISOString() : null,
+          marked_unavailable_by: item.is_available ? "⚙️ ผู้จัดการ" : null,
+        })
         .eq("id", item.id);
 
       if (error) {
-        alert(`❌ เกิดข้อผิดพลาด: ${error.message}\n\n💡 อาจยังไม่ได้รัน migration 005_unavailable_reason.sql ใน Supabase\nไปที่ Supabase → SQL Editor แล้วรันไฟล์ supabase/migrations/005_unavailable_reason.sql`);
+        toast("เปลี่ยนสถานะเมนูไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
         return;
       }
+      toast(
+        item.is_available
+          ? `ปิด "${item.name}" ชั่วคราว — ลูกค้าจะสั่งไม่ได้`
+          : `เปิด "${item.name}" ให้บริการแล้ว`,
+        "ok"
+      );
       load();
-    } catch (e: any) {
-      alert(`❌ เกิดข้อผิดพลาด: ${e?.message ?? e}`);
+    } catch {
+      toast("เกิดข้อผิดพลาดในการเปลี่ยนสถานะเมนู", "bad");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-lime-50 relative overflow-hidden flex items-center justify-center">
-        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-emerald-300/30" />
-        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-green-300/30" delay={1} />
+      <div className="min-h-screen bg-canvas relative overflow-hidden flex items-center justify-center">
+        <GradientBlob className="top-[-100px] left-[-100px]" color="bg-brand/10" />
+        <GradientBlob className="bottom-[-100px] right-[-100px]" color="bg-accent/10" delay={1} />
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-2xl shadow-emerald-500/40"
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-2xl shadow-brand/30"
         >
           <Utensils className="text-white" size={28} />
         </motion.div>
@@ -143,25 +155,25 @@ function AdminMenuContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-green-50/30 to-lime-50/30 relative overflow-hidden">
+    <div className="min-h-screen bg-canvas relative overflow-hidden">
       {/* Background blobs */}
-      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-emerald-300/20" />
-      <GradientBlob className="top-[40%] left-[-100px]" color="bg-green-300/20" delay={3} />
-      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-lime-300/20" delay={5} />
+      <GradientBlob className="top-[-100px] right-[-100px]" color="bg-brand/10" />
+      <GradientBlob className="top-[40%] left-[-100px]" color="bg-accent/10" delay={3} />
+      <GradientBlob className="bottom-[10%] right-[20%]" color="bg-warn/10" delay={5} />
 
       {/* Floating */}
       <FloatingElement className="top-32 right-12" delay={0}>
-        <Utensils className="w-6 h-6 text-emerald-400/40" />
+        <Utensils className="w-6 h-6 text-brand/40" />
       </FloatingElement>
       <FloatingElement className="bottom-32 left-12" delay={2}>
-        <Sparkles className="w-5 h-6 text-green-400/40" />
+        <Sparkles className="w-5 h-6 text-accent/40" />
       </FloatingElement>
 
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/70 border-b border-emerald-200/50">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-surface/80 border-b border-line">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link
             href="/admin"
-            className="w-9 h-9 rounded-lg hover:bg-emerald-100 flex items-center justify-center transition"
+            className="w-9 h-9 rounded-lg hover:bg-brand-light flex items-center justify-center transition"
           >
             <ArrowLeft size={18} />
           </Link>
@@ -170,14 +182,14 @@ function AdminMenuContent() {
               <motion.div
                 animate={{ y: [0, -3, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md shadow-emerald-500/30"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md shadow-brand/30"
               >
                 <ChefHat size={18} className="text-white" />
               </motion.div>
               <div>
                 <h1 className="font-bold text-base leading-tight flex items-center gap-2">
                   จัดการเมนู
-                  <PulseDot color="bg-emerald-500" />
+                  <PulseDot color="bg-brand" />
                 </h1>
                 <p className="text-xs text-stone-500">
                   {items.length} เมนู · {categories.length} หมวด
@@ -194,7 +206,7 @@ function AdminMenuContent() {
           <Card className="border-0 shadow-lg">
             <CardContent className="p-4 sm:p-5">
               <h2 className="font-bold mb-3 flex items-center gap-2">
-                <span className="w-1 h-5 rounded-full bg-gradient-to-b from-emerald-500 to-green-500" />
+                <span className="w-1 h-5 rounded-full bg-gradient-to-b from-brand to-accent" />
                 หมวดเมนู
               </h2>
               <div className="flex flex-wrap gap-2 mb-3">
@@ -206,12 +218,13 @@ function AdminMenuContent() {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
                       transition={{ delay: idx * 0.05 }}
-                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200 flex items-center gap-2 text-sm font-medium hover-lift"
+                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-brand-light to-accent-light border border-line flex items-center gap-2 text-sm font-medium hover-lift"
                     >
                       {c.name}
                       <button
                         onClick={() => deleteCategory(c.id)}
-                        className="w-5 h-5 rounded-full hover:bg-emerald-200 text-emerald-700 hover:text-red-600 flex items-center justify-center transition"
+                        aria-label={`ลบหมวด ${c.name}`}
+                        className="w-6 h-6 rounded-full hover:bg-bad-light text-ink-muted hover:text-bad-text flex items-center justify-center transition"
                       >
                         <X size={12} />
                       </button>
@@ -224,12 +237,12 @@ function AdminMenuContent() {
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="เพิ่มหมวดใหม่..."
-                  className="flex-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="flex-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                   onKeyDown={(e) => e.key === "Enter" && addCategory()}
                 />
                 <Button
                   onClick={addCategory}
-                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
+                  className="bg-gradient-to-r from-brand to-accent hover:from-brand-dark hover:to-accent-dark shadow-md shadow-brand/30"
                 >
                   <Plus size={16} />
                 </Button>
@@ -244,7 +257,7 @@ function AdminMenuContent() {
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold flex items-center gap-2">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-emerald-500 to-green-500" />
+                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-brand to-accent" />
                   รายการอาหาร
                 </h2>
                 <Button
@@ -257,7 +270,7 @@ function AdminMenuContent() {
                   }
                   disabled={categories.length === 0}
                   size="sm"
-                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
+                  className="bg-gradient-to-r from-brand to-accent hover:from-brand-dark hover:to-accent-dark shadow-md shadow-brand/30"
                 >
                   <Plus size={14} className="mr-1" /> เพิ่มเมนู
                 </Button>
@@ -273,9 +286,9 @@ function AdminMenuContent() {
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ delay: idx * 0.03 }}
                       whileHover={{ scale: 1.01 }}
-                      className="flex items-center gap-3 p-3 border border-stone-200 rounded-xl hover:border-emerald-300 hover:shadow-md transition-all"
+                      className="flex items-center gap-3 p-3 border border-stone-200 rounded-xl hover:border-brand/40 hover:shadow-md transition-all"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-green-100 rounded-lg flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-br from-brand-light to-accent-light rounded-lg flex items-center justify-center shrink-0">
                         {it.image_url ? (
                           <img
                             src={it.image_url}
@@ -283,14 +296,14 @@ function AdminMenuContent() {
                             className="w-full h-full object-cover rounded-lg"
                           />
                         ) : (
-                          <ImageIcon size={20} className="text-emerald-500" />
+                          <ImageIcon size={20} className="text-brand" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm truncate">{it.name}</p>
                         <p className="text-xs text-stone-500">
                           {categories.find((c) => c.id === it.category_id)?.name} ·{" "}
-                          <span className="font-semibold text-emerald-600">
+                          <span className="font-semibold text-brand-dark">
                             {formatPrice(it.price)}
                           </span>
                         </p>
@@ -299,18 +312,25 @@ function AdminMenuContent() {
                         variant={it.is_available ? "success" : "default"}
                         className={`cursor-pointer ${
                           it.is_available
-                            ? "bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border-green-200"
-                            : "bg-stone-100 text-stone-600"
+                            ? "bg-ok-light text-ok-text border-ok"
+                            : "bg-bad-light text-bad-text border-bad"
                         }`}
                         onClick={() => toggleAvailable(it)}
+                        aria-pressed={it.is_available}
+                        aria-label={
+                          it.is_available
+                            ? `ปิด ${it.name} ชั่วคราว`
+                            : `เปิด ${it.name} ให้บริการ`
+                        }
                       >
-                        {it.is_available ? "เปิดขาย" : "ปิด"}
+                        {it.is_available ? "เปิดขาย" : "ปิดชั่วคราว"}
                       </Badge>
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setEditingItem(it)}
-                        className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600"
+                        aria-label={`แก้ไขเมนู ${it.name}`}
+                        className="w-9 h-9 flex items-center justify-center hover:bg-accent-light rounded-lg text-accent-dark"
                       >
                         <Edit2 size={14} />
                       </motion.button>
@@ -318,7 +338,8 @@ function AdminMenuContent() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => deleteItem(it.id)}
-                        className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"
+                        aria-label={`ลบเมนู ${it.name}`}
+                        className="w-9 h-9 flex items-center justify-center hover:bg-bad-light rounded-lg text-bad-text"
                       >
                         <Trash2 size={14} />
                       </motion.button>
@@ -347,7 +368,7 @@ function AdminMenuContent() {
               className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3 shadow-2xl"
             >
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md">
                   {editingItem.id ? (
                     <Edit2 className="w-5 h-5 text-white" />
                   ) : (
@@ -366,7 +387,7 @@ function AdminMenuContent() {
                   onChange={(e) =>
                     setEditingItem({ ...editingItem, category_id: e.target.value })
                   }
-                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -382,7 +403,7 @@ function AdminMenuContent() {
                   onChange={(e) =>
                     setEditingItem({ ...editingItem, name: e.target.value })
                   }
-                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                 />
               </div>
               <div>
@@ -392,7 +413,7 @@ function AdminMenuContent() {
                   onChange={(e) =>
                     setEditingItem({ ...editingItem, description: e.target.value })
                   }
-                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                   rows={2}
                 />
               </div>
@@ -404,7 +425,7 @@ function AdminMenuContent() {
                   onChange={(e) =>
                     setEditingItem({ ...editingItem, price: Number(e.target.value) })
                   }
-                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                 />
               </div>
               <div>
@@ -416,7 +437,7 @@ function AdminMenuContent() {
                   onChange={(e) =>
                     setEditingItem({ ...editingItem, image_url: e.target.value })
                   }
-                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                  className="w-full mt-1 px-3 py-2.5 border border-stone-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition"
                   placeholder="https://..."
                 />
               </div>
@@ -427,7 +448,7 @@ function AdminMenuContent() {
                 <Button
                   onClick={saveItem}
                   disabled={!editingItem.name || !editingItem.price}
-                  className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-500/30"
+                  className="bg-gradient-to-r from-brand to-accent hover:from-brand-dark hover:to-accent-dark shadow-md shadow-brand/30"
                 >
                   <Save size={14} className="mr-1" /> บันทึก
                 </Button>
@@ -437,6 +458,7 @@ function AdminMenuContent() {
         )}
       </AnimatePresence>
       <BottomTabBar />
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

@@ -13,21 +13,7 @@ import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
 import { StaffNameModal } from "@/components/auth/StaffNameModal";
 import { cn } from "@/lib/utils";
-
-const KITCHEN_COLORS = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-};
+import { COLORS as KITCHEN_COLORS } from "@/lib/theme";
 
 function KitchenContent() {
   const router = useRouter();
@@ -44,27 +30,27 @@ function KitchenContent() {
   return (
       <div className="min-h-screen relative overflow-x-hidden" style={{ background: KITCHEN_COLORS.bg }}>
       {/* Background blobs */}
-      <GradientBlob className="top-[-150px] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-orange-300/30" />
-      <GradientBlob className="top-[30%] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-red-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-amber-300/30" delay={4} />
+      <GradientBlob className="top-[-150px] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-brand/10" />
+      <GradientBlob className="top-[30%] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-accent/10" delay={2} />
+      <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-warn/10" delay={4} />
 
       {/* Floating */}
       <FloatingElement className="top-24 right-4 sm:right-12" delay={0}>
-        <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-orange-400/50" />
+        <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-brand/40" />
       </FloatingElement>
       <FloatingElement className="top-40 left-4 sm:left-12" delay={1}>
-        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/50" />
+        <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-accent/40" />
       </FloatingElement>
 
       {/* Header (ครัว) - Sticky: ติดบนสุดจอตลอดเวลา scroll */}
       <header
         className={cn(
           "sticky top-0 z-40 text-white",
-          "bg-gradient-to-r from-orange-500/95 via-amber-500/95 to-orange-500/95",
+          "bg-gradient-to-r from-brand/95 via-accent/95 to-brand/95",
           "transition-all duration-300 ease-out",
           scrolled
-            ? "shadow-2xl shadow-orange-500/40 backdrop-blur-xl border-b border-white/10"
-            : "shadow-lg shadow-orange-500/30 backdrop-blur-md"
+            ? "shadow-2xl shadow-brand/30 backdrop-blur-xl border-b border-white/10"
+            : "shadow-lg shadow-brand/20 backdrop-blur-md"
         )}
       >
         <div className={cn(

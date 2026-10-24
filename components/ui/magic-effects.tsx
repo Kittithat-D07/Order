@@ -22,7 +22,7 @@ export function AnimatedGrid({
     >
       <div className="absolute inset-0 [background-size:40px_40px] [background-image:linear-gradient(to_right,rgba(251,146,60,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(251,146,60,0.08)_1px,transparent_1px)]" />
       <motion.div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-orange-50/0 via-orange-50/30 to-amber-50/0"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-light/0 via-brand-light/30 to-accent-light/0"
         animate={{
           x: ["-100%", "100%"],
         }}
@@ -123,7 +123,7 @@ export function Shimmer({ className }: { className?: string }) {
  * PulseDot - จุดเต้น (สำหรับสถานะ online)
  */
 export function PulseDot({
-  color = "bg-green-500",
+  color = "bg-ok",
 }: {
   color?: string;
 }) {

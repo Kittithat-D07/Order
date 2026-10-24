@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus, Bill } from "@/lib/types";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { COLORS, alpha } from "@/lib/theme";
 import {
   Printer,
   ArrowLeft,
@@ -26,24 +27,6 @@ import {
 /* ============================================================
    🌅 ORGANIC WARM - Aura Bistro Bill
 ============================================================ */
-
-const COLORS: Record<string, string> = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  border: "#E8DFD0",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
-};
 
 const ITEM_STATUS_CONFIG: Record<
   OrderItemStatus,
@@ -72,16 +55,16 @@ const ITEM_STATUS_CONFIG: Record<
   },
   served: {
     label: "เสิร์ฟแล้ว",
-    color: COLORS.success,
-    bg: "#dcfce7",
+    color: COLORS.successText,
+    bg: COLORS.successLight,
     border: COLORS.success,
     emoji: "🌟",
   },
   cancelled: {
     label: "ยกเลิก",
-    color: "#9ca3af",
-    bg: "#f5f5f4",
-    border: "#9ca3af",
+    color: COLORS.textMuted,
+    bg: COLORS.surface3,
+    border: COLORS.borderStrong,
     emoji: "🍂",
   },
 };
@@ -190,7 +173,7 @@ export default function BillPage() {
           🍳
         </motion.div>
         <div className="text-center">
-          <p className="text-2xl text-sunset font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             Aura Bistro
           </p>
           <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
@@ -215,7 +198,7 @@ export default function BillPage() {
           }}
         >
           <div className="text-7xl mb-4 animate-sway">🌿</div>
-          <p className="text-2xl text-sunset font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             เกิดข้อผิดพลาด
           </p>
           <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
@@ -299,7 +282,7 @@ export default function BillPage() {
           <p className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: COLORS.accent }}>
             ✨ Welcome to
           </p>
-          <h1 className="text-4xl text-sunset" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}>
+          <h1 className="text-4xl text-brand" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}>
             Aura Bistro
           </h1>
           <h2 className="text-2xl" style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: COLORS.text }}>
@@ -387,8 +370,8 @@ export default function BillPage() {
                   { key: "pending", label: "รอ", emoji: "🌿", bg: COLORS.secondaryLight, color: COLORS.secondary },
                   { key: "preparing", label: "ทำ", emoji: "🔥", bg: COLORS.primaryLight, color: COLORS.primary },
                   { key: "ready", label: "ส่ง", emoji: "✨", bg: COLORS.accentLight, color: COLORS.accent },
-                  { key: "served", label: "เสร็จ", emoji: "🌟", bg: "#dcfce7", color: COLORS.success },
-                  { key: "cancelled", label: "ยกเลิก", emoji: "🍂", bg: "#f5f5f4", color: "#9ca3af" },
+                  { key: "served", label: "เสร็จ", emoji: "🌟", bg: COLORS.successLight, color: COLORS.successText },
+                  { key: "cancelled", label: "ยกเลิก", emoji: "🍂", bg: COLORS.surface3, color: COLORS.textMuted },
                 ].map(({ key, label, emoji, bg, color }) => {
                   const c = counts[key as keyof typeof counts];
                   return (
@@ -412,7 +395,7 @@ export default function BillPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="no-print mb-4 p-3 rounded-2xl flex items-center gap-3"
-                style={{ background: "#dcfce7", border: `2px solid ${COLORS.success}` }}
+                style={{ background: COLORS.successLight, border: `2px solid ${COLORS.success}` }}
               >
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-2xl" style={{ background: COLORS.success }}>
                   ✨
@@ -510,7 +493,7 @@ export default function BillPage() {
                   animate={{ scale: 1 }}
                   className="text-right"
                 >
-                  <p className="text-4xl font-bold text-sunset" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <p className="text-4xl font-bold text-brand" style={{ fontFamily: "'Playfair Display', serif" }}>
                     ฿{formatPrice(order.total_amount)}
                   </p>
                 </motion.div>
@@ -535,7 +518,7 @@ export default function BillPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             className="no-print p-4 rounded-2xl mb-4"
-            style={{ background: COLORS.accentLight, border: `1px solid ${COLORS.accent}30` }}
+            style={{ background: COLORS.accentLight, border: `1px solid ${alpha("accent", 0.19)}` }}
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl" style={{ background: COLORS.accent }}>

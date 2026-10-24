@@ -1,10 +1,10 @@
 "use client";
 
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
-import { formatPrice, formatDateTime, ORDER_STATUS_LABELS } from "@/lib/utils";
+import { formatPrice, formatDateTime } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
-import { ChevronRight, X, Check, ChefHat, Bell, Utensils } from "lucide-react";
+import { X, Check, ChefHat, Bell, Utensils } from "lucide-react";
 import { useServerName } from "@/hooks/useServerName";
 
 const STATUS_FLOW: Record<OrderItemStatus, OrderItemStatus | null> = {
@@ -23,27 +23,28 @@ const STATUS_LABEL: Record<OrderItemStatus, string> = {
   cancelled: "ยกเลิก",
 };
 
+/** Status badges use the semantic tokens — the same palette the kitchen uses. */
 const STATUS_BADGE: Record<OrderItemStatus, string> = {
-  pending: "bg-stone-100 text-stone-600",
-  preparing: "bg-amber-100 text-amber-700",
-  ready: "bg-blue-100 text-blue-700",
-  served: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-600",
+  pending: "bg-surface-3 text-ink-muted",
+  preparing: "bg-warn-light text-warn-text",
+  ready: "bg-accent-light text-brand-dark",
+  served: "bg-ok-light text-ok-text",
+  cancelled: "bg-bad-light text-bad-text",
 };
 
 const STATUS_ACCENT: Record<OrderItemStatus, string> = {
-  pending: "bg-stone-300",
-  preparing: "bg-amber-500",
-  ready: "bg-blue-500",
-  served: "bg-green-500",
-  cancelled: "bg-red-500",
+  pending: "bg-line-strong",
+  preparing: "bg-warn",
+  ready: "bg-accent",
+  served: "bg-ok",
+  cancelled: "bg-bad",
 };
 
 const OVERALL_STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  pending: { label: "รอครัว", color: "bg-amber-100 text-amber-700" },
-  preparing: { label: "กำลังทำ", color: "bg-blue-100 text-blue-700" },
-  partial_ready: { label: "พร้อมเสิร์ฟบางส่วน", color: "bg-cyan-100 text-cyan-700" },
-  completed: { label: "เสร็จสิ้น", color: "bg-green-100 text-green-700" },
+  pending: { label: "รอครัว", color: "bg-surface-3 text-ink-muted" },
+  preparing: { label: "กำลังทำ", color: "bg-warn-light text-warn-text" },
+  partial_ready: { label: "พร้อมเสิร์ฟบางส่วน", color: "bg-accent-light text-brand-dark" },
+  completed: { label: "เสร็จสิ้น", color: "bg-ok-light text-ok-text" },
 };
 
 export function OrderCard({ order }: { order: OrderWithItems }) {
@@ -88,56 +89,72 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition">
+    <div className="bg-surface rounded-2xl shadow-sm border border-line overflow-hidden hover:shadow-md transition">
       {/* Top accent bar */}
-      <div className={`h-1 ${overall === "completed" ? "bg-green-500" : overall === "partial_ready" ? "bg-cyan-500" : "bg-amber-500"}`} />
+      <div
+        className={`h-1 ${
+          overall === "completed"
+            ? "bg-ok"
+            : overall === "partial_ready"
+              ? "bg-accent"
+              : "bg-warn"
+        }`}
+      />
 
       <div className="p-3.5">
         {/* Header */}
         <div className="flex justify-between items-start mb-2.5 gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-stone-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-ink text-on-primary flex items-center justify-center text-xs font-bold shrink-0">
               {order.tables?.table_number ?? "?"}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <p className="font-bold text-sm text-stone-900 leading-tight">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="font-bold text-sm text-ink leading-tight">
                   โต๊ะ {order.tables?.table_number ?? "?"}
                 </p>
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${OVERALL_STATUS_LABEL[overall].color}`}>
+                {/* 11px, not 9px — the badge is read at arm's length. */}
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${OVERALL_STATUS_LABEL[overall].color}`}
+                >
                   {OVERALL_STATUS_LABEL[overall].label}
                 </span>
               </div>
-              <p className="text-[10px] text-stone-500">
+              <p className="text-[11px] text-ink-muted">
                 {formatDateTime(order.created_at)} • {itemCount} รายการ
               </p>
             </div>
           </div>
-          <span className="text-[10px] text-stone-400 font-mono shrink-0">
+          <span className="text-[11px] text-ink-soft font-mono shrink-0">
             #{order.id.slice(0, 6)}
           </span>
         </div>
 
-        {/* Server info */}
+        {/* Server info — always name the server. "คุณ" is ambiguous when two
+            servers are looking at the same board. */}
         {isClaimed ? (
-          <div className={`mb-2.5 px-2.5 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5 ${isMyOrder ? "bg-green-50 text-green-700" : "bg-stone-50 text-stone-600"}`}>
-            <Utensils size={11} />
-            <span className="font-medium">
-              {isMyOrder ? "คุณ" : order.server_name}
-            </span>
-            {isMyOrder && <span className="text-[10px]">กำลังดูแล</span>}
+          <div
+            className={`mb-2.5 px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 ${
+              isMyOrder ? "bg-ok-light text-ok-text" : "bg-surface-2 text-ink-muted"
+            }`}
+          >
+            <Utensils size={11} aria-hidden="true" />
+            <span className="font-medium">{order.server_name}</span>
+            {isMyOrder && (
+              <span className="text-[11px] font-semibold">(คุณ)</span>
+            )}
           </div>
         ) : serverName ? (
           <button
             onClick={claimOrder}
-            className="w-full mb-2.5 px-2.5 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95"
+            className="w-full mb-2.5 px-2.5 py-2 min-h-[40px] rounded-lg bg-ok-light hover:bg-ok/20 text-ok-text text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95"
           >
-            <Bell size={11} />
+            <Bell size={12} aria-hidden="true" />
             รับออร์เดอร์นี้
           </button>
         ) : (
-          <div className="mb-2.5 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-[11px] text-center">
-            ⚠️ ใส่ชื่อเสริฟ์ที่มุมขวาบนก่อน
+          <div className="mb-2.5 px-2.5 py-2 rounded-lg bg-warn-light text-warn-text text-xs text-center">
+            ⚠️ กรุณาใส่ชื่อเสริฟ์ก่อนรับออร์เดอร์
           </div>
         )}
 
@@ -147,56 +164,59 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
             const nextStatus = STATUS_FLOW[it.status as OrderItemStatus];
             const itemStatus = it.status as OrderItemStatus;
             return (
-              <div
-                key={it.id}
-                className="rounded-lg border border-stone-200 overflow-hidden"
-              >
+              <div key={it.id} className="rounded-lg border border-line overflow-hidden">
                 <div className={`h-0.5 ${STATUS_ACCENT[itemStatus]}`} />
-                <div className="p-2 bg-white">
+                <div className="p-2 bg-surface">
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-stone-800">
-                        <span className="text-orange-600 font-semibold">{it.quantity}×</span>{" "}
+                      <p className="text-xs text-ink">
+                        <span className="text-brand font-semibold">{it.quantity}×</span>{" "}
                         {it.menu_items?.name ?? "(เมนูถูกลบ)"}
                       </p>
                       {it.note && (
-                        <p className="text-[10px] text-stone-400 italic pl-3 mt-0.5">
+                        <p className="text-[11px] text-accent italic pl-3 mt-0.5">
                           💬 {it.note}
                         </p>
                       )}
                       {it.served_by && itemStatus === "served" && (
-                        <p className="text-[10px] text-green-600 pl-3 mt-0.5">
+                        <p className="text-[11px] text-ok-text pl-3 mt-0.5">
                           ✓ เสิร์ฟโดย {it.served_by}
                         </p>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_BADGE[itemStatus]}`}>
+                      <span
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[itemStatus]}`}
+                      >
                         {STATUS_LABEL[itemStatus]}
                       </span>
-                      <span className="text-[10px] text-stone-500">฿{formatPrice(it.subtotal)}</span>
+                      <span className="text-[11px] text-ink-muted">{formatPrice(it.subtotal)}</span>
                     </div>
                   </div>
 
-                  {/* Action buttons */}
+                  {/* Action buttons — 36px tall, not 28px */}
                   {itemStatus !== "served" && itemStatus !== "cancelled" && (
                     <div className="flex gap-1">
                       {itemStatus === "ready" && (
                         <button
                           onClick={() => updateItemStatus(it.id, "served")}
                           disabled={updating === it.id}
-                          className="flex-1 h-7 rounded-md bg-green-500 hover:bg-green-600 text-white text-[10px] font-semibold flex items-center justify-center gap-1 transition active:scale-95"
+                          className="flex-1 min-h-[36px] rounded-md bg-ok hover:opacity-90 text-white text-xs font-semibold flex items-center justify-center gap-1 transition active:scale-95"
                         >
-                          <Check size={10} /> นำไปเสิร์ฟ
+                          <Check size={12} aria-hidden="true" /> นำไปเสิร์ฟ
                         </button>
                       )}
                       {nextStatus && itemStatus !== "ready" && (
                         <button
                           onClick={() => updateItemStatus(it.id, nextStatus)}
                           disabled={updating === it.id}
-                          className="flex-1 h-7 rounded-md bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] font-semibold flex items-center justify-center gap-1 transition active:scale-95"
+                          className="flex-1 min-h-[36px] rounded-md bg-brand hover:bg-brand-dark text-white text-xs font-semibold flex items-center justify-center gap-1 transition active:scale-95"
                         >
-                          {nextStatus === "preparing" ? <ChefHat size={10} /> : <Check size={10} />}
+                          {nextStatus === "preparing" ? (
+                            <ChefHat size={12} aria-hidden="true" />
+                          ) : (
+                            <Check size={12} aria-hidden="true" />
+                          )}
                           {nextStatus === "preparing" ? "เริ่มทำ" : "พร้อมเสิร์ฟ"}
                         </button>
                       )}
@@ -204,10 +224,11 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
                         <button
                           onClick={() => updateItemStatus(it.id, "cancelled")}
                           disabled={updating === it.id}
-                          className="w-7 h-7 rounded-md border border-stone-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-stone-500 flex items-center justify-center transition active:scale-90"
+                          className="w-9 min-h-[36px] rounded-md border border-line hover:bg-bad-light hover:border-bad/40 hover:text-bad-text text-ink-muted flex items-center justify-center transition active:scale-90"
+                          aria-label={`ยกเลิก ${it.menu_items?.name ?? "เมนู"}`}
                           title="ยกเลิก"
                         >
-                          <X size={10} />
+                          <X size={12} aria-hidden="true" />
                         </button>
                       )}
                     </div>
@@ -218,13 +239,14 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
           })}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-between items-center pt-2.5 border-t border-stone-100">
+        {/* Footer — the total is a number the operator may read aloud, so it
+            is plain text, not gradient-clipped. */}
+        <div className="flex justify-between items-center pt-2.5 border-t border-line-soft">
           <div>
-            <p className="text-[10px] text-stone-500">
+            <p className="text-[11px] text-ink-muted">
               {servedCount}/{totalItems} เสร็จ • {readyCount} พร้อมเสิร์ฟ
             </p>
-            <p className="font-bold text-base bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+            <p className="font-bold text-base text-brand">
               ฿{formatPrice(order.total_amount)}
             </p>
           </div>

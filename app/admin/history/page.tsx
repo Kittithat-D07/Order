@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
 import { RoleGuard } from "@/components/auth/RoleGuard";
+import { ROLE_LABELS, StaffRole } from "@/hooks/useStaffSession";
 import {
   History, Plus, Edit3, Trash2, Power, User, Search,
   Filter, RefreshCw, ScrollText, ChevronRight, Clock, X
@@ -18,7 +19,7 @@ interface HistoryEntry {
   menu_item_name: string;
   action: "created" | "updated" | "deleted" | "toggled_stock";
   changes: any;
-  actor_role: string;
+  actor_role: StaffRole;
   actor_name: string;
   created_at: string;
 }
@@ -70,16 +71,16 @@ function HistoryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 relative overflow-x-hidden">
-      <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72" color="bg-indigo-300/30" />
-      <GradientBlob className="top-[40%] left-[-100px] w-72 h-72" color="bg-blue-300/30" delay={2} />
-      <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72" color="bg-purple-300/30" delay={4} />
+    <div className="min-h-screen bg-canvas relative overflow-x-hidden">
+      <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72" color="bg-brand/10" />
+      <GradientBlob className="top-[40%] left-[-100px] w-72 h-72" color="bg-accent/10" delay={2} />
+      <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72" color="bg-warn/10" delay={4} />
 
       <FloatingElement className="top-32 right-8" delay={0}>
-        <History className="w-6 h-6 text-indigo-400/50" />
+        <History className="w-6 h-6 text-brand/40" />
       </FloatingElement>
 
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-indigo-500/95 via-blue-500/95 to-purple-500/95 text-white shadow-lg shadow-indigo-500/30">
+      <header className="sticky top-0 z-30 bg-gradient-to-r from-brand via-accent to-brand-dark text-white shadow-lg shadow-brand/20">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-2.5 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2.5 min-w-0">
@@ -136,24 +137,25 @@ function HistoryContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="ค้นหาชื่อเมนู / ผู้แก้..."
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-stone-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-sm"
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-stone-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-brand focus:border-brand transition shadow-sm"
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {[
               { id: "all", label: "ทั้งหมด", color: "bg-stone-100 text-stone-700" },
-              { id: "created", label: `+ เพิ่ม`, color: "bg-green-100 text-green-700" },
-              { id: "updated", label: `✏️ แก้ไข`, color: "bg-blue-100 text-blue-700" },
-              { id: "toggled_stock", label: `⚡ เปิด-ปิด`, color: "bg-amber-100 text-amber-700" },
-              { id: "deleted", label: `🗑️ ลบ`, color: "bg-red-100 text-red-700" },
+              { id: "created", label: `+ เพิ่ม`, color: "bg-ok-light text-ok-text" },
+              { id: "updated", label: `✏️ แก้ไข`, color: "bg-accent-light text-brand-dark" },
+              { id: "toggled_stock", label: `⚡ เปิด-ปิด`, color: "bg-warn-light text-warn-text" },
+              { id: "deleted", label: `🗑️ ลบ`, color: "bg-bad-light text-bad-text" },
             ].map(f => (
               <motion.button
                 key={f.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setFilterAction(f.id)}
+                aria-pressed={filterAction === f.id}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                   filterAction === f.id
-                    ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-md"
+                    ? "bg-gradient-to-r from-brand to-accent text-white shadow-md"
                     : f.color
                 }`}
               >
@@ -204,10 +206,10 @@ function HistoryContent() {
 
 function HistoryCard({ entry, idx, onClick }: { entry: HistoryEntry; idx: number; onClick: () => void }) {
   const config: Record<string, { icon: any; bg: string; color: string; label: string }> = {
-    created:   { icon: Plus,    bg: "bg-green-100",  color: "text-green-700",  label: "เพิ่มเมนู" },
-    updated:   { icon: Edit3,   bg: "bg-blue-100",   color: "text-blue-700",   label: "แก้ไข" },
-    deleted:   { icon: Trash2,  bg: "bg-red-100",    color: "text-red-700",    label: "ลบเมนู" },
-    toggled_stock: { icon: Power, bg: "bg-amber-100", color: "text-amber-700",  label: "เปิด-ปิดสต็อก" },
+    created:   { icon: Plus,    bg: "bg-ok-light",   color: "text-ok-text",   label: "เพิ่มเมนู" },
+    updated:   { icon: Edit3,   bg: "bg-accent-light", color: "text-brand-dark", label: "แก้ไข" },
+    deleted:   { icon: Trash2,  bg: "bg-bad-light",  color: "text-bad-text",  label: "ลบเมนู" },
+    toggled_stock: { icon: Power, bg: "bg-warn-light", color: "text-warn-text",  label: "เปิด-ปิดสต็อก" },
   };
   const c = config[entry.action] || config.updated;
   const Icon = c.icon;
@@ -220,7 +222,7 @@ function HistoryCard({ entry, idx, onClick }: { entry: HistoryEntry; idx: number
       transition={{ delay: idx * 0.02 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="bg-white rounded-2xl border border-stone-200 p-3 flex items-center gap-3 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+      className="bg-white rounded-2xl border border-stone-200 p-3 flex items-center gap-3 hover:border-brand/40 hover:shadow-md transition-all cursor-pointer"
     >
       <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center shrink-0`}>
         <Icon size={18} className={c.color} />
@@ -247,10 +249,10 @@ function HistoryCard({ entry, idx, onClick }: { entry: HistoryEntry; idx: number
 
 function DetailModal({ entry, onClose }: { entry: HistoryEntry; onClose: () => void }) {
   const config: Record<string, { icon: any; bg: string; color: string; label: string }> = {
-    created:   { icon: Plus,    bg: "bg-green-100",  color: "text-green-700",  label: "เพิ่มเมนู" },
-    updated:   { icon: Edit3,   bg: "bg-blue-100",   color: "text-blue-700",   label: "แก้ไข" },
-    deleted:   { icon: Trash2,  bg: "bg-red-100",    color: "text-red-700",    label: "ลบเมนู" },
-    toggled_stock: { icon: Power, bg: "bg-amber-100", color: "text-amber-700",  label: "เปิด-ปิดสต็อก" },
+    created:   { icon: Plus,    bg: "bg-ok-light",   color: "text-ok-text",   label: "เพิ่มเมนู" },
+    updated:   { icon: Edit3,   bg: "bg-accent-light", color: "text-brand-dark", label: "แก้ไข" },
+    deleted:   { icon: Trash2,  bg: "bg-bad-light",  color: "text-bad-text",  label: "ลบเมนู" },
+    toggled_stock: { icon: Power, bg: "bg-warn-light", color: "text-warn-text",  label: "เปิด-ปิดสต็อก" },
   };
   const c = config[entry.action] || config.updated;
   const Icon = c.icon;
@@ -264,6 +266,10 @@ function DetailModal({ entry, onClose }: { entry: HistoryEntry; onClose: () => v
       onClick={onClose}
     >
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-detail-title"
+        tabIndex={-1}
         initial={{ y: 100, scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 100, scale: 0.95 }}
@@ -271,13 +277,13 @@ function DetailModal({ entry, onClose }: { entry: HistoryEntry; onClose: () => v
         className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col"
       >
         <div className={`px-4 py-3 ${c.bg} flex items-center justify-between`}>
-          <h3 className="font-bold text-stone-800 flex items-center gap-2">
+          <h3 id="history-detail-title" className="font-bold text-stone-800 flex items-center gap-2">
             <div className={`w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-sm`}>
               <Icon size={18} className={c.color} />
             </div>
             {c.label}: {entry.menu_item_name}
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-white/50 rounded-lg">
+          <button onClick={onClose} aria-label="ปิดหน้าต่างรายละเอียด" className="p-2 hover:bg-white/50 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center">
             <X size={18} />
           </button>
         </div>
@@ -293,7 +299,7 @@ function DetailModal({ entry, onClose }: { entry: HistoryEntry; onClose: () => v
             </div>
             <div className="bg-stone-50 rounded-xl p-3">
               <p className="text-[10px] text-stone-500 mb-1">บทบาท</p>
-              <p className="font-bold text-stone-800 capitalize">{entry.actor_role}</p>
+              <p className="font-bold text-stone-800">{ROLE_LABELS[entry.actor_role] ?? entry.actor_role}</p>
             </div>
             <div className="bg-stone-50 rounded-xl p-3 col-span-2">
               <p className="text-[10px] text-stone-500 mb-1">เวลา</p>
@@ -313,7 +319,7 @@ function DetailModal({ entry, onClose }: { entry: HistoryEntry; onClose: () => v
                 ) : entry.action === "toggled_stock" && entry.changes.after ? (
                   <div className="text-sm">
                     <span className="text-stone-500">สถานะ: </span>
-                    <span className={entry.changes.after.is_available ? "text-green-600 font-bold" : "text-rose-600 font-bold"}>
+                    <span className={entry.changes.after.is_available ? "text-ok-text font-bold" : "text-bad-text font-bold"}>
                       {entry.changes.after.is_available ? "เปิดขาย" : "ปิด (หมด)"}
                     </span>
                   </div>
@@ -341,10 +347,10 @@ function DiffView({ before, after }: { before: any; after: any }) {
         const changed = oldVal !== newVal;
         if (!changed) return null;
         return (
-          <div key={field} className="border-l-2 border-amber-300 pl-2 py-0.5">
+          <div key={field} className="border-l-2 border-warn/50 pl-2 py-0.5">
             <p className="font-bold text-stone-700 text-[11px]">{field}</p>
-            <p className="text-red-500 line-through text-[11px]">{oldVal}</p>
-            <p className="text-green-600 text-[11px]">→ {newVal}</p>
+            <p className="text-bad-text line-through text-[11px]">{oldVal}</p>
+            <p className="text-ok-text text-[11px]">→ {newVal}</p>
           </div>
         );
       })}

@@ -19,22 +19,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
+import { COLORS, ROLE_COLORS, alpha } from "@/lib/theme";
 
+/** Admin wears the deepest clay — a third depth of the same terracotta family. */
 const ADMIN_COLORS = {
-  primary: "#B85C38",
-  primaryDark: "#8B3F1A",
-  primaryLight: "#F4DCC4",
-  secondary: "#6B7B5F",
-  secondaryDark: "#4A5942",
-  secondaryLight: "#DDE3D2",
-  accent: "#C8932F",
-  accentLight: "#F0D78C",
-  bg: "#FAF6F0",
-  surface: "#FFFFFF",
-  text: "#2C2620",
-  textMuted: "#6B5F54",
-  success: "#4F7942",
-  danger: "#A03826",
+  primary: ROLE_COLORS.admin.base,
+  primaryDark: ROLE_COLORS.admin.dark,
+  primaryLight: ROLE_COLORS.admin.light,
+  secondary: ROLE_COLORS.server.base,
+  secondaryDark: ROLE_COLORS.server.dark,
+  secondaryLight: ROLE_COLORS.server.light,
+  accent: COLORS.accent,
+  accentLight: COLORS.accentLight,
+  bg: COLORS.bg,
+  surface: COLORS.surface,
+  text: COLORS.text,
+  textMuted: COLORS.textMuted,
+  success: COLORS.success,
+  danger: COLORS.danger,
 };
 
 // ============ Types ============
@@ -123,9 +125,13 @@ export function AdminDashboard() {
     const monthStart = new Date(todayStart);
     monthStart.setMonth(monthStart.getMonth() - 1);
 
-    const todayOrders = orders.filter(o => new Date(o.created_at) >= todayStart);
-    const weekOrders = orders.filter(o => new Date(o.created_at) >= weekStart);
-    const monthOrders = orders.filter(o => new Date(o.created_at) >= monthStart);
+    // Cancelled orders are not revenue. They were being counted as income,
+    // which inflated every revenue figure on the dashboard.
+    const billable = orders.filter((o) => o.status !== "cancelled");
+
+    const todayOrders = billable.filter(o => new Date(o.created_at) >= todayStart);
+    const weekOrders = billable.filter(o => new Date(o.created_at) >= weekStart);
+    const monthOrders = billable.filter(o => new Date(o.created_at) >= monthStart);
 
     const todayRevenue = todayOrders.reduce((s, o) => s + Number(o.total_amount), 0);
     const weekRevenue = weekOrders.reduce((s, o) => s + Number(o.total_amount), 0);
@@ -134,7 +140,11 @@ export function AdminDashboard() {
     const activeOrders = orders.filter(o => o.order_items?.some(it => ["pending", "preparing"].includes(it.status)));
     const readyOrders = orders.filter(o => o.order_items?.some(it => it.status === "ready"));
     const pendingOrders = orders.filter(o => o.status === "pending" || o.order_items?.some(it => it.status === "pending"));
-    const completedOrders = orders.filter(o => o.status === "completed");
+    // `orders.status` only allows pending | preparing | served | cancelled —
+    // there is no "completed", so this filter never matched anything and the
+    // "เสร็จสิ้น" KPI always read zero. A paid/served order is the real
+    // definition of done.
+    const completedOrders = orders.filter(o => o.status === "served" || o.paid_at != null);
 
     // Top items
     const itemCounts: Record<string, number> = {};
@@ -159,19 +169,20 @@ export function AdminDashboard() {
       orders: hourlyMap[`${i}:00`] || 0,
     }));
 
-    // Status data
-    const statusCounts = { pending: 0, preparing: 0, ready: 0, completed: 0, cancelled: 0 };
+    // Status data — colours come from the theme so the chart cannot
+    // introduce a hue that exists nowhere else in the product.
+    const statusCounts = { pending: 0, preparing: 0, ready: 0, served: 0, cancelled: 0 };
     orders.forEach(o => {
       o.order_items?.forEach(it => {
         if (it.status in statusCounts) statusCounts[it.status as keyof typeof statusCounts] += it.quantity;
       });
     });
     const statusData = [
-      { name: "รอดำเนินการ", value: statusCounts.pending, color: "#f59e0b" },
-      { name: "กำลังทำ", value: statusCounts.preparing, color: "#3b82f6" },
-      { name: "พร้อมเสิร์ฟ", value: statusCounts.ready, color: "#22c55e" },
-      { name: "เสร็จสิ้น", value: statusCounts.completed, color: "#6b7280" },
-      { name: "ยกเลิก", value: statusCounts.cancelled, color: "#ef4444" },
+      { name: "รอดำเนินการ", value: statusCounts.pending, color: COLORS.warning },
+      { name: "กำลังทำ", value: statusCounts.preparing, color: COLORS.accent },
+      { name: "พร้อมเสิร์ฟ", value: statusCounts.ready, color: COLORS.success },
+      { name: "เสร็จสิ้น", value: statusCounts.served, color: COLORS.primary },
+      { name: "ยกเลิก", value: statusCounts.cancelled, color: COLORS.danger },
     ].filter(s => s.value > 0);
 
     return {
@@ -227,8 +238,8 @@ export function AdminDashboard() {
             icon={LayoutGrid}
             label="จัดการโต๊ะ"
             description="เปิด-ปิด โต๊ะ · QR Code"
-            gradient={`from-[${ADMIN_COLORS.primary}] to-[${ADMIN_COLORS.accent}]`}
-            shadow="shadow-orange-500/30"
+            gradient="from-brand to-accent"
+            shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.primaryLight}
             iconColor={ADMIN_COLORS.primary}
           />
@@ -237,8 +248,8 @@ export function AdminDashboard() {
             icon={Pizza}
             label="จัดการเมนู"
             description="เพิ่ม/ลบ/แก้ สินค้า"
-            gradient="from-emerald-500 to-green-500"
-            shadow="shadow-emerald-500/30"
+            gradient="from-brand to-brand-dark"
+            shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.secondaryLight}
             iconColor={ADMIN_COLORS.secondary}
           />
@@ -247,8 +258,8 @@ export function AdminDashboard() {
             icon={History}
             label="ประวัติเมนู"
             description="Audit log การแก้ไข"
-            gradient="from-amber-500 to-yellow-500"
-            shadow="shadow-amber-500/30"
+            gradient="from-accent to-primary"
+            shadow="shadow-accent/30"
             iconBg={ADMIN_COLORS.accentLight}
             iconColor={ADMIN_COLORS.accent}
           />
@@ -257,8 +268,8 @@ export function AdminDashboard() {
             icon={ChefHat}
             label="หน้าจอครัว"
             description="จอสำหรับพนักงานครัว"
-            gradient={`from-[${ADMIN_COLORS.primary}] to-[${ADMIN_COLORS.primaryDark}]`}
-            shadow="shadow-amber-500/30"
+            gradient="from-brand-dark to-primary"
+            shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.primaryLight}
             iconColor={ADMIN_COLORS.primary}
           />
@@ -267,8 +278,8 @@ export function AdminDashboard() {
             icon={Utensils}
             label="หน้าจอเสิร์ฟ์"
             description="จอสำหรับพนักงานเสิร์ฟ"
-            gradient="from-teal-500 to-emerald-500"
-            shadow="shadow-teal-500/30"
+            gradient="from-accent to-secondary"
+            shadow="shadow-accent/30"
             iconBg={ADMIN_COLORS.secondaryLight}
             iconColor={ADMIN_COLORS.secondary}
           />
@@ -277,16 +288,16 @@ export function AdminDashboard() {
             icon={AlertTriangle}
             label="จัดการสต็อก"
             description="เปิด-ปิด เมนูที่หมด"
-            gradient="from-rose-500 to-red-500"
-            shadow="shadow-rose-500/30"
-            iconBg="#fce7e7"
-            iconColor="#dc2626"
+            gradient="from-bad to-bad-text"
+            shadow="shadow-bad/30"
+            iconBg={COLORS.dangerLight}
+            iconColor={COLORS.dangerText}
           />
         </div>
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-2 sticky top-[60px] z-20 bg-gradient-to-br from-purple-50/95 via-pink-50/95 to-rose-50/95 backdrop-blur-md py-2 -mx-3 px-3 sm:-mx-4 sm:px-4">
+      <div className="flex gap-2 sticky top-[60px] z-20 bg-gradient-to-br from-brand-light/95 via-brand-light/95 to-accent-light/95 backdrop-blur-md py-2 -mx-3 px-3 sm:-mx-4 sm:px-4">
         {[
           { id: "overview", label: "📊 ภาพรวม", icon: BarChart3 },
           { id: "reports", label: "📋 รายงาน", icon: PieChartIcon },
@@ -299,7 +310,7 @@ export function AdminDashboard() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 activeTab === tab.id
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
+                  ? "bg-gradient-to-r from-brand to-accent text-white shadow-lg shadow-brand/30"
                   : "bg-white text-stone-600 hover:bg-[#FAF6F0] border border-stone-200"
               }`}
             >
@@ -349,7 +360,7 @@ function OverviewTab({
   const soldOutItems = menuItems.filter(i => !i.is_available);
   return (
     <>
-      {/* KPI Cards */}
+      {/* KPI Cards — every gradient is a depth of the terracotta family */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <KPICard
           icon={ShoppingBag}
@@ -357,16 +368,14 @@ function OverviewTab({
           value={stats.todayOrders}
           sub={`฿${stats.todayRevenue.toLocaleString()}`}
           trend={stats.todayOrders}
-          color="blue"
-          gradient="from-blue-500 to-cyan-500"
+          accent={COLORS.primary}
         />
         <KPICard
           icon={DollarSign}
           label="รายได้วันนี้"
           value={`฿${stats.todayRevenue.toLocaleString()}`}
           sub={`เฉลี่ย ฿${Math.round(stats.avgOrderValue)}/ออร์เดอร์`}
-          color="green"
-          gradient="from-green-500 to-emerald-500"
+          accent={COLORS.success}
         />
         <KPICard
           icon={Flame}
@@ -374,8 +383,7 @@ function OverviewTab({
           value={stats.activeOrders}
           sub={`รอเสิร์ฟ ${stats.readyOrders}`}
           trend={stats.activeOrders}
-          color="amber"
-          gradient="from-amber-500 to-orange-500"
+          accent={COLORS.accent}
         />
         <KPICard
           icon={CheckCircle}
@@ -383,33 +391,32 @@ function OverviewTab({
           value={stats.completedOrders}
           sub={`เดือนนี้ ${stats.monthOrders} ออร์เดอร์`}
           trend={stats.completedOrders}
-          color="purple"
-          gradient="from-purple-500 to-pink-500"
+          accent={COLORS.primaryDark}
         />
       </div>
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-white rounded-xl border border-stone-200 p-3 text-center">
-          <p className="text-[10px] text-stone-500 mb-1">สัปดาห์นี้</p>
-          <p className="font-bold text-lg text-stone-800">{stats.weekOrders} ออร์เดอร์</p>
-          <p className="text-xs text-green-600 font-medium">฿{stats.weekRevenue.toLocaleString()}</p>
+        <div className="bg-surface rounded-xl border border-line p-3 text-center">
+          <p className="text-[10px] text-ink-muted mb-1">สัปดาห์นี้</p>
+          <p className="font-bold text-lg text-ink">{stats.weekOrders} ออร์เดอร์</p>
+          <p className="text-xs text-ok-text font-medium">฿{stats.weekRevenue.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl border border-stone-200 p-3 text-center">
-          <p className="text-[10px] text-stone-500 mb-1">เดือนนี้</p>
-          <p className="font-bold text-lg text-stone-800">{stats.monthOrders} ออร์เดอร์</p>
-          <p className="text-xs text-green-600 font-medium">฿{stats.monthRevenue.toLocaleString()}</p>
+        <div className="bg-surface rounded-xl border border-line p-3 text-center">
+          <p className="text-[10px] text-ink-muted mb-1">เดือนนี้</p>
+          <p className="font-bold text-lg text-ink">{stats.monthOrders} ออร์เดอร์</p>
+          <p className="text-xs text-ok-text font-medium">฿{stats.monthRevenue.toLocaleString()}</p>
         </div>
         <div className={`rounded-xl border p-3 text-center ${
           soldOutItems.length > 0
-            ? "bg-rose-50 border-rose-200"
-            : "bg-white border-stone-200"
+            ? "bg-bad-light border-bad/30"
+            : "bg-surface border-line"
         }`}>
-          <p className="text-[10px] text-stone-500 mb-1">เมนูที่หมด</p>
-          <p className={`font-bold text-lg ${soldOutItems.length > 0 ? "text-rose-700" : "text-stone-800"}`}>
+          <p className="text-[10px] text-ink-muted mb-1">เมนูที่หมด</p>
+          <p className={`font-bold text-lg ${soldOutItems.length > 0 ? "text-bad-text" : "text-ink"}`}>
             {soldOutItems.length} เมนู
           </p>
-          <p className={`text-xs font-medium ${soldOutItems.length > 0 ? "text-rose-600" : "text-green-600"}`}>
+          <p className={`text-xs font-medium ${soldOutItems.length > 0 ? "text-bad-text" : "text-ok-text"}`}>
             {soldOutItems.length > 0 ? "ต้องเติม!" : "ครบทุกเมนู"}
           </p>
         </div>
@@ -421,7 +428,7 @@ function OverviewTab({
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-stone-800 flex items-center gap-2">
-              <Clock size={16} className="text-blue-500" />
+              <Clock size={16} className="text-brand" />
               จำนวนออร์เดอร์ตามชั่วโมง
             </h3>
           </div>
@@ -434,7 +441,7 @@ function OverviewTab({
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
                 formatter={(v) => [`${v} ออร์เดอร์`, "จำนวน"]}
               />
-              <Bar dataKey="orders" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="orders" fill="#b85c38" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -443,7 +450,7 @@ function OverviewTab({
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-stone-800 flex items-center gap-2">
-              <PieChartIcon size={16} className="text-pink-500" />
+              <PieChartIcon size={16} className="text-accent" />
               สถานะออร์เดอร์
             </h3>
           </div>
@@ -493,7 +500,7 @@ function OverviewTab({
         {/* Top Selling Items */}
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-            <TrendingUp size={16} className="text-green-500" />
+            <TrendingUp size={16} className="text-ok" />
             อันดับเมนูขายดี
           </h3>
           {stats.topItems.length > 0 ? (
@@ -501,10 +508,10 @@ function OverviewTab({
               {stats.topItems.map((item, idx) => (
                 <div key={item.name} className="flex items-center gap-3">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                    idx === 0 ? "bg-amber-400 text-white" :
-                    idx === 1 ? "bg-stone-300 text-white" :
-                    idx === 2 ? "bg-amber-600 text-white" :
-                    "bg-stone-100 text-stone-500"
+                    idx === 0 ? "bg-brand text-white" :
+                    idx === 1 ? "bg-accent text-white" :
+                    idx === 2 ? "bg-brand-dark text-white" :
+                    "bg-surface-2 text-ink-muted"
                   }`}>
                     {idx + 1}
                   </span>
@@ -521,7 +528,7 @@ function OverviewTab({
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-            <Clock size={16} className="text-blue-500" />
+            <Clock size={16} className="text-brand" />
             ออร์เดอร์ล่าสุด
           </h3>
           {loading ? (
@@ -541,10 +548,10 @@ function OverviewTab({
               {orders.map((o) => (
                 <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#FAF6F0] transition">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
-                    o.status === "completed" ? "bg-green-100 text-green-700" :
-                    o.order_items?.some(it => it.status === "ready") ? "bg-blue-100 text-blue-700" :
-                    o.order_items?.some(it => it.status === "preparing") ? "bg-amber-100 text-amber-700" :
-                    "bg-stone-100 text-stone-600"
+                    o.status === "completed" ? "bg-ok-light text-ok-text" :
+                    o.order_items?.some(it => it.status === "ready") ? "bg-accent-light text-brand-dark" :
+                    o.order_items?.some(it => it.status === "preparing") ? "bg-warn-light text-warn-text" :
+                    "bg-surface-2 text-ink-muted"
                   }`}>
                     {o.tables?.table_number || "?"}
                   </div>
@@ -568,13 +575,13 @@ function OverviewTab({
 
       {/* Sold Out Items (real-time) */}
       {soldOutItems.length > 0 && (
-        <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border-2 border-rose-200 p-4 mb-6">
+        <div className="bg-bad-light rounded-2xl border-2 border-bad/30 p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-rose-700 flex items-center gap-2">
-              <AlertTriangle size={16} />
+            <h3 className="font-bold text-bad-text flex items-center gap-2">
+              <AlertTriangle size={16} aria-hidden="true" />
               เมนูที่หมดตอนนี้ ({soldOutItems.length})
             </h3>
-            <Link href="/admin/menu" className="text-xs text-rose-600 hover:underline font-medium">
+            <Link href="/admin/menu" className="text-xs text-bad-text hover:underline font-medium">
               จัดการ →
             </Link>
           </div>
@@ -582,22 +589,23 @@ function OverviewTab({
             {soldOutItems.map(item => {
               const cat = categories.find(c => c.id === item.category_id);
               return (
-                <div key={item.id} className="bg-white rounded-xl p-3 flex items-center gap-3 border border-rose-200">
-                  <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-                    <Package size={18} className="text-rose-500" />
+                <div key={item.id} className="bg-surface rounded-xl p-3 flex items-center gap-3 border border-bad/30">
+                  <div className="w-10 h-10 rounded-lg bg-bad/15 flex items-center justify-center shrink-0">
+                    <Package size={18} className="text-bad" aria-hidden="true" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-stone-800 truncate">{item.name}</p>
-                    <p className="text-[10px] text-stone-500 truncate">
+                    <p className="font-bold text-sm text-ink truncate">{item.name}</p>
+                    <p className="text-[10px] text-ink-muted truncate">
                       {cat?.name ?? "—"} · ฿{Number(item.price).toLocaleString()}
                     </p>
                   </div>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => onToggleStock(item)}
-                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-xs font-bold flex items-center gap-1"
+                    className="shrink-0 min-h-[36px] px-2.5 py-1.5 rounded-lg bg-brand text-on-primary hover:bg-brand-dark text-xs font-bold flex items-center gap-1"
+                    aria-label={`เปิดขาย ${item.name} อีกครั้ง`}
                   >
-                    <CheckCircle size={12} />
+                    <CheckCircle size={12} aria-hidden="true" />
                     เปิด
                   </motion.button>
                 </div>
@@ -634,9 +642,9 @@ function BigMenuCard({
       >
         {/* Gradient background on hover */}
         <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-        <div className="relative z-10 group-hover:text-white transition-ADMIN_COLORS">
-          <div className={`w-12 h-12 rounded-xl ${iconBg} group-hover:bg-white/20 flex items-center justify-center mb-3 transition-ADMIN_COLORS`}>
-            <Icon size={24} className={`${iconColor} group-hover:text-white transition-ADMIN_COLORS`} />
+        <div className="relative z-10 group-hover:text-white transition-colors">
+          <div className={`w-12 h-12 rounded-xl ${iconBg} group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors`}>
+            <Icon size={24} className={`${iconColor} group-hover:text-white transition-colors`} />
           </div>
           <h3 className="font-bold text-base text-stone-800 group-hover:text-white mb-0.5">
             {label}
@@ -681,7 +689,7 @@ function ReportsTab({
       {/* Date Range Picker */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-4">
         <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-          <Calendar size={16} className="text-purple-500" />
+          <Calendar size={16} className="text-accent" />
           เลือกช่วงวันที่
         </h3>
         <div className="flex gap-2 mb-3">
@@ -698,7 +706,7 @@ function ReportsTab({
                   end: end.toISOString().split("T")[0],
                 });
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-100 text-stone-600 hover:bg-purple-100 hover:text-purple-700 transition"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-2 text-ink-muted hover:bg-accent-light hover:text-brand-dark transition"
             >
               {p.label}
             </motion.button>
@@ -711,7 +719,7 @@ function ReportsTab({
               type="date"
               value={dateRange.start}
               onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-purple-400"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-brand"
             />
           </div>
           <div className="flex-1">
@@ -720,7 +728,7 @@ function ReportsTab({
               type="date"
               value={dateRange.end}
               onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-purple-400"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-brand"
             />
           </div>
         </div>
@@ -728,22 +736,22 @@ function ReportsTab({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-brand to-accent rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">จำนวนออร์เดอร์</p>
           <p className="text-2xl font-bold">{totalOrders}</p>
           <p className="text-xs opacity-80 mt-1">{dailyData.length} วัน</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-ok to-ok-text rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">รายได้รวม</p>
           <p className="text-2xl font-bold">฿{totalRevenue.toLocaleString()}</p>
           <p className="text-xs opacity-80 mt-1">ช่วงที่เลือก</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-accent to-brand rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">เฉลี่ย/วัน</p>
           <p className="text-2xl font-bold">฿{Math.round(avgDaily).toLocaleString()}</p>
           <p className="text-xs opacity-80 mt-1">รายได้ต่อวัน</p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-brand-dark to-primary rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">สูงสุด/วัน</p>
           <p className="text-2xl font-bold">฿{Math.round(maxRevenue).toLocaleString()}</p>
           <p className="text-xs opacity-80 mt-1">วันที่มีรายได้สูงสุด</p>
@@ -753,7 +761,7 @@ function ReportsTab({
       {/* Daily Revenue Bar Chart */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-4">
         <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-          <BarChart3 size={16} className="text-green-500" />
+          <BarChart3 size={16} className="text-ok" />
           รายได้รายวัน (฿)
         </h3>
         {dailyData.length > 0 ? (
@@ -769,7 +777,7 @@ function ReportsTab({
                   name === "revenue" ? "รายได้" : "ออร์เดอร์"
                 ]) as any}
               />
-              <Bar dataKey="revenue" name="revenue" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" name="revenue" fill={COLORS.success} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -782,7 +790,7 @@ function ReportsTab({
       {/* Orders + Revenue Combined Line Chart */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-4">
         <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-          <TrendingUp size={16} className="text-blue-500" />
+          <TrendingUp size={16} className="text-brand" />
           ออร์เดอร์ & รายได้ (เปรียบเทียบ)
         </h3>
         {dailyData.length > 0 ? (
@@ -800,8 +808,8 @@ function ReportsTab({
                 ]) as any}
               />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="orders" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
-              <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="left" type="monotone" dataKey="orders" stroke={COLORS.accent} strokeWidth={2} dot={{ r: 3 }} />
+              <Line yAxisId="right" type="monotone" dataKey="revenue" stroke={COLORS.success} strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -833,7 +841,7 @@ function ReportsTab({
                   <tr key={i} className="border-b border-stone-100 hover:bg-[#FAF6F0]">
                     <td className="py-2 px-2 text-stone-700">{d.date}</td>
                     <td className="py-2 px-2 text-right font-medium text-stone-800">{d.orders}</td>
-                    <td className="py-2 px-2 text-right font-bold text-green-700">฿{d.revenue.toLocaleString()}</td>
+                    <td className="py-2 px-2 text-right font-bold text-ok-text">฿{d.revenue.toLocaleString()}</td>
                     <td className="py-2 px-2 text-right text-stone-500 text-xs">
                       {d.orders > 0 ? `฿${Math.round(d.revenue / d.orders)}` : "—"}
                     </td>
@@ -844,7 +852,7 @@ function ReportsTab({
                 <tr className="bg-[#FAF6F0] rounded-b-xl">
                   <td className="py-2 px-2 font-bold text-stone-800">รวม ({dailyData.length} วัน)</td>
                   <td className="py-2 px-2 text-right font-bold text-stone-800">{totalOrders}</td>
-                  <td className="py-2 px-2 text-right font-bold text-green-700">฿{totalRevenue.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right font-bold text-ok-text">฿{totalRevenue.toLocaleString()}</td>
                   <td className="py-2 px-2 text-right font-bold text-stone-800">
                     ฿{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0}
                   </td>
@@ -861,8 +869,8 @@ function ReportsTab({
       <div
         className="mt-4 p-4 rounded-2xl flex items-center justify-between"
         style={{
-          background: `linear-gradient(135deg, ${ADMIN_COLORS.accentLight}40 0%, ${ADMIN_COLORS.secondaryLight}40 100%)`,
-          border: `1px solid ${ADMIN_COLORS.accent}30`,
+          background: `linear-gradient(135deg, ${alpha("accent-light", 0.25)} 0%, ${alpha("accent-light", 0.25)} 100%)`,
+          border: `1px solid ${alpha("accent", 0.19)}`,
         }}
       >
         <div>
@@ -892,28 +900,31 @@ function ReportsTab({
 }
 
 // ============ Reusable Components ============
-function KPICard({ icon: Icon, label, value, sub, trend, color, gradient }: any) {
+function KPICard({ icon: Icon, label, value, sub, trend, accent }: any) {
   return (
     <motion.div
       whileHover={{ y: -2 }}
-      className="bg-white rounded-2xl border border-stone-200 p-4"
+      className="bg-surface rounded-2xl border border-line p-4"
     >
       <div className="flex items-start justify-between mb-2">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-md`}>
-          <Icon size={18} />
+        <div
+          className="w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-md"
+          style={{ background: accent }}
+        >
+          <Icon size={18} aria-hidden="true" />
         </div>
         {trend !== undefined && (
           <div className={`flex items-center gap-0.5 text-xs font-medium px-2 py-1 rounded-full ${
-            trend > 0 ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-500"
+            trend > 0 ? "bg-ok-light text-ok-text" : "bg-surface-2 text-ink-muted"
           }`}>
-            {trend > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+            {trend > 0 ? <ArrowUpRight size={12} aria-hidden="true" /> : <ArrowDownRight size={12} aria-hidden="true" />}
             {Math.abs(trend)}
           </div>
         )}
       </div>
-      <p className="text-[10px] text-stone-500 mb-1">{label}</p>
-      <p className="text-xl font-bold text-stone-800 leading-tight">{value}</p>
-      {sub && <p className="text-[10px] text-stone-400 mt-1">{sub}</p>}
+      <p className="text-[10px] text-ink-muted mb-1">{label}</p>
+      <p className="text-xl font-bold text-ink leading-tight">{value}</p>
+      {sub && <p className="text-[10px] text-ink-soft mt-1">{sub}</p>}
     </motion.div>
   );
 }

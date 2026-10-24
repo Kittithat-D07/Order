@@ -27,9 +27,15 @@ export interface MenuItem {
   display_order: number;
   created_at: string;
   // migration 005
-  unavailable_reason: string | null;
-  marked_unavailable_at: string | null;
-  marked_unavailable_by: string | null;
+  unavailable_reason?: string | null;
+  marked_unavailable_at?: string | null;
+  marked_unavailable_by?: string | null;
+  prep_time_minutes?: number;
+  low_stock_threshold?: number;
+  /** -1 (or null) means stock is not tracked, i.e. unlimited. */
+  stock_count?: number | null;
+  is_signature?: boolean;
+  allergens?: string[] | null;
 }
 
 export interface Order {

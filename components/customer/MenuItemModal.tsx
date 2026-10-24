@@ -211,6 +211,7 @@ export function MenuItemModal({
               role="dialog"
               aria-modal="true"
               aria-labelledby="menu-modal-title"
+              tabIndex={-1}
             >
               {/* Drag handle (mobile) */}
               <div className="sm:hidden pt-2 pb-1 flex justify-center">

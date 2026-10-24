@@ -94,6 +94,7 @@ export function CartDrawer({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cart-drawer-title"
+        tabIndex={-1}
       >
         {/* Header */}
         <div className="bg-white border-b" style={{ borderColor: COLORS.border }}>

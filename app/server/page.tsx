@@ -133,8 +133,8 @@ function ServerContent() {
               )}
             </span>
             <span className="font-medium">
-              {realtimeStatus === "online" && "🟢 Realtime เชื่อมต่ออยู่"}
-              {realtimeStatus === "offline" && "🔴 Realtime ขาดการเชื่อมต่อ"}
+              {realtimeStatus === "online" && "🟢 อัปเดตอัตโนมัติ (ทุก 3 วิ)"}
+              {realtimeStatus === "offline" && "🔴 ขาดการเชื่อมต่อ — กำลังลองใหม่..."}
               {realtimeStatus === "connecting" && "🟡 กำลังเชื่อมต่อ..."}
             </span>
             {lastUpdate && (

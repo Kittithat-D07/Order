@@ -66,9 +66,13 @@ export function ServerView() {
       if (res.ok && data.ok && Array.isArray(data.orders)) {
         setOrders(data.orders as any as OrderWithItems[]);
         setLastUpdate(new Date());
+        setRealtimeStatus("online");
+      } else {
+        setRealtimeStatus("offline");
       }
     } catch {
       // Keep the last known state; the next poll will refresh it.
+      setRealtimeStatus("offline");
     }
   };
 
@@ -79,6 +83,9 @@ export function ServerView() {
 
       if (res.ok && data.ok && Array.isArray(data.bills)) {
         setBills(data.bills as Bill[]);
+        // Bills ride the same polling loop — a success here means the
+        // server is reachable even if the orders call failed.
+        setRealtimeStatus((prev) => (prev === "connecting" ? "online" : prev));
       }
     } catch {
       // Same as above — keep what we have.

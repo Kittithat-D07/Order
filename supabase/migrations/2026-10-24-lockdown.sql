@@ -178,11 +178,13 @@ DROP POLICY IF EXISTS "Allow public write staff_pins" ON public.staff_pins;
 DROP POLICY IF EXISTS "Staff pins updatable" ON public.staff_pins;
 
 -- The lookup the verify-pin route needs.
+DROP POLICY IF EXISTS "Allow public read staff_pins" ON public.staff_pins;
 CREATE POLICY "Allow public read staff_pins"
   ON public.staff_pins FOR SELECT
   USING (true);
 
 -- Changing a PIN is an admin action, through the server.
+DROP POLICY IF EXISTS "Allow admin write staff_pins" ON public.staff_pins;
 CREATE POLICY "Allow admin write staff_pins"
   ON public.staff_pins FOR ALL
   USING (public.current_staff_role() = 'admin')
@@ -197,10 +199,12 @@ ALTER TABLE public.staff_login_attempts ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read staff_login_attempts" ON public.staff_login_attempts;
 DROP POLICY IF EXISTS "Allow public write staff_login_attempts" ON public.staff_login_attempts;
 
+DROP POLICY IF EXISTS "Allow admin read staff_login_attempts" ON public.staff_login_attempts;
 CREATE POLICY "Allow admin read staff_login_attempts"
   ON public.staff_login_attempts FOR SELECT
   USING (public.current_staff_role() = 'admin');
 
+DROP POLICY IF EXISTS "Allow staff insert staff_login_attempts" ON public.staff_login_attempts;
 CREATE POLICY "Allow staff insert staff_login_attempts"
   ON public.staff_login_attempts FOR INSERT
   WITH CHECK (public.current_staff_role() IS NOT NULL);
@@ -214,10 +218,12 @@ ALTER TABLE public.menu_item_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow read menu_item_history" ON public.menu_item_history;
 DROP POLICY IF EXISTS "Allow insert menu_item_history" ON public.menu_item_history;
 
+DROP POLICY IF EXISTS "Allow staff read menu_item_history" ON public.menu_item_history;
 CREATE POLICY "Allow staff read menu_item_history"
   ON public.menu_item_history FOR SELECT
   USING (public.current_staff_role() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Allow admin insert menu_item_history" ON public.menu_item_history;
 CREATE POLICY "Allow admin insert menu_item_history"
   ON public.menu_item_history FOR INSERT
   WITH CHECK (public.current_staff_role() = 'admin');

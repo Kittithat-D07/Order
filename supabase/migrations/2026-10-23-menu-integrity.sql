@@ -23,13 +23,14 @@ BEGIN
     SELECT c.id
     FROM public.menu_categories c
     WHERE c.id <> (
-      SELECT MIN(c2.id) FROM public.menu_categories c2 WHERE c2.name = c.name
+      SELECT c2.id FROM public.menu_categories c2 WHERE c2.name = c.name ORDER BY c2.id LIMIT 1
     )
   LOOP
     -- Move items to the keeper of the same name
-    SELECT MIN(c2.id) INTO keeper
+    SELECT c2.id INTO keeper
     FROM public.menu_categories c2
-    WHERE c2.name = (SELECT name FROM public.menu_categories WHERE id = dup);
+    WHERE c2.name = (SELECT name FROM public.menu_categories WHERE id = dup)
+    ORDER BY c2.id LIMIT 1;
 
     IF keeper IS NOT NULL AND keeper <> dup THEN
       UPDATE public.menu_items
@@ -55,14 +56,16 @@ BEGIN
     SELECT mi.id, mi.category_id, mi.name
     FROM public.menu_items mi
     WHERE mi.id <> (
-      SELECT MIN(mi2.id)
+      SELECT mi2.id
       FROM public.menu_items mi2
       WHERE mi2.category_id = mi.category_id AND mi2.name = mi.name
+      ORDER BY mi2.id LIMIT 1
     )
   LOOP
-    SELECT MIN(mi2.id) INTO keeper
+    SELECT mi2.id INTO keeper
     FROM public.menu_items mi2
-    WHERE mi2.category_id = dup.category_id AND mi2.name = dup.name;
+    WHERE mi2.category_id = dup.category_id AND mi2.name = dup.name
+    ORDER BY mi2.id LIMIT 1;
 
     IF keeper IS NOT NULL AND keeper <> dup.id THEN
       -- Repoint historical order lines at the surviving item

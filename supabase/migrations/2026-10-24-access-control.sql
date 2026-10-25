@@ -73,6 +73,125 @@ DROP POLICY IF EXISTS "Allow public read staff_sessions" ON public.staff_session
 DROP POLICY IF EXISTS "Allow public write staff_sessions" ON public.staff_sessions;
 
 -- ----------------------------------------------------------------------------
+-- 1b. Session helpers — these MUST exist before any policy below can
+--     reference them.
+--
+--     Postgres validates a policy's expression at CREATE POLICY time, so
+--     a policy that calls public.current_staff_role() fails with
+--     "function does not exist" unless the function is already in place.
+--     That is why this block sits here, ahead of every policy.
+--
+--     The staff session cookie carries the raw token. We hash it and look it
+--     up. The helper is SECURITY DEFINER so it can read staff_sessions even
+--     though RLS blocks anon access to it.
+--
+--     The token is read from the cookie header, because that is how the
+--     browser sends it. The `x-staff-token` header is also accepted for
+--     server-to-server calls.
+--
+--     NOTE: the application code does not depend on these functions — the
+--     server routes verify the session in TypeScript via
+--     lib/supabase/server-auth.ts, using the service role key. These are a
+--     defence-in-depth layer: if a write ever reaches the database
+--     directly, the policy still refuses it.
+-- ----------------------------------------------------------------------------
+
+-- pgcrypto gives us digest() for the SHA-256 hash.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Pull the session token out of the request headers.
+CREATE OR REPLACE FUNCTION public.staff_token_from_request()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_headers TEXT := current_setting('request.headers', true);
+  v_json JSON;
+  v_cookie TEXT;
+  v_token TEXT;
+  v_pair TEXT;
+  v_name TEXT;
+  v_value TEXT;
+BEGIN
+  IF v_headers IS NULL OR v_headers = '' THEN
+    RETURN NULL;
+  END IF;
+
+  v_json := v_headers::JSON;
+
+  -- Direct header (server-to-server).
+  v_token := v_json ->> 'x-staff-token';
+  IF v_token IS NOT NULL AND v_token <> '' THEN
+    RETURN v_token;
+  END IF;
+
+  -- Cookie (browser).
+  v_cookie := v_json ->> 'cookie';
+  IF v_cookie IS NULL OR v_cookie = '' THEN
+    RETURN NULL;
+  END IF;
+
+  FOR v_pair IN SELECT * FROM regexp_split_to_table(v_cookie, ';') AS t(x)
+  LOOP
+    v_name := trim(split_part(v_pair, '=', 1));
+    v_value := trim(split_part(v_pair, '=', 2));
+    IF v_name = 'aura-staff-session' THEN
+      RETURN v_value;
+    END IF;
+  END LOOP;
+
+  RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_staff_role()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_token TEXT := public.staff_token_from_request();
+  v_role TEXT;
+BEGIN
+  IF v_token IS NULL OR v_token = '' THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT role INTO v_role
+  FROM public.staff_sessions
+  WHERE token_hash = encode(digest(v_token, 'sha256'), 'hex')
+    AND revoked_at IS NULL
+    AND expires_at > NOW()
+  LIMIT 1;
+
+  RETURN v_role;
+END;
+$$;
+
+-- Same, but also gives the display name for the audit trail.
+CREATE OR REPLACE FUNCTION public.current_staff_identity()
+RETURNS TABLE(role TEXT, display_name TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_token TEXT := public.staff_token_from_request();
+BEGIN
+  RETURN QUERY
+  SELECT s.role, s.display_name
+  FROM public.staff_sessions s
+  WHERE s.token_hash = encode(digest(v_token, 'sha256'), 'hex')
+    AND s.revoked_at IS NULL
+    AND s.expires_at > NOW()
+  LIMIT 1;
+END;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- 2. Menu — the only thing customers may read, and the only thing they may
 --    write (through the server, which uses the service role).
 --
@@ -287,120 +406,7 @@ CREATE POLICY "Allow staff insert staff_login_attempts"
   WITH CHECK (public.current_staff_role() IS NOT NULL);
 
 -- ----------------------------------------------------------------------------
--- 10. Helper: is this request made by a valid staff session?
---
---     The staff session cookie carries the raw token. We hash it and look it
---     up. The helper is SECURITY DEFINER so it can read staff_sessions even
---     though RLS blocks anon access to it.
---
---     The token is read from the cookie header, because that is how the
---     browser sends it. The `x-staff-token` header is also accepted for
---     server-to-server calls.
---
---     NOTE: the application code does not depend on this function — the
---     server routes verify the session in TypeScript via
---     lib/supabase/server-auth.ts, using the service role key. This helper
---     is a defence-in-depth layer: if a write ever reaches the database
---     directly, the policy still refuses it.
--- ----------------------------------------------------------------------------
-
--- pgcrypto gives us digest() for the SHA-256 hash.
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- Pull the session token out of the request headers.
-CREATE OR REPLACE FUNCTION public.staff_token_from_request()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_headers TEXT := current_setting('request.headers', true);
-  v_json JSON;
-  v_cookie TEXT;
-  v_token TEXT;
-  v_pair TEXT;
-  v_name TEXT;
-  v_value TEXT;
-BEGIN
-  IF v_headers IS NULL OR v_headers = '' THEN
-    RETURN NULL;
-  END IF;
-
-  v_json := v_headers::JSON;
-
-  -- Direct header (server-to-server).
-  v_token := v_json ->> 'x-staff-token';
-  IF v_token IS NOT NULL AND v_token <> '' THEN
-    RETURN v_token;
-  END IF;
-
-  -- Cookie (browser).
-  v_cookie := v_json ->> 'cookie';
-  IF v_cookie IS NULL OR v_cookie = '' THEN
-    RETURN NULL;
-  END IF;
-
-  FOR v_pair IN SELECT * FROM regexp_split_to_table(v_cookie, ';') AS t(x)
-  LOOP
-    v_name := trim(split_part(v_pair, '=', 1));
-    v_value := trim(split_part(v_pair, '=', 2));
-    IF v_name = 'aura-staff-session' THEN
-      RETURN v_value;
-    END IF;
-  END LOOP;
-
-  RETURN NULL;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.current_staff_role()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_token TEXT := public.staff_token_from_request();
-  v_role TEXT;
-BEGIN
-  IF v_token IS NULL OR v_token = '' THEN
-    RETURN NULL;
-  END IF;
-
-  SELECT role INTO v_role
-  FROM public.staff_sessions
-  WHERE token_hash = encode(digest(v_token, 'sha256'), 'hex')
-    AND revoked_at IS NULL
-    AND expires_at > NOW()
-  LIMIT 1;
-
-  RETURN v_role;
-END;
-$$;
-
--- Same, but also gives the display name for the audit trail.
-CREATE OR REPLACE FUNCTION public.current_staff_identity()
-RETURNS TABLE(role TEXT, display_name TEXT)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_token TEXT := public.staff_token_from_request();
-BEGIN
-  RETURN QUERY
-  SELECT s.role, s.display_name
-  FROM public.staff_sessions s
-  WHERE s.token_hash = encode(digest(v_token, 'sha256'), 'hex')
-    AND s.revoked_at IS NULL
-    AND s.expires_at > NOW()
-  LIMIT 1;
-END;
-$$;
-
--- ----------------------------------------------------------------------------
--- 11. Cleanup expired sessions
+-- 10. Cleanup expired sessions
 --
 --     Call this from a cron job or a Supabase scheduled function.
 -- ----------------------------------------------------------------------------

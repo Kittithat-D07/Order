@@ -21,7 +21,13 @@ import Link from "next/link";
 import { BlurFade, GradientBlob, FloatingElement } from "@/components/ui/magic-effects";
 import { COLORS, ROLE_COLORS, alpha } from "@/lib/theme";
 
-/** Admin wears the deepest clay — a third depth of the same terracotta family. */
+/**
+ * Admin wears honey as its family colour.
+ *
+ * `accent` is a FILL (2.54:1 on cream — never text), `accentText` is the
+ * text-safe depth, and `accentDeep` is for white text on a honey fill
+ * (white on `accent` is only 2.74:1).
+ */
 const ADMIN_COLORS = {
   primary: ROLE_COLORS.admin.base,
   primaryDark: ROLE_COLORS.admin.dark,
@@ -30,6 +36,9 @@ const ADMIN_COLORS = {
   secondaryDark: ROLE_COLORS.server.dark,
   secondaryLight: ROLE_COLORS.server.light,
   accent: COLORS.accent,
+  accentDark: COLORS.accentDark,
+  accentDeep: COLORS.accentDeep,
+  accentText: COLORS.accentText,
   accentLight: COLORS.accentLight,
   bg: COLORS.bg,
   surface: COLORS.surface,
@@ -84,36 +93,40 @@ export function AdminDashboard() {
 
   useEffect(() => {
     loadAll();
-    const channel = supabase
-      .channel("admin-dashboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => loadAll())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    // Poll rather than subscribe. Realtime evaluates RLS with the
+    // connection's JWT, so under the tightened policies a channel would
+    // deliver nothing. The menu stays realtime-friendly because it is
+    // publicly readable, but orders have to come through the server.
+    const interval = setInterval(loadAll, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadAll = async () => {
+    // Orders come from the server (staff session required). The menu is
+    // still public — every customer needs to read it.
     const [ordersRes, menuRes, catRes] = await Promise.all([
-      supabase.from("orders").select(`*, tables:table_id (*), order_items (*, menu_items (*))`).order("created_at", { ascending: false }),
+      fetch("/api/staff/orders?mode=all&limit=500", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => ({ ok: false })),
       supabase.from("menu_items").select("*").order("display_order"),
       supabase.from("menu_categories").select("*").order("display_order"),
     ]);
-    if (ordersRes.data) setOrders(ordersRes.data as any as OrderWithItems[]);
+    if (ordersRes?.ok && Array.isArray(ordersRes.orders)) {
+      setOrders(ordersRes.orders as any as OrderWithItems[]);
+    }
     if (menuRes.data) setMenuItems(menuRes.data);
     if (catRes.data) setCategories(catRes.data);
     setLoading(false);
   };
 
   const toggleItemStock = async (item: MenuItem) => {
-    await supabase
-      .from("menu_items")
-      .update({
-        is_available: !item.is_available,
-        marked_unavailable_at: !item.is_available ? null : new Date().toISOString(),
-        marked_unavailable_by: !item.is_available ? null : "admin",
-      })
-      .eq("id", item.id);
+    // The write goes through the server, which checks the staff session.
+    await fetch("/api/staff/menu", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, is_available: !item.is_available }),
+    });
   };
 
   // ============ Stats Calculation ============
@@ -229,7 +242,7 @@ export function AdminDashboard() {
       {/* ===== เมนูหลัก (Quick Menu Grid) ===== */}
       <div>
         <h2 className="text-sm font-bold mb-2.5 flex items-center gap-1.5 px-1" style={{ color: ADMIN_COLORS.text }}>
-          <Sparkles size={14} style={{ color: ADMIN_COLORS.accent }} />
+          <Sparkles size={14} style={{ color: ADMIN_COLORS.accentText }} />
           เมนูจัดการ
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -238,10 +251,10 @@ export function AdminDashboard() {
             icon={LayoutGrid}
             label="จัดการโต๊ะ"
             description="เปิด-ปิด โต๊ะ · QR Code"
-            gradient="from-brand to-accent"
+            gradient="from-brand to-accent-deep"
             shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.primaryLight}
-            iconColor={ADMIN_COLORS.primary}
+            iconColor={ADMIN_COLORS.primaryDark}
           />
           <BigMenuCard
             href="/admin/menu"
@@ -251,17 +264,17 @@ export function AdminDashboard() {
             gradient="from-brand to-brand-dark"
             shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.secondaryLight}
-            iconColor={ADMIN_COLORS.secondary}
+            iconColor={ADMIN_COLORS.secondaryDark}
           />
           <BigMenuCard
             href="/admin/history"
             icon={History}
             label="ประวัติเมนู"
             description="Audit log การแก้ไข"
-            gradient="from-accent to-primary"
+            gradient="from-accent-deep to-primary"
             shadow="shadow-accent/30"
             iconBg={ADMIN_COLORS.accentLight}
-            iconColor={ADMIN_COLORS.accent}
+            iconColor={ADMIN_COLORS.accentDark}
           />
           <BigMenuCard
             href="/kitchen"
@@ -271,17 +284,17 @@ export function AdminDashboard() {
             gradient="from-brand-dark to-primary"
             shadow="shadow-brand/30"
             iconBg={ADMIN_COLORS.primaryLight}
-            iconColor={ADMIN_COLORS.primary}
+            iconColor={ADMIN_COLORS.primaryDark}
           />
           <BigMenuCard
             href="/server"
             icon={Utensils}
             label="หน้าจอเสิร์ฟ์"
             description="จอสำหรับพนักงานเสิร์ฟ"
-            gradient="from-accent to-secondary"
+            gradient="from-accent-deep to-secondary"
             shadow="shadow-accent/30"
             iconBg={ADMIN_COLORS.secondaryLight}
-            iconColor={ADMIN_COLORS.secondary}
+            iconColor={ADMIN_COLORS.secondaryDark}
           />
           <BigMenuCard
             href="/kitchen/stock"
@@ -310,8 +323,8 @@ export function AdminDashboard() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 activeTab === tab.id
-                  ? "bg-gradient-to-r from-brand to-accent text-white shadow-lg shadow-brand/30"
-                  : "bg-white text-stone-600 hover:bg-[#FAF6F0] border border-stone-200"
+                  ? "bg-gradient-to-r from-brand to-accent-deep text-white shadow-lg shadow-brand/30"
+                  : "bg-white text-stone-600 hover:bg-surface-2 border border-stone-200"
               }`}
             >
               <Icon size={16} />
@@ -428,20 +441,20 @@ function OverviewTab({
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-stone-800 flex items-center gap-2">
-              <Clock size={16} className="text-brand" />
+              <Clock size={16} className="text-brand-text" />
               จำนวนออร์เดอร์ตามชั่วโมง
             </h3>
           </div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={stats.hourlyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.borderSoft} />
               <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={3} />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
+                contentStyle={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
                 formatter={(v) => [`${v} ออร์เดอร์`, "จำนวน"]}
               />
-              <Bar dataKey="orders" fill="#b85c38" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="orders" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -450,7 +463,7 @@ function OverviewTab({
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-stone-800 flex items-center gap-2">
-              <PieChartIcon size={16} className="text-accent" />
+              <PieChartIcon size={16} className="text-accent-text" />
               สถานะออร์เดอร์
             </h3>
           </div>
@@ -472,7 +485,7 @@ function OverviewTab({
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
+                    contentStyle={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
                     formatter={(v, name) => [`${v} รายการ`, name]}
                   />
                 </PieChart>
@@ -509,7 +522,7 @@ function OverviewTab({
                 <div key={item.name} className="flex items-center gap-3">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                     idx === 0 ? "bg-brand text-white" :
-                    idx === 1 ? "bg-accent text-white" :
+                    idx === 1 ? "bg-accent-deep text-white" :
                     idx === 2 ? "bg-brand-dark text-white" :
                     "bg-surface-2 text-ink-muted"
                   }`}>
@@ -528,7 +541,7 @@ function OverviewTab({
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl border border-stone-200 p-4">
           <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-            <Clock size={16} className="text-brand" />
+            <Clock size={16} className="text-brand-text" />
             ออร์เดอร์ล่าสุด
           </h3>
           {loading ? (
@@ -546,7 +559,7 @@ function OverviewTab({
           ) : orders.length > 0 ? (
             <div className="space-y-2">
               {orders.map((o) => (
-                <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#FAF6F0] transition">
+                <div key={o.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-2 transition">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
                     o.status === "completed" ? "bg-ok-light text-ok-text" :
                     o.order_items?.some(it => it.status === "ready") ? "bg-accent-light text-brand-dark" :
@@ -689,7 +702,7 @@ function ReportsTab({
       {/* Date Range Picker */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-4">
         <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-          <Calendar size={16} className="text-accent" />
+          <Calendar size={16} className="text-accent-text" />
           เลือกช่วงวันที่
         </h3>
         <div className="flex gap-2 mb-3">
@@ -736,7 +749,7 @@ function ReportsTab({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="bg-gradient-to-br from-brand to-accent rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-brand to-accent-deep rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">จำนวนออร์เดอร์</p>
           <p className="text-2xl font-bold">{totalOrders}</p>
           <p className="text-xs opacity-80 mt-1">{dailyData.length} วัน</p>
@@ -746,7 +759,7 @@ function ReportsTab({
           <p className="text-2xl font-bold">฿{totalRevenue.toLocaleString()}</p>
           <p className="text-xs opacity-80 mt-1">ช่วงที่เลือก</p>
         </div>
-        <div className="bg-gradient-to-br from-accent to-brand rounded-2xl p-4 text-white">
+        <div className="bg-gradient-to-br from-accent-deep to-brand rounded-2xl p-4 text-white">
           <p className="text-xs opacity-80 mb-1">เฉลี่ย/วัน</p>
           <p className="text-2xl font-bold">฿{Math.round(avgDaily).toLocaleString()}</p>
           <p className="text-xs opacity-80 mt-1">รายได้ต่อวัน</p>
@@ -767,11 +780,11 @@ function ReportsTab({
         {dailyData.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={dailyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.borderSoft} vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `฿${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
+                contentStyle={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
                 formatter={((v: any, name: any) => [
                   name === "revenue" ? `฿${Number(v).toLocaleString()}` : `${v} ออร์เดอร์`,
                   name === "revenue" ? "รายได้" : "ออร์เดอร์"
@@ -790,18 +803,18 @@ function ReportsTab({
       {/* Orders + Revenue Combined Line Chart */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-4">
         <h3 className="font-bold text-stone-800 flex items-center gap-2 mb-3">
-          <TrendingUp size={16} className="text-brand" />
+          <TrendingUp size={16} className="text-brand-text" />
           ออร์เดอร์ & รายได้ (เปรียบเทียบ)
         </h3>
         {dailyData.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={dailyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.borderSoft} />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={v => `฿${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
               <Tooltip
-                contentStyle={{ borderRadius: 12, border: "1px solid #e5e5e5", fontSize: 12 }}
+                contentStyle={{ borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
                 formatter={((v: any, name: any) => [
                   name === "revenue" ? `฿${Number(v).toLocaleString()}` : `${v} ออร์เดอร์`,
                   name === "revenue" ? "รายได้" : "ออร์เดอร์"
@@ -838,7 +851,7 @@ function ReportsTab({
               </thead>
               <tbody>
                 {dailyData.map((d, i) => (
-                  <tr key={i} className="border-b border-stone-100 hover:bg-[#FAF6F0]">
+                  <tr key={i} className="border-b border-stone-100 hover:bg-surface-2">
                     <td className="py-2 px-2 text-stone-700">{d.date}</td>
                     <td className="py-2 px-2 text-right font-medium text-stone-800">{d.orders}</td>
                     <td className="py-2 px-2 text-right font-bold text-ok-text">฿{d.revenue.toLocaleString()}</td>
@@ -849,7 +862,7 @@ function ReportsTab({
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-[#FAF6F0] rounded-b-xl">
+                <tr className="bg-surface-2 rounded-b-xl">
                   <td className="py-2 px-2 font-bold text-stone-800">รวม ({dailyData.length} วัน)</td>
                   <td className="py-2 px-2 text-right font-bold text-stone-800">{totalOrders}</td>
                   <td className="py-2 px-2 text-right font-bold text-ok-text">฿{totalRevenue.toLocaleString()}</td>
@@ -888,7 +901,7 @@ function ReportsTab({
           download
           className="px-4 py-2.5 rounded-full text-white text-sm font-semibold flex items-center gap-2"
           style={{
-            background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accent} 100%)`,
+            background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accentDeep} 100%)`,
             boxShadow: "0 8px 20px -4px rgba(184, 92, 56, 0.4)",
           }}
         >

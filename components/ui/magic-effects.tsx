@@ -147,6 +147,10 @@ export function PulseDot({
 
 /**
  * FloatingElement - ลอยขึ้นลง
+ *
+ * ต้องเป็น `absolute` ไม่ใช่ `static` — ถ้าอยู่ใน flow ปกติ มันจะดัน
+ * element ที่อยู่ถัดไป (เช่น sticky header) ลงมา แล้ว header จะไม่
+ * ติดบนสุดจอตามที่ตั้งใจ
  */
 export function FloatingElement({
   children,
@@ -166,7 +170,7 @@ export function FloatingElement({
         delay,
         ease: "easeInOut",
       }}
-      className={className}
+      className={cn("absolute pointer-events-none", className)}
     >
       {children}
     </motion.div>

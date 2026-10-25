@@ -7,8 +7,17 @@ import type { CartItem } from "@/lib/types";
 interface CartState {
   tableId: string | null;
   tableNumber: string | null;
+  /**
+   * The table's QR token.
+   *
+   * It is the customer's proof that they are sitting at that table. The
+   * server checks it before returning an order, so it has to survive the
+   * navigation from the menu page to the order status page — hence it is
+   * kept in the persisted cart alongside the table id.
+   */
+  tableToken: string | null;
   items: CartItem[];
-  setTable: (id: string, number: string) => void;
+  setTable: (id: string, number: string, token?: string) => void;
   addItem: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void;
   updateQuantity: (menuItemId: string, quantity: number) => void;
   updateNote: (menuItemId: string, note: string) => void;
@@ -23,11 +32,21 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       tableId: null,
       tableNumber: null,
+      tableToken: null,
       items: [],
 
-      setTable: (id, number) => {
+      setTable: (id, number, token) => {
         if (get().tableId !== id) {
-          set({ tableId: id, tableNumber: number, items: [] });
+          set({
+            tableId: id,
+            tableNumber: number,
+            tableToken: token ?? null,
+            items: [],
+          });
+        } else if (token && !get().tableToken) {
+          // Same table, but we learned the token now (e.g. after a reload
+          // where only the id was cached).
+          set({ tableToken: token });
         }
       },
 

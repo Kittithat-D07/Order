@@ -40,11 +40,25 @@ const config: Config = {
           dark: token("primary-dark"),
           deep: token("primary-deep"),
           light: token("primary-light"),
+          // Text-safe clay. `text-brand` at the palette value reaches only
+          // 4.22:1 on cream — it is a fill, not a text colour.
+          text: token("primary-dark"),
         },
         accent: {
           DEFAULT: token("accent"),
           dark: token("accent-dark"),
+          deep: token("accent-deep"),
           light: token("accent-light"),
+          // Text-safe honey. `text-accent` at the palette value reaches only
+          // 2.54:1 on cream — it is a fill, not a text colour.
+          text: token("accent-dark"),
+        },
+        // Sage — the second family: the served role, the natural, the calm.
+        sage: {
+          DEFAULT: token("secondary"),
+          dark: token("secondary-dark"),
+          light: token("secondary-light"),
+          text: token("secondary-dark"),
         },
         // Text colour for use ON a brand-filled surface.
         on: {

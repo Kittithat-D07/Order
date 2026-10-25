@@ -51,15 +51,19 @@ function AdminOrdersContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
-
     const load = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("*, order_items(*, menu_items(*)), tables(*)")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      setOrders((data as OrderWithItems[]) ?? []);
+      // Orders are read through the server, which requires a staff session.
+      try {
+        const res = await fetch("/api/staff/orders?mode=all&limit=100", {
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.orders)) {
+          setOrders(data.orders as OrderWithItems[]);
+        }
+      } catch {
+        // Keep whatever we already have.
+      }
       setLoading(false);
     };
 
@@ -91,7 +95,7 @@ function AdminOrdersContent() {
   ).length;
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: COLORS.bg }}>
+    <div className="min-h-screen relative overflow-x-clip" style={{ background: COLORS.bg }}>
       {/* Background blobs */}
       <GradientBlob className="top-[-100px] right-[-100px]" color="bg-brand/10" />
       <GradientBlob className="top-[40%] left-[-100px]" color="bg-accent/10" delay={3} />
@@ -163,7 +167,7 @@ function AdminOrdersContent() {
                 <div className="flex items-center gap-2 mb-1">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.accentDark} 100%)` }}
+                    style={{ background: `linear-gradient(135deg, ${COLORS.accentDeep} 0%, ${COLORS.accentDark} 100%)` }}
                   >
                     <Clock className="w-4 h-4 text-white" />
                   </div>
@@ -199,7 +203,7 @@ function AdminOrdersContent() {
             <Card>
               <CardContent className="p-10 text-center">
                 <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-brand-light flex items-center justify-center">
-                  <Receipt size={28} className="text-brand" />
+                  <Receipt size={28} className="text-brand-text" />
                 </div>
                 <p className="font-semibold text-ink">ยังไม่มีออร์เดอร์</p>
                 <p className="text-sm text-ink-muted mt-1">ออร์เดอร์จะปรากฏที่นี่เมื่อลูกค้าสั่งอาหาร</p>

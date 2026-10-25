@@ -22,21 +22,27 @@
 
   /* ===== SURFACES ===== */
   --rgb-bg: 250 246 240;
-  --rgb-bg-2: 243 234 221;
+  --rgb-bg-2: 245 237 224;
   --rgb-surface: 255 255 255;
-  --rgb-surface-2: 251 247 241;
-  --rgb-surface-3: 239 229 214;
+  --rgb-surface-2: 251 248 243;
+  --rgb-surface-3: 240 231 218;
 
-  /* ===== BRAND: TERRACOTTA (one family, four depths) ===== */
-  --rgb-primary: 168 72 42;
-  --rgb-primary-dark: 126 51 24;
-  --rgb-primary-deep: 92 36 16;
+  /* ===== BRAND: TERRACOTTA CLAY (one family, four depths) ===== */
+  --rgb-primary: 184 92 56;
+  --rgb-primary-dark: 139 63 26;
+  --rgb-primary-deep: 107 46 16;
   --rgb-primary-light: 244 220 196;
 
-  /* ===== ACCENT: hot clay (text-safe on cream) ===== */
-  --rgb-accent: 138 75 34;
-  --rgb-accent-dark: 92 36 16;
-  --rgb-accent-light: 242 222 202;
+  /* ===== SECONDARY: SAGE GREEN ===== */
+  --rgb-secondary: 107 123 95;
+  --rgb-secondary-dark: 74 89 66;
+  --rgb-secondary-light: 221 227 210;
+
+  /* ===== ACCENT: HONEY ===== */
+  --rgb-accent: 200 147 47;
+  --rgb-accent-dark: 120 85 19;
+  --rgb-accent-deep: 102 72 16;
+  --rgb-accent-light: 240 215 140;
 
   /* ===== TEXT ===== */
   --rgb-text: 36 30 25;
@@ -71,10 +77,15 @@
   --color-primary-dark: rgb(var(--rgb-primary-dark));
   --color-primary-deep: rgb(var(--rgb-primary-deep));
   --color-primary-light: rgb(var(--rgb-primary-light));
-  --color-primary-glow: rgba(168, 72, 42, 0.35);
+  --color-primary-glow: rgba(184, 92, 56, 0.35);
+
+  --color-secondary: rgb(var(--rgb-secondary));
+  --color-secondary-dark: rgb(var(--rgb-secondary-dark));
+  --color-secondary-light: rgb(var(--rgb-secondary-light));
 
   --color-accent: rgb(var(--rgb-accent));
   --color-accent-dark: rgb(var(--rgb-accent-dark));
+  --color-accent-deep: rgb(var(--rgb-accent-deep));
   --color-accent-light: rgb(var(--rgb-accent-light));
 
   --color-text: rgb(var(--rgb-text));
@@ -102,10 +113,10 @@
   --font-body: "Prompt", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* ===== SHADOWS (warm, offset, blurred) ===== */
-  --shadow-sm: 0 2px 6px -2px rgba(92, 36, 16, 0.12);
-  --shadow: 0 8px 24px -6px rgba(92, 36, 16, 0.16), 0 3px 8px -3px rgba(92, 36, 16, 0.08);
-  --shadow-md: 0 14px 34px -8px rgba(92, 36, 16, 0.2), 0 6px 14px -4px rgba(92, 36, 16, 0.1);
-  --shadow-lg: 0 28px 56px -12px rgba(92, 36, 16, 0.24), 0 12px 24px -8px rgba(92, 36, 16, 0.12);
+  --shadow-sm: 0 2px 6px -2px rgba(107, 46, 16, 0.12);
+  --shadow: 0 8px 24px -6px rgba(107, 46, 16, 0.16), 0 3px 8px -3px rgba(107, 46, 16, 0.08);
+  --shadow-md: 0 14px 34px -8px rgba(107, 46, 16, 0.2), 0 6px 14px -4px rgba(107, 46, 16, 0.1);
+  --shadow-lg: 0 28px 56px -12px rgba(107, 46, 16, 0.24), 0 12px 24px -8px rgba(107, 46, 16, 0.12);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
   /* ===== RADII ===== */
@@ -290,9 +301,9 @@ summary {
     border: 1px solid var(--color-border-soft);
   }
   .chip-active {
-    background: var(--color-primary);
+    background: var(--color-primary-dark);
     color: var(--color-on-primary);
-    border-color: var(--color-primary);
+    border-color: var(--color-primary-dark);
     box-shadow: 0 4px 12px -4px var(--color-primary-glow);
   }
 

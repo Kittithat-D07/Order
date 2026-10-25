@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { COLORS, alpha } from "@/lib/theme";
 import { Check, Flame, Sparkles, ChefHat } from "lucide-react";
+import { ToastStack, useToasts } from "@/components/ui/toast";
 
 /* ============================================================
    👨‍🍳 KITCHEN BOARD — built for the hot line.
@@ -23,52 +23,37 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => Date.now());
-  const supabase = createClient();
+  const { toasts, toast, dismiss } = useToasts();
 
   const loadOrders = useCallback(async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
-      // Oldest first — the cook's first question is "what has been waiting longest?"
-      .order("created_at", { ascending: true })
-      .limit(200);
-
-    if (data) {
-      const all = data as unknown as OrderWithItems[];
-      const filtered = all.filter((o) => {
-        const items = o.order_items ?? [];
-        if (mode === "active") {
-          return items.some((it) => it.status !== "served" && it.status !== "cancelled");
-        }
-        return (
-          items.length > 0 && items.every((it) => it.status === "served" || it.status === "cancelled")
-        );
+    // The kitchen reads through the server. The browser no longer holds
+    // credentials that can read every order in the restaurant.
+    try {
+      const res = await fetch(`/api/staff/orders?mode=${mode}&limit=200`, {
+        cache: "no-store",
       });
-      setOrders(filtered);
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok && Array.isArray(data.orders)) {
+        setOrders(data.orders as unknown as OrderWithItems[]);
+      }
+    } catch {
+      // A dropped connection is not worth shouting about on a kitchen
+      // screen — the next poll will pick it up.
     }
     setLoading(false);
-  }, [supabase, mode]);
+  }, [mode]);
 
   useEffect(() => {
     loadOrders();
-    const channel = supabase
-      .channel(`kitchen-orders-${mode}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => loadOrders()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_items" },
-        () => loadOrders()
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, mode, loadOrders]);
+    // Poll every few seconds. Realtime cannot be used here: it evaluates
+    // RLS with the connection's JWT, not with a per-request header, so a
+    // realtime channel would either see nothing or see everything.
+    const interval = setInterval(loadOrders, 5000);
+
+    return () => clearInterval(interval);
+  }, [loadOrders]);
 
   // The age counter has to actually tick — a frozen number is worse than none.
   useEffect(() => {
@@ -77,34 +62,21 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
   }, []);
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
-    const { data: item } = await supabase
-      .from("order_items")
-      .update({ status: newStatus })
-      .eq("id", itemId)
-      .select("order_id")
-      .single();
+    // Goes through the server, which checks the staff session and derives
+    // the order's overall status itself. The browser no longer writes to
+    // the database directly with the public key.
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, status: newStatus }),
+    });
 
-    if (!item) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data?.message || "อัปเดตสถานะไม่สำเร็จ", "bad");
+      return;
+    }
 
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("status")
-      .eq("order_id", item.order_id);
-
-    if (!items) return;
-
-    const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
-    const anyStarted = items.some(
-      (i) => i.status === "preparing" || i.status === "ready" || i.status === "served"
-    );
-
-    const orderStatus: "pending" | "preparing" | "served" = allServed
-      ? "served"
-      : anyStarted
-        ? "preparing"
-        : "pending";
-
-    await supabase.from("orders").update({ status: orderStatus }).eq("id", item.order_id);
     await loadOrders();
   };
 
@@ -259,6 +231,8 @@ export function KitchenView({ mode = "active" }: { mode?: "active" | "done" }) {
           ))}
         </div>
       )}
+
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }
@@ -358,7 +332,7 @@ function OrderCard({
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <p className="font-bold text-lg flex-1 leading-tight" style={{ color: COLORS.text }}>
-                  <span style={{ color: COLORS.primary }}>{item.quantity}×</span>{" "}
+                  <span style={{ color: COLORS.primaryText }}>{item.quantity}×</span>{" "}
                   {item.menu_items?.name ?? "เมนู"}
                 </p>
                 <StatusBadge stage={stage} />
@@ -397,9 +371,9 @@ function OrderCard({
                             boxShadow: "0 6px 16px -4px rgba(63, 107, 52, 0.45)",
                           }
                         : {
-                            background: COLORS.accent,
+                            background: COLORS.accentDeep,
                             color: "#FFFFFF",
-                            boxShadow: "0 6px 16px -4px rgba(92, 36, 16, 0.45)",
+                            boxShadow: "0 6px 16px -4px rgba(102, 72, 16, 0.45)",
                           }
                   }
                   aria-label={

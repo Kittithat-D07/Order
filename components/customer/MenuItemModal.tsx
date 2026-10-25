@@ -34,7 +34,7 @@ interface MenuItemModalProps {
 const ALLERGEN_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
   nuts: { label: "ถั่ว", emoji: "🥜", color: COLORS.primaryDark },
   gluten: { label: "กลูเตน", emoji: "🌾", color: COLORS.warning },
-  dairy: { label: "นมวัว", emoji: "🥛", color: COLORS.accent },
+  dairy: { label: "นมวัว", emoji: "🥛", color: COLORS.accentDark },
   eggs: { label: "ไข่", emoji: "🥚", color: COLORS.danger },
   shellfish: { label: "อาหารทะเล", emoji: "🦐", color: COLORS.primaryDeep },
   soy: { label: "ถั่วเหลือง", emoji: "🫘", color: COLORS.accentDark },
@@ -278,7 +278,7 @@ export function MenuItemModal({
                     <Heart
                       size={18}
                       className={isFav ? "fill-current" : ""}
-                      style={{ color: isFav ? COLORS.primary : "#9A9089" }}
+                      style={{ color: isFav ? COLORS.primaryText : COLORS.textSoft }}
                     />
                   </motion.button>
                   <motion.button
@@ -304,7 +304,7 @@ export function MenuItemModal({
                     className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1"
                     style={{
                       background: "rgba(255,255,255,0.95)",
-                      color: COLORS.accent,
+                      color: COLORS.accentText,
                       backdropFilter: "blur(8px)",
                       boxShadow: "0 4px 12px -2px rgba(92, 36, 16, 0.2)",
                     }}
@@ -353,7 +353,7 @@ export function MenuItemModal({
                     <p
                       className="text-2xl sm:text-3xl font-bold shrink-0"
                       style={{
-                        color: COLORS.primary,
+                        color: COLORS.primaryText,
                         fontFamily: "'Playfair Display', serif",
                       }}
                     >
@@ -608,7 +608,7 @@ export function MenuItemModal({
                     style={{
                       background: outOfStock
                         ? COLORS.textSoft
-                        : `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.accent} 100%)`,
+                        : `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.accentDeep} 100%)`,
                       boxShadow: outOfStock
                         ? "none"
                         : "0 10px 24px -6px rgba(168, 72, 42, 0.5)",

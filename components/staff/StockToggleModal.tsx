@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { MenuItem, MenuCategory } from "@/lib/types";
 import { motion } from "framer-motion";
-import { useStaffSession } from "@/hooks/useStaffSession";
+import { createClient } from "@/lib/supabase/client";
 import { X, Package, CheckCircle2, XCircle, RefreshCw, Utensils, Search } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { useToasts } from "@/components/ui/toast";
@@ -27,7 +26,6 @@ interface Props {
  */
 export function StockToggleModal({ onClose }: Props) {
   const supabase = createClient();
-  const { session } = useStaffSession();
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,11 +46,10 @@ export function StockToggleModal({ onClose }: Props) {
 
   useEffect(() => {
     load();
-    const ch = supabase
-      .channel("stock-modal")
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Polling instead of a realtime subscription — see the note in
+    // app/kitchen/stock/page.tsx.
+    const interval = setInterval(load, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -66,17 +63,18 @@ export function StockToggleModal({ onClose }: Props) {
 
   const toggle = async (item: MenuItem) => {
     const next = !item.is_available;
-    const { error } = await supabase
-      .from("menu_items")
-      .update({
-        is_available: next,
-        marked_unavailable_at: next ? null : new Date().toISOString(),
-        marked_unavailable_by: next ? null : session?.displayName ?? "staff",
-      })
-      .eq("id", item.id);
 
-    if (error) {
-      toast("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", "bad");
+    // The write goes through the server, which checks the staff session.
+    // The browser no longer holds credentials that can change the menu.
+    const res = await fetch("/api/staff/menu", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, is_available: next }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", "bad");
     } else {
       toast(
         next ? `เปิดขาย "${item.name}" แล้ว` : `"${item.name}" หมดชั่วคราว`,

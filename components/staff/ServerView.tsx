@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
 import { OrderWithItems, OrderItemStatus, Bill, MenuItem } from "@/lib/types";
 import { formatDateTime, formatPrice } from "@/lib/utils";
 import { COLORS, alpha } from "@/lib/theme";
@@ -12,6 +11,7 @@ import { useServerName } from "@/hooks/useServerName";
 import { Utensils, Bell, Check, Volume2, Clock, X, Receipt, Plus, AlertTriangle, Package } from "lucide-react";
 import { StockToggleModal } from "./StockToggleModal";
 import { AddItemModal, BillPaymentModal } from "./AddItemModal";
+import { ToastStack, useToasts } from "@/components/ui/toast";
 
 /* ============================================================
    🌅 ORGANIC WARM - Aura Bistro Server View
@@ -25,7 +25,6 @@ export function ServerView() {
   const [showBillModal, setShowBillModal] = useState<string | null>(null);
   const [showStockModal, setShowStockModal] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const supabase = createClient();
   const { session } = useStaffSession();
   // The server's name is persisted — it used to live in component state, so it
   // was wiped on every navigation and every order went unclaimed.
@@ -34,44 +33,17 @@ export function ServerView() {
   );
   const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "online" | "offline">("connecting");
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const { toasts, toast, dismiss } = useToasts();
 
   useEffect(() => {
     loadOrders();
     loadBills();
 
-    const channel = supabase
-      .channel("server-orders-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_items" },
-        () => { loadOrders(); }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bills" },
-        () => { loadBills(); }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders" },
-        () => { loadOrders(); }
-      )
-      .subscribe((status) => {
-        let st: "connecting" | "online" | "offline" = "connecting";
-        if (status === "SUBSCRIBED") st = "online";
-        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") st = "offline";
-        setRealtimeStatus(st);
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("server-realtime-status", {
-            detail: { status: st, lastUpdate: new Date().toISOString() }
-          }));
-        }
-      });
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  useEffect(() => {
+    // Poll every few seconds. Realtime evaluates RLS with the connection's
+    // JWT rather than a per-request header, so a realtime channel would
+    // deliver nothing under the tightened policies. Polling is the honest
+    // approach, and 3 seconds is well inside what a server needs to see a
+    // new ticket.
     const interval = setInterval(() => { loadOrders(); loadBills(); }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -86,53 +58,65 @@ export function ServerView() {
   }, [lastUpdate, realtimeStatus]);
 
   const loadOrders = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select(`*, tables:table_id (*), order_items (*, menu_items (*))`)
-      .order("created_at", { ascending: false });
-    if (data) { setOrders(data as any as OrderWithItems[]); setLastUpdate(new Date()); }
+    // Staff reads go through the server, which checks the session.
+    try {
+      const res = await fetch("/api/staff/orders?mode=all", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok && Array.isArray(data.orders)) {
+        setOrders(data.orders as any as OrderWithItems[]);
+        setLastUpdate(new Date());
+      }
+    } catch {
+      // Keep the last known state; the next poll will refresh it.
+    }
   };
 
   const loadBills = async () => {
-    const { data } = await supabase
-      .from("bills").select("*").order("requested_at", { ascending: false });
-    if (data) setBills(data as Bill[]);
+    try {
+      const res = await fetch("/api/staff/bills", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok && Array.isArray(data.bills)) {
+        setBills(data.bills as Bill[]);
+      }
+    } catch {
+      // Same as above — keep what we have.
+    }
   };
 
   const updateItem = async (itemId: string, newStatus: OrderItemStatus) => {
-    const supabase = createClient();
-    const { data: item } = await supabase
-      .from("order_items")
-      .update({
-        status: newStatus,
-        served_by: newStatus === "served" ? serverName : null,
-        served_at: newStatus === "served" ? new Date().toISOString() : null,
-      })
-      .eq("id", itemId)
-      .select("order_id")
-      .single();
+    // The server handles the write, checks the staff session, and derives
+    // the order's overall status itself.
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, status: newStatus }),
+    });
 
-    if (!item) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data?.message || "อัปเดตสถานะไม่สำเร็จ", "bad");
+      return;
+    }
 
-    const { data: items } = await supabase
-      .from("order_items").select("status").eq("order_id", item.order_id);
-    if (!items) return;
-
-    const allServed = items.every((i) => i.status === "served" || i.status === "cancelled");
-    const anyPreparing = items.some((i) => i.status === "preparing" || i.status === "ready" || i.status === "served");
-
-    let orderStatus: "pending" | "preparing" | "served" = "pending";
-    if (allServed) orderStatus = "served";
-    else if (anyPreparing) orderStatus = "preparing";
-
-    await supabase.from("orders").update({ status: orderStatus }).eq("id", item.order_id);
+    await loadOrders();
   };
 
   const claimOrder = async (orderId: string) => {
-    await supabase
-      .from("orders")
-      .update({ server_name: serverName, claimed_at: new Date().toISOString() })
-      .eq("id", orderId);
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, serverName }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast(data?.message || "รับออร์เดอร์ไม่สำเร็จ", "bad");
+      return;
+    }
+
+    await loadOrders();
   };
 
   const itemsByFilter = (orderList: OrderWithItems[]) => {
@@ -251,7 +235,7 @@ export function ServerView() {
                   }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-mono font-bold text-xl" style={{ color: COLORS.primary }}>
+                    <span className="font-mono font-bold text-xl" style={{ color: COLORS.primaryText }}>
                       🧾 {bill.bill_number}
                     </span>
                     <span className="text-sm" style={{ color: COLORS.textMuted }}>
@@ -265,7 +249,7 @@ export function ServerView() {
                       </p>
                       <p className="text-sm" style={{ color: COLORS.textMuted }}>กดเพื่อดู/พิมพ์บิล</p>
                     </div>
-                    <span className="text-2xl font-bold" style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}>
+                    <span className="text-2xl font-bold" style={{ color: COLORS.primaryText, fontFamily: "'Playfair Display', serif" }}>
                       ฿{formatPrice(bill.total_amount)}
                     </span>
                   </div>
@@ -350,10 +334,10 @@ export function ServerView() {
                         >
                           <div className="flex-1">
                             <p className="text-base font-semibold" style={{ color: COLORS.text }}>
-                              <span style={{ color: COLORS.primary }}>{it.quantity}×</span> {it.menu_items?.name}
+                              <span style={{ color: COLORS.primaryText }}>{it.quantity}×</span> {it.menu_items?.name}
                             </p>
                             {it.note && (
-                              <p className="text-sm mt-1 italic" style={{ color: COLORS.accent }}>💬 {it.note}</p>
+                              <p className="text-sm mt-1 italic" style={{ color: COLORS.accentText }}>💬 {it.note}</p>
                             )}
                             {it.served_by && (
                               <p className="text-sm mt-1" style={{ color: COLORS.success }}>✓ เสริฟ์โดย {it.served_by}</p>
@@ -417,6 +401,8 @@ export function ServerView() {
       {showStockModal && (
         <StockToggleModal onClose={() => setShowStockModal(false)} />
       )}
+
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

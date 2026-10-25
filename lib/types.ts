@@ -7,6 +7,10 @@ export interface Table {
   table_number: string;
   qr_token: string;
   created_at: string;
+  /** A closed table refuses new orders (migration 2026-10-24). */
+  is_active?: boolean;
+  /** How many orders the table has — sent by /api/staff/tables. */
+  order_count?: number;
 }
 
 export interface MenuCategory {
@@ -49,6 +53,18 @@ export interface Order {
   // migration 004
   paid_at: string | null;
   session_number: number;
+  // migration 2026-10-24
+  /** Human-readable order number, e.g. "A-20261024-0007". */
+  order_number?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  payment_method?: "cash" | "transfer" | null;
+  /** What the customer actually pays: items - discount + service + vat. */
+  amount_due?: number;
+  discount_amount?: number;
+  service_charge_amount?: number;
+  vat_amount?: number;
+  cash_received?: number | null;
 }
 
 export interface OrderItem {

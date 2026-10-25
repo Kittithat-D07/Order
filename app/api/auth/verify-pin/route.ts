@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import {
+  createStaffSession,
+  revokeStaffSession,
+  getStaffSession,
+  createServerClientWithServiceRole,
+  StaffRole,
+} from "@/lib/supabase/server-auth";
 
 /**
  * Server-side PIN verification with rate limiting.
@@ -10,10 +17,14 @@ import bcrypt from "bcryptjs";
  * - Rate limit: 5 attempts / 15 min per IP+role
  * - Returns display name only on success
  * - Audit logged in staff_login_attempts
+ *
+ * On success the server issues an HttpOnly session cookie. The browser
+ * never receives the raw token, so it cannot be read or forged from
+ * JavaScript. That cookie is what authorises staff writes from here on.
  */
 
 interface Body {
-  role: "kitchen" | "server" | "admin";
+  role: StaffRole;
   pin: string;
 }
 
@@ -77,21 +88,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use anon key + RLS (public SELECT on staff_pins is allowed)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    // Read the PIN hash.
+    //
+    // The service role key is preferred: it means the hashes never need to
+    // be readable by the public anon key, which is what lets the lockdown
+    // migration remove the public SELECT policy on staff_pins. Without a
+    // service key we fall back to the anon key — the restaurant still
+    // works, but the hashes stay reachable until the key is added.
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabase = serviceKey
+      ? createServerClientWithServiceRole()
+      : createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+          { auth: { persistSession: false } }
+        );
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("[PIN VERIFY] missing env", { hasUrl: !!supabaseUrl, hasKey: !!supabaseAnonKey });
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error("[PIN VERIFY] missing env", {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      });
       return NextResponse.json(
         { ok: false, error: "server_misconfigured" },
         { status: 500 }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
 
     // Get the PIN hash + display name
     const { data, error } = await supabase
@@ -108,12 +130,23 @@ export async function POST(req: NextRequest) {
     // Verify PIN
     const ok = await bcrypt.compare(pin, data.pin_hash);
 
-    // Log attempt (success or failure)
-    await supabase.from("staff_login_attempts").insert({
-      role,
-      success: ok,
-      ip_address: ip,
-    });
+    // Log attempt (success or failure).
+    // The audit write goes through the service role client so it works
+    // whether or not the anon key has INSERT rights on the table. If the
+    // write fails the login still succeeds — auditing must never lock the
+    // kitchen out of service.
+    await createServerClientWithServiceRole()
+      .from("staff_login_attempts")
+      .insert({
+        role,
+        success: ok,
+        ip_address: ip,
+      })
+      .then(({ error: logError }) => {
+        if (logError) {
+          console.warn("[PIN VERIFY] attempt log skipped:", logError.message);
+        }
+      });
 
     if (!ok) {
       recordAttempt(rateKey);
@@ -123,9 +156,26 @@ export async function POST(req: NextRequest) {
     // Clear attempts on success
     attempts.delete(rateKey);
 
+    // Issue a real, HttpOnly session. This is the real security boundary:
+    // the staff role now lives in a signed, server-side session instead of
+    // a localStorage value anyone can edit from the console.
+    try {
+      await createStaffSession(role, data.display_name, {
+        ip,
+        userAgent: req.headers.get("user-agent") ?? undefined,
+      });
+    } catch (e) {
+      console.error("[PIN VERIFY] session creation failed:", e);
+      return NextResponse.json(
+        { ok: false, error: "session_failed" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       displayName: data.display_name,
+      role,
     });
   } catch (e: any) {
     console.error("[PIN VERIFY] error:", e?.message || e, e?.stack);
@@ -133,5 +183,35 @@ export async function POST(req: NextRequest) {
       { ok: false, error: "server_error", detail: e?.message || String(e) },
       { status: 500 }
     );
+  }
+}
+
+/** Log out — revoke the server session and clear the cookie. */
+export async function DELETE() {
+  try {
+    await revokeStaffSession();
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("[PIN VERIFY] logout error:", e?.message || e);
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+  }
+}
+
+/** Who am I? Used by the client to know whether a session is still alive. */
+export async function GET() {
+  try {
+    const session = await getStaffSession();
+    if (!session) {
+      return NextResponse.json({ ok: false, authenticated: false }, { status: 401 });
+    }
+    return NextResponse.json({
+      ok: true,
+      authenticated: true,
+      role: session.role,
+      displayName: session.displayName,
+    });
+  } catch (e: any) {
+    console.error("[PIN VERIFY] session check error:", e?.message || e);
+    return NextResponse.json({ ok: false, authenticated: false }, { status: 500 });
   }
 }

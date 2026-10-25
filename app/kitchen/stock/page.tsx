@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { MenuItem, MenuCategory } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 import { useStaffSession } from "@/hooks/useStaffSession";
 import { CheckCircle2, XCircle, AlertTriangle, RefreshCw, Sparkles, Utensils, Clock, X } from "lucide-react";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
@@ -42,11 +42,11 @@ function StockContent() {
 
   useEffect(() => {
     load();
-    const channel = supabase
-      .channel("stock-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Polling instead of a realtime subscription: the channel would need
+    // the public key to read menu_items, and polling keeps the staff
+    // screens working the same way regardless of the RLS configuration.
+    const interval = setInterval(load, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const showToast = (type: "success" | "error", msg: string) => {
@@ -57,16 +57,15 @@ function StockContent() {
   // สลับสถานะ: เปิด ↔ หมด (toggle is_available)
   const toggleStock = async (item: MenuItemWithStatus) => {
     const isAvailable = !item.is_available;
-    const { error } = await supabase
-      .from("menu_items")
-      .update({
-        is_available: isAvailable,
-        marked_unavailable_at: isAvailable ? null : new Date().toISOString(),
-        marked_unavailable_by: isAvailable ? null : session?.displayName ?? "แม่ครัว",
-      })
-      .eq("id", item.id);
 
-    if (error) {
+    // The write goes through the server, which checks the staff session.
+    const res = await fetch("/api/staff/menu", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, is_available: isAvailable }),
+    });
+
+    if (!res.ok) {
       showToast("error", "เกิดข้อผิดพลาด");
     } else {
       showToast(
@@ -97,7 +96,7 @@ function StockContent() {
   const availableCount = items.filter(i => i.is_available).length;
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-x-hidden">
+    <div className="min-h-screen bg-canvas relative overflow-x-clip">
       <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72" color="bg-brand/10" />
       <GradientBlob className="top-[40%] left-[-100px] w-72 h-72" color="bg-accent/10" delay={2} />
       <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72" color="bg-warn/10" delay={4} />

@@ -110,11 +110,14 @@ export function RoleGuard({
           </div>
           <p className="text-sm text-ink-muted mb-4">
             แต่หน้า <b>{pageName}</b> ต้องการสิทธิ์:{" "}
-            <b className="text-brand">{allowedRoles.map((r) => ROLE_LABELS[r]).join(" หรือ ")}</b>
+            <b className="text-brand-text">{allowedRoles.map((r) => ROLE_LABELS[r]).join(" หรือ ")}</b>
           </p>
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              // Await the logout so the server clears the session cookie
+              // before we navigate — otherwise the middleware would still
+              // see a valid session and bounce the user straight back.
+              await logout();
               router.push("/");
             }}
             className="w-full py-3 min-h-[48px] rounded-xl bg-bad hover:bg-bad-text text-white font-bold text-sm shadow-md flex items-center justify-center gap-2"

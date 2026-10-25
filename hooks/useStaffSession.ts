@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState, useEffect, useCallback } from "react";
 
 export type StaffRole = "kitchen" | "server" | "admin";
 
@@ -11,79 +10,79 @@ interface StaffSession {
   loggedInAt: string;
 }
 
-const STORAGE_KEY = "staff-session";
-
 /** Human-readable role names — staff must never see a raw enum. */
 export const ROLE_LABELS: Record<StaffRole, string> = {
   kitchen: "พนักงานครัว",
-  server: "พนักงานเสิร์ฟ",
+  server: "พนักงานเสริฟ์",
   admin: "ผู้จัดการ",
 };
 
+/**
+ * Staff session state.
+ *
+ * The authoritative session lives on the server as an HttpOnly cookie. This
+ * hook only mirrors what the server says, so it can be used to decide what
+ * to render — but it is never the thing that grants access. Every write
+ * goes through a server route that checks the cookie itself.
+ *
+ * The previous version kept the role in localStorage, which meant the
+ * browser was the security boundary: one console line was enough to become
+ * an admin, and the kitchen and server roles needed no PIN at all.
+ */
 export function useStaffSession() {
-  const [session, setSessionState] = useState<StaffSession | null>(null);
+  const [session, setSession] = useState<StaffSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    const syncSession = () => {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored) as StaffSession;
-          setSessionState(parsed);
-        } catch {
-          setSessionState(null);
-        }
-      } else {
-        setSessionState(null);
+  // Ask the server who we are. The cookie is HttpOnly, so this is the only
+  // way the client can learn whether it is signed in.
+  const syncSession = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/verify-pin", { cache: "no-store" });
+      if (!res.ok) {
+        setSession(null);
+        return null;
       }
-    };
-    syncSession();
-    setHydrated(true);
-
-    // Listen for changes from other tabs / same tab
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) syncSession();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+      const data = await res.json();
+      if (!data.authenticated) {
+        setSession(null);
+        return null;
+      }
+      const next: StaffSession = {
+        role: data.role,
+        displayName: data.displayName || ROLE_LABELS[data.role as StaffRole],
+        loggedInAt: new Date().toISOString(),
+      };
+      setSession(next);
+      return next;
+    } catch {
+      setSession(null);
+      return null;
+    }
   }, []);
 
-  // ตั้งค่า actor context ใน Supabase (สำหรับ audit log trigger)
-  const setActorContext = async (s: StaffSession) => {
-    try {
-      const supabase = createClient();
-      // ใช้ rpc หรือ set_config ใน query
-      // ทางที่ง่ายสุด: ใช้ header ผ่าน supabase.functions หรือ pg meta
-      // ในที่นี้เราจะส่งผ่าน localStorage แล้วให้ supabase-js ฝังตอน insert
-    } catch {}
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  // Login แบบ quick (เลือก role + ใส่ชื่อ)
-  const quickLogin = (role: StaffRole, displayName?: string) => {
-    const name =
-      displayName?.trim() ||
-      session?.displayName ||
-      ROLE_LABELS[role];
-    const newSession: StaffSession = {
-      role,
-      displayName: name,
-      loggedInAt: new Date().toISOString(),
+    (async () => {
+      await syncSession();
+      if (!cancelled) setHydrated(true);
+    })();
+
+    // Another tab signed in or out — re-check.
+    const onFocus = () => {
+      syncSession();
     };
-    setSessionState(newSession);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
-    return { ok: true };
-  };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [syncSession]);
 
-  // อัปเดตชื่อ
-  const setDisplayName = (name: string) => {
-    if (!session) return;
-    const updated = { ...session, displayName: name.trim() || ROLE_LABELS[session.role] };
-    setSessionState(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  // Login แบบ PIN — verify ผ่าน server API (bcrypt + rate limit)
+  /**
+   * Sign in with a PIN. The server verifies the PIN with bcrypt, issues the
+   * HttpOnly session cookie and returns the display name.
+   */
   const login = async (role: StaffRole, pin: string) => {
     try {
       const res = await fetch("/api/auth/verify-pin", {
@@ -92,7 +91,7 @@ export function useStaffSession() {
         body: JSON.stringify({ role, pin }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         if (res.status === 429) {
@@ -104,27 +103,40 @@ export function useStaffSession() {
         if (data.error === "role_not_found") {
           return { ok: false, error: "ไม่พบ role นี้" };
         }
+        if (data.error === "session_failed") {
+          return { ok: false, error: "เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่" };
+        }
         return { ok: false, error: "เข้าสู่ระบบไม่สำเร็จ" };
       }
 
-      const newSession: StaffSession = {
-        role,
+      const next: StaffSession = {
+        role: data.role || role,
         displayName: data.displayName || ROLE_LABELS[role],
         loggedInAt: new Date().toISOString(),
       };
-      setSessionState(newSession);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+      setSession(next);
       return { ok: true };
-    } catch (e) {
-      console.error("Login error:", e);
+    } catch {
       return { ok: false, error: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้" };
     }
   };
 
-  const logout = () => {
-    setSessionState(null);
-    localStorage.removeItem(STORAGE_KEY);
+  /** Sign out — the server revokes the session and clears the cookie. */
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/verify-pin", { method: "DELETE" });
+    } catch {
+      // The local state is cleared either way.
+    }
+    setSession(null);
   };
 
-  return { session, hydrated, login, quickLogin, setDisplayName, logout };
+  /** Update the display name shown on tickets. */
+  const setDisplayName = (name: string) => {
+    setSession((prev) =>
+      prev ? { ...prev, displayName: name.trim() || ROLE_LABELS[prev.role] } : prev
+    );
+  };
+
+  return { session, hydrated, login, setDisplayName, logout, refresh: syncSession };
 }

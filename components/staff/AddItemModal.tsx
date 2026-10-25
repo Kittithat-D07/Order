@@ -90,35 +90,29 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
   const handleSubmit = async () => {
     if (!selectedOrderId || cart.length === 0) return;
     setSubmitting(true);
-    const supabase = createClient();
 
-    const orderItemsRows = cart.map((i) => ({
-      order_id: selectedOrderId,
-      menu_item_id: i.menu_item_id,
-      quantity: i.quantity,
-      unit_price: i.price,
-      note: i.note || null,
-      subtotal: i.price * i.quantity,
-    }));
+    // The server reads the real prices and recalculates the total, so a
+    // mis-tap on the floor cannot add a dish at the wrong price.
+    const res = await fetch("/api/staff/order-items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: selectedOrderId,
+        items: cart.map((i) => ({
+          menu_item_id: i.menu_item_id,
+          quantity: i.quantity,
+          note: i.note || null,
+        })),
+      }),
+    });
 
-    const { error: itemsErr } = await supabase.from("order_items").insert(orderItemsRows);
-    if (itemsErr) {
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
       setSubmitting(false);
-      toast("เพิ่มรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
+      toast(data?.message || "เพิ่มรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
       return;
     }
-
-    // คำนวณ total ใหม่
-    const { data: allItems } = await supabase
-      .from("order_items")
-      .select("subtotal")
-      .eq("order_id", selectedOrderId);
-    const newTotal = (allItems ?? []).reduce((s, i) => s + Number(i.subtotal), 0);
-
-    await supabase
-      .from("orders")
-      .update({ total_amount: newTotal, status: "preparing" })
-      .eq("id", selectedOrderId);
 
     toast(`เพิ่มเมนูสำเร็จ ${cart.length} รายการ โดย ${serverName || "เสริฟ์"}`, "ok");
     onAdded();
@@ -137,7 +131,7 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
         {/* Header */}
         <div className="px-4 py-3 border-b border-line flex items-center justify-between bg-brand-light">
           <h3 id="add-item-title" className="font-bold text-ink flex items-center gap-2">
-            <Plus size={18} className="text-brand" aria-hidden="true" /> เพิ่มเมนูให้โต๊ะ
+            <Plus size={18} className="text-brand-text" aria-hidden="true" /> เพิ่มเมนูให้โต๊ะ
           </h3>
           <button
             onClick={onClose}
@@ -247,7 +241,7 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
                         {item.name}
                       </p>
                       {item.is_available ? (
-                        <p className="text-xs text-brand font-bold mt-1">{formatPrice(item.price)}</p>
+                        <p className="text-xs text-brand-text font-bold mt-1">{formatPrice(item.price)}</p>
                       ) : (
                         <p className="text-[10px] text-bad-text font-bold mt-1">🚫 หมด</p>
                       )}
@@ -266,7 +260,7 @@ export function AddItemModal({ orders, onClose, onAdded, serverName }: AddItemMo
                 <div className="space-y-1 mb-2 max-h-24 overflow-y-auto">
                   {cart.map((c) => (
                     <div key={c.menu_item_id} className="flex items-center gap-2 text-xs">
-                      <span className="text-brand font-bold w-6">{c.quantity}×</span>
+                      <span className="text-brand-text font-bold w-6">{c.quantity}×</span>
                       <span className="flex-1 truncate">{c.name}</span>
                       <span className="font-bold">{formatPrice(c.price * c.quantity)}</span>
                       <button
@@ -312,6 +306,9 @@ export function BillPaymentModal({
   const order = orders.find((o) => o.id === orderId);
   const [submitting, setSubmitting] = useState(false);
   const [method, setMethod] = useState<"cash" | "transfer">("cash");
+  // Cash handed over by the customer, so the staff member knows how much
+  // change to give back. Empty means "exact amount".
+  const [cashReceived, setCashReceived] = useState<string>("");
   const { toast } = useToasts();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -331,25 +328,40 @@ export function BillPaymentModal({
 
   const handlePay = async () => {
     setSubmitting(true);
-    const supabase = createClient();
 
-    // mark order ว่าจ่ายแล้ว
-    await supabase
-      .from("orders")
-      .update({
-        paid_at: new Date().toISOString(),
-        status: "served",
-      })
-      .eq("id", orderId);
+    // The server records the payment, closes the bill and returns the
+    // amount due plus the change to give back. The browser no longer
+    // writes paid_at directly.
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        method,
+        cashReceived: method === "cash" ? cashReceived || null : null,
+      }),
+    });
 
-    // mark bills ว่า printed/closed
-    await supabase
-      .from("bills")
-      .update({ printed_at: new Date().toISOString() })
-      .eq("order_id", orderId)
-      .is("printed_at", null);
+    const data = await res.json().catch(() => ({}));
 
-    toast(`รับเงิน ${total.toLocaleString()} บาท (${method === "cash" ? "เงินสด" : "โอน"}) เรียบร้อยแล้ว`, "ok");
+    if (!res.ok || !data.ok) {
+      toast(data?.message || "บันทึกการชำระเงินไม่สำเร็จ", "bad");
+      setSubmitting(false);
+      return;
+    }
+
+    const amountDue = Number(data.amountDue ?? total);
+    const change = data.change != null ? Number(data.change) : null;
+
+    if (change != null && change > 0) {
+      toast(`รับเงิน ${amountDue.toLocaleString()} บาท · ทอนกลับ ${change.toLocaleString()} บาท`, "ok");
+    } else {
+      toast(
+        `รับเงิน ${amountDue.toLocaleString()} บาท (${method === "cash" ? "เงินสด" : "โอน"}) เรียบร้อยแล้ว`,
+        "ok"
+      );
+    }
+
     onPaid();
   };
 
@@ -390,7 +402,7 @@ export function BillPaymentModal({
           <div className="max-h-40 overflow-y-auto space-y-1">
             {items.map((it) => (
               <div key={it.id} className="flex items-center gap-2 text-sm">
-                <span className="text-brand font-bold w-7">{it.quantity}×</span>
+                <span className="text-brand-text font-bold w-7">{it.quantity}×</span>
                 <span className="flex-1 truncate">{it.menu_items?.name}</span>
                 <span className="font-bold">{Number(it.subtotal).toLocaleString()}</span>
               </div>
@@ -399,7 +411,7 @@ export function BillPaymentModal({
 
           <div className="flex items-center justify-between p-3 bg-brand-light rounded-xl">
             <span className="font-bold text-ink">รวมทั้งหมด</span>
-            <span className="text-2xl font-bold text-brand">{total.toLocaleString()} ฿</span>
+            <span className="text-2xl font-bold text-brand-text">{total.toLocaleString()} ฿</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="วิธีการชำระเงิน">
@@ -419,7 +431,7 @@ export function BillPaymentModal({
               aria-pressed={method === "transfer"}
               className={`py-2.5 min-h-[44px] rounded-xl text-sm font-bold ${
                 method === "transfer"
-                  ? "bg-accent text-white shadow-md"
+                  ? "bg-accent-deep text-white shadow-md"
                   : "bg-surface-2 text-ink-muted"
               }`}
             >
@@ -427,9 +439,49 @@ export function BillPaymentModal({
             </button>
           </div>
 
+          {method === "cash" && (
+            <div className="space-y-2">
+              <label
+                htmlFor="cash-received"
+                className="block text-xs font-medium text-ink-muted"
+              >
+                ได้รับเงินสดจากลูกค้า (เว้นว่างไว้ถ้าจ่ายพอดี)
+              </label>
+              <input
+                id="cash-received"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={cashReceived}
+                onChange={(e) => setCashReceived(e.target.value)}
+                placeholder={String(total)}
+                className="w-full px-3 py-2.5 min-h-[44px] rounded-xl bg-surface-2 border border-line text-ink font-bold text-lg outline-none focus:border-brand"
+              />
+              {cashReceived !== "" && Number(cashReceived) >= total && (
+                <p className="text-sm font-bold text-ok">
+                  ทอนกลับ {(
+                    Number(cashReceived) - (order.amount_due ?? total)
+                  ).toLocaleString()}{" "}
+                  บาท
+                </p>
+              )}
+              {cashReceived !== "" && Number(cashReceived) < total && (
+                <p className="text-sm font-bold text-bad">
+                  เงินที่ได้รับยังไม่ถึงยอดที่ต้องชำระ
+                </p>
+              )}
+            </div>
+          )}
+
           <button
             onClick={handlePay}
-            disabled={submitting}
+            disabled={
+              submitting ||
+              (method === "cash" &&
+                cashReceived !== "" &&
+                Number(cashReceived) < total)
+            }
             className="w-full py-3 min-h-[48px] rounded-xl bg-brand hover:bg-brand-dark text-white font-bold text-base active:scale-95 disabled:opacity-50"
           >
             {submitting ? "กำลังบันทึก..." : `ยืนยันรับเงิน ${total.toLocaleString()} บาท`}

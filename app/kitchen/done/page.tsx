@@ -16,7 +16,7 @@ function KitchenDoneContent() {
   const { session, logout } = useStaffSession();
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-x-hidden">
+    <div className="min-h-screen bg-canvas relative overflow-x-clip">
       <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-ok/10" />
       <GradientBlob className="top-[30%] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-accent/10" delay={2} />
       <GradientBlob className="bottom-[-100px] left-[30%] w-72 h-72 sm:w-96 sm:h-96" color="bg-brand/10" delay={4} />
@@ -62,8 +62,11 @@ function KitchenDoneContent() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              // Await the logout so the server clears the session cookie
+              // before we navigate — otherwise the middleware would still
+              // see a valid session and bounce the user straight back.
+              await logout();
               router.push("/");
             }}
             className="px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-sm sm:text-xs font-medium bg-white/20 hover:bg-white/30 active:bg-white/40 text-white border border-white/30 flex items-center gap-1.5 shrink-0"

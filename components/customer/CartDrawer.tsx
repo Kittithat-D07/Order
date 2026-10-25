@@ -198,7 +198,7 @@ export function CartDrawer({
                     <div className="text-right shrink-0">
                       <div
                         className="text-lg font-bold"
-                        style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}
+                        style={{ color: COLORS.primaryText, fontFamily: "'Playfair Display', serif" }}
                       >
                         ฿{formatPrice(item.price * item.quantity)}
                       </div>
@@ -248,7 +248,7 @@ export function CartDrawer({
                         style={{ boxShadow: "var(--shadow-sm)" }}
                         aria-label={`ลดจำนวน ${item.name}`}
                       >
-                        <Minus size={14} style={{ color: COLORS.primary }} />
+                        <Minus size={14} style={{ color: COLORS.primaryText }} />
                       </motion.button>
                       <motion.span
                         key={item.quantity}
@@ -348,7 +348,7 @@ export function CartDrawer({
               key={total}
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="text-4xl text-brand"
+              className="text-4xl text-brand-text"
               style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700 }}
             >
               ฿{formatPrice(total)}

@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { requireStaff, apiError } from "@/lib/api/staff-guard";
+import { createServerClientWithServiceRole } from "@/lib/supabase/server-auth";
 
 /**
  * Inventory endpoint: list low-stock + allow stock updates.
  * Auto-marks item as unavailable when stock reaches 0.
+ *
+ * The stock write requires a staff session. Previously any anonymous
+ * request could set the stock of any dish to any number.
  */
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const guard = await requireStaff(req, ["kitchen", "server", "admin"]);
+  if (!guard.ok) return guard.response;
+
   try {
-    const supabase = createClient();
+    const supabase = createServerClientWithServiceRole();
     const { data, error } = await supabase
       .from("menu_items")
       .select("id, name, stock_count, low_stock_threshold, is_available, categories:category_id(name)")
       .order("stock_count", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return apiError("โหลดข้อมูลสต็อกไม่สำเร็จ", 500, "db_error");
     }
 
     const lowStock = (data || []).filter(
@@ -30,39 +37,47 @@ export async function GET() {
       total: data?.length ?? 0,
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    console.error("[INVENTORY] error:", e?.message || e);
+    return apiError("เกิดข้อผิดพลาด", 500, "server_error");
   }
 }
 
 export async function PATCH(req: NextRequest) {
+  const guard = await requireStaff(req, ["kitchen", "server", "admin"]);
+  if (!guard.ok) return guard.response;
+
   try {
     const { itemId, stock_count } = await req.json();
+
     if (!itemId || typeof stock_count !== "number" || stock_count < 0) {
-      return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
+      return apiError("ข้อมูลไม่ถูกต้อง", 400, "invalid_input");
     }
 
-    const supabase = createClient();
-    // Auto-mark unavailable when stock = 0
-    const is_available = stock_count > 0;
+    const supabase = createServerClientWithServiceRole();
+
+    // Auto-mark unavailable when stock = 0.
+    const isAvailable = stock_count > 0;
 
     const { data, error } = await supabase
       .from("menu_items")
       .update({
         stock_count,
-        is_available,
-        marked_unavailable_at: is_available ? null : new Date().toISOString(),
-        marked_unavailable_by: is_available ? null : "auto-stock",
+        is_available: isAvailable,
+        marked_unavailable_at: isAvailable ? null : new Date().toISOString(),
+        marked_unavailable_by: isAvailable ? null : guard.identity.displayName,
       })
       .eq("id", itemId)
       .select()
       .single();
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      console.error("[INVENTORY] update failed:", error.message);
+      return apiError("อัปเดตสต็อกไม่สำเร็จ", 500, "db_error");
     }
 
     return NextResponse.json({ ok: true, item: data });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    console.error("[INVENTORY] error:", e?.message || e);
+    return apiError("เกิดข้อผิดพลาด", 500, "server_error");
   }
 }

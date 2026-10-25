@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { BlurFade, GradientBlob, FloatingElement, PulseDot } from "@/components/ui/magic-effects";
 import { BottomTabBar } from "@/components/ui/bottom-tab-bar";
@@ -25,7 +24,6 @@ interface HistoryEntry {
 }
 
 function HistoryContent() {
-  const supabase = createClient();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterAction, setFilterAction] = useState<string>("all");
@@ -34,22 +32,26 @@ function HistoryContent() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("menu_item_history")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(200);
-    setEntries((data ?? []) as HistoryEntry[]);
+    // The audit trail is staff-only, so it comes through the server.
+    try {
+      const res = await fetch("/api/staff/history?limit=200", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && Array.isArray(data.entries)) {
+        setEntries(data.entries as HistoryEntry[]);
+      }
+    } catch {
+      // Keep whatever we already have.
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-    const channel = supabase
-      .channel("history-changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "menu_item_history" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Polling rather than realtime: the audit trail is no longer publicly
+    // readable, and realtime evaluates RLS with the connection's JWT.
+    const interval = setInterval(load, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = entries.filter(e => {
@@ -71,7 +73,7 @@ function HistoryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-x-hidden">
+    <div className="min-h-screen bg-canvas relative overflow-x-clip">
       <GradientBlob className="top-[-150px] right-[-100px] w-72 h-72" color="bg-brand/10" />
       <GradientBlob className="top-[40%] left-[-100px] w-72 h-72" color="bg-accent/10" delay={2} />
       <GradientBlob className="bottom-[-100px] right-[30%] w-72 h-72" color="bg-warn/10" delay={4} />
@@ -80,7 +82,7 @@ function HistoryContent() {
         <History className="w-6 h-6 text-brand/40" />
       </FloatingElement>
 
-      <header className="sticky top-0 z-30 bg-gradient-to-r from-brand via-accent to-brand-dark text-white shadow-lg shadow-brand/20">
+      <header className="sticky top-0 z-30 bg-gradient-to-r from-brand via-accent-deep to-brand-dark text-white shadow-lg shadow-brand/20">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 pb-2.5 pt-2 flex items-center justify-between gap-2">
           <BlurFade delay={0.1}>
             <div className="flex items-center gap-2.5 min-w-0">
@@ -155,7 +157,7 @@ function HistoryContent() {
                 aria-pressed={filterAction === f.id}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
                   filterAction === f.id
-                    ? "bg-gradient-to-r from-brand to-accent text-white shadow-md"
+                    ? "bg-gradient-to-r from-brand to-accent-deep text-white shadow-md"
                     : f.color
                 }`}
               >

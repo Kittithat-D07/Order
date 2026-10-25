@@ -41,14 +41,14 @@ const ITEM_STATUS_CONFIG: Record<
   },
   preparing: {
     label: "กำลังทำ",
-    color: COLORS.primary,
+    color: COLORS.primaryText,
     bg: COLORS.primaryLight,
     border: COLORS.primary,
     emoji: "🔥",
   },
   ready: {
     label: "พร้อมเสิร์ฟ",
-    color: COLORS.accent,
+    color: COLORS.accentText,
     bg: COLORS.accentLight,
     border: COLORS.accent,
     emoji: "✨",
@@ -81,83 +81,55 @@ export default function BillPage() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadOrder = useCallback(async (silent = false) => {
-    const supabase = createClient();
-    const { data: orderData, error: orderErr } = await supabase
-      .from("orders")
-      .select("*, order_items(*, menu_items(*)), tables(*)")
-      .eq("id", orderId)
-      .single();
+    // The bill is a staff screen, so it reads through the server, which
+    // checks the staff session before returning anything.
+    try {
+      const res = await fetch(`/api/staff/orders?id=${orderId}`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
 
-    if (orderErr || !orderData) {
-      if (!silent) setError("ไม่พบออร์เดอร์");
-      return;
+      if (!res.ok || !data.ok) {
+        if (!silent) setError("ไม่พบออร์เดอร์");
+        return;
+      }
+
+      setOrder(data.order as OrderWithItems);
+      if (data.bill) setBill(data.bill as Bill);
+    } catch {
+      if (!silent) setError("ไม่สามารถโหลดข้อมูลบิลได้");
     }
-    setOrder(orderData as OrderWithItems);
   }, [orderId]);
 
   useEffect(() => {
-    const supabase = createClient();
-
     const load = async () => {
       await loadOrder(true);
-      const { data: billData } = await supabase
-        .from("bills").select("*").eq("order_id", orderId).maybeSingle();
-      if (billData) setBill(billData as Bill);
       setLoading(false);
     };
 
     load();
 
-    const orderChannel = supabase
-      .channel(`bill-order-${orderId}`)
-      .on("postgres_changes", {
-        event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}`,
-      }, (payload) => {
-        setOrder((prev) => prev ? ({ ...prev, ...payload.new } as OrderWithItems) : prev);
-      })
-      .subscribe();
-
-    const itemsChannel = supabase
-      .channel(`bill-items-${orderId}`)
-      .on("postgres_changes", {
-        event: "*", schema: "public", table: "order_items",
-      }, (payload) => {
-        const newItem = payload.new as { order_id?: string };
-        const oldItem = payload.old as { order_id?: string };
-        if (newItem?.order_id === orderId || oldItem?.order_id === orderId) {
-          loadOrder(true);
-        }
-      })
-      .subscribe();
-
-    const billChannel = supabase
-      .channel(`bill-${orderId}`)
-      .on("postgres_changes", {
-        event: "*", schema: "public", table: "bills", filter: `order_id=eq.${orderId}`,
-      }, (payload) => {
-        if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-          setBill(payload.new as Bill);
-        }
-      })
-      .subscribe();
-
+    // Poll rather than subscribe. Realtime evaluates RLS with the
+    // connection's JWT, not with a per-request header, so a realtime
+    // channel would deliver nothing under the tightened policies.
     pollIntervalRef.current = setInterval(() => loadOrder(true), 5000);
 
     return () => {
-      supabase.removeChannel(orderChannel);
-      supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(billChannel);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, [orderId, loadOrder]);
 
   const handlePrint = async () => {
     if (bill && !bill.printed_at) {
-      const supabase = createClient();
-      await supabase
-        .from("bills")
-        .update({ printed_at: new Date().toISOString() })
-        .eq("id", bill.id);
+      // Marking the bill as printed is a write — it goes through the server,
+      // which checks the staff session.
+      await fetch("/api/staff/bills", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billId: bill.id }),
+      }).catch(() => {
+        // A failed print mark should not block the actual printing.
+      });
     }
     window.print();
   };
@@ -173,7 +145,7 @@ export default function BillPage() {
           🍳
         </motion.div>
         <div className="text-center">
-          <p className="text-2xl text-brand font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand-text font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             Aura Bistro
           </p>
           <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
@@ -198,7 +170,7 @@ export default function BillPage() {
           }}
         >
           <div className="text-7xl mb-4 animate-sway">🌿</div>
-          <p className="text-2xl text-brand font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand-text font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             เกิดข้อผิดพลาด
           </p>
           <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
@@ -279,10 +251,10 @@ export default function BillPage() {
           transition={{ delay: 0.1 }}
           className="text-center mb-6"
         >
-          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: COLORS.accent }}>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: COLORS.accentText }}>
             ✨ Welcome to
           </p>
-          <h1 className="text-4xl text-brand" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}>
+          <h1 className="text-4xl text-brand-text" style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}>
             Aura Bistro
           </h1>
           <h2 className="text-2xl" style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: COLORS.text }}>
@@ -362,14 +334,14 @@ export default function BillPage() {
             {/* Status summary */}
             <div className="no-print mb-4">
               <h4 className="text-sm font-bold mb-2.5 flex items-center gap-2" style={{ color: COLORS.text }}>
-                <Star size={14} style={{ color: COLORS.accent }} />
+                <Star size={14} style={{ color: COLORS.accentText }} />
                 สถานะอาหาร ({totalItems} รายการ)
               </h4>
               <div className="grid grid-cols-5 gap-1.5 text-center">
                 {[
-                  { key: "pending", label: "รอ", emoji: "🌿", bg: COLORS.secondaryLight, color: COLORS.secondary },
-                  { key: "preparing", label: "ทำ", emoji: "🔥", bg: COLORS.primaryLight, color: COLORS.primary },
-                  { key: "ready", label: "ส่ง", emoji: "✨", bg: COLORS.accentLight, color: COLORS.accent },
+                  { key: "pending", label: "รอ", emoji: "🌿", bg: COLORS.secondaryLight, color: COLORS.secondaryText },
+                  { key: "preparing", label: "ทำ", emoji: "🔥", bg: COLORS.primaryLight, color: COLORS.primaryText },
+                  { key: "ready", label: "ส่ง", emoji: "✨", bg: COLORS.accentLight, color: COLORS.accentText },
                   { key: "served", label: "เสร็จ", emoji: "🌟", bg: COLORS.successLight, color: COLORS.successText },
                   { key: "cancelled", label: "ยกเลิก", emoji: "🍂", bg: COLORS.surface3, color: COLORS.textMuted },
                 ].map(({ key, label, emoji, bg, color }) => {
@@ -463,7 +435,7 @@ export default function BillPage() {
                           </span>
                         </div>
                         {item.note && (
-                          <p className="text-[10px] mt-1.5 px-2 py-1 rounded-lg italic" style={{ background: "white", color: COLORS.accent }}>
+                          <p className="text-[10px] mt-1.5 px-2 py-1 rounded-lg italic" style={{ background: "white", color: COLORS.accentText }}>
                             💬 {item.note}
                           </p>
                         )}
@@ -493,7 +465,7 @@ export default function BillPage() {
                   animate={{ scale: 1 }}
                   className="text-right"
                 >
-                  <p className="text-4xl font-bold text-brand" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <p className="text-4xl font-bold text-brand-text" style={{ fontFamily: "'Playfair Display', serif" }}>
                     ฿{formatPrice(order.total_amount)}
                   </p>
                 </motion.div>
@@ -506,7 +478,7 @@ export default function BillPage() {
                 🙏 ขอบคุณที่ใช้บริการ
               </p>
               <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>Thank you for your visit</p>
-              <p className="text-xs mt-2" style={{ color: COLORS.secondary }}>🌿 Aura Bistro • Thai Garden Kitchen</p>
+              <p className="text-xs mt-2" style={{ color: COLORS.secondaryText }}>🌿 Aura Bistro • Thai Garden Kitchen</p>
             </div>
           </div>
         </motion.div>

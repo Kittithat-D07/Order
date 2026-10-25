@@ -65,28 +65,47 @@ function AdminMenuContent() {
 
   const addCategory = async () => {
     if (!newCategoryName.trim()) return;
-    const supabase = createClient();
-    await supabase.from("menu_categories").insert({
-      name: newCategoryName.trim(),
-      display_order: categories.length,
+
+    const res = await fetch("/api/staff/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCategoryName.trim() }),
     });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      toast(data?.message || "เพิ่มหมวดหมู่ไม่สำเร็จ", "bad");
+      return;
+    }
+
     setNewCategoryName("");
     load();
   };
 
   const deleteCategory = async (id: string) => {
     if (!confirm("ลบหมวดนี้? เมนูในหมวดจะถูกลบไปด้วย")) return;
-    const supabase = createClient();
-    await supabase.from("menu_categories").delete().eq("id", id);
+
+    const res = await fetch(`/api/staff/categories?id=${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      toast(data?.message || "ลบหมวดหมู่ไม่สำเร็จ", "bad");
+      return;
+    }
+
+    if (data.deletedItems > 0) {
+      toast(`ลบหมวดหมู่แล้ว พร้อมเมนู ${data.deletedItems} รายการ`, "ok");
+    }
     load();
   };
 
   const saveItem = async () => {
     if (!editingItem) return;
-    const supabase = createClient();
+
     const payload = {
-      category_id: editingItem.category_id,
+      id: editingItem.id,
       name: editingItem.name,
+      category_id: editingItem.category_id,
       description: editingItem.description ?? null,
       price: Number(editingItem.price),
       image_url: editingItem.image_url ?? null,
@@ -94,38 +113,51 @@ function AdminMenuContent() {
       display_order: editingItem.display_order ?? 0,
     };
 
-    if (editingItem.id) {
-      await supabase.from("menu_items").update(payload).eq("id", editingItem.id);
-    } else {
-      await supabase.from("menu_items").insert(payload);
+    const res = await fetch("/api/staff/menu", {
+      method: editingItem.id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      toast(data?.message || "บันทึกเมนูไม่สำเร็จ", "bad");
+      return;
     }
+
     setEditingItem(null);
     load();
   };
 
   const deleteItem = async (id: string) => {
     if (!confirm("ลบเมนูนี้?")) return;
-    const supabase = createClient();
-    await supabase.from("menu_items").delete().eq("id", id);
+
+    const res = await fetch(`/api/staff/menu?id=${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      toast(data?.message || "ลบเมนูไม่สำเร็จ", "bad");
+      return;
+    }
+
+    toast("ลบเมนูแล้ว", "ok");
     load();
   };
 
   const toggleAvailable = async (item: MenuItem) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("menu_items")
-        .update({
-          is_available: !item.is_available,
-          marked_unavailable_at: item.is_available ? new Date().toISOString() : null,
-          marked_unavailable_by: item.is_available ? "⚙️ ผู้จัดการ" : null,
-        })
-        .eq("id", item.id);
+      const res = await fetch("/api/staff/menu", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, is_available: !item.is_available }),
+      });
 
-      if (error) {
-        toast("เปลี่ยนสถานะเมนูไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        toast(data?.message || "เปลี่ยนสถานะเมนูไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
         return;
       }
+
       toast(
         item.is_available
           ? `ปิด "${item.name}" ชั่วคราว — ลูกค้าจะสั่งไม่ได้`
@@ -146,7 +178,7 @@ function AdminMenuContent() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-2xl shadow-brand/30"
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center shadow-2xl shadow-brand/30"
         >
           <Utensils className="text-white" size={28} />
         </motion.div>
@@ -155,7 +187,7 @@ function AdminMenuContent() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-hidden">
+    <div className="min-h-screen bg-canvas relative overflow-x-clip">
       {/* Background blobs */}
       <GradientBlob className="top-[-100px] right-[-100px]" color="bg-brand/10" />
       <GradientBlob className="top-[40%] left-[-100px]" color="bg-accent/10" delay={3} />
@@ -182,7 +214,7 @@ function AdminMenuContent() {
               <motion.div
                 animate={{ y: [0, -3, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md shadow-brand/30"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center shadow-md shadow-brand/30"
               >
                 <ChefHat size={18} className="text-white" />
               </motion.div>
@@ -242,7 +274,7 @@ function AdminMenuContent() {
                 />
                 <Button
                   onClick={addCategory}
-                  className="bg-gradient-to-r from-brand to-accent hover:from-brand-dark hover:to-accent-dark shadow-md shadow-brand/30"
+                  className="bg-gradient-to-r from-brand to-accent-deep hover:from-brand-dark hover:to-accent-deep shadow-md shadow-brand/30"
                 >
                   <Plus size={16} />
                 </Button>
@@ -257,7 +289,7 @@ function AdminMenuContent() {
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold flex items-center gap-2">
-                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-brand to-accent" />
+                  <span className="w-1 h-5 rounded-full bg-gradient-to-b from-brand to-accent-deep" />
                   รายการอาหาร
                 </h2>
                 <Button
@@ -296,7 +328,7 @@ function AdminMenuContent() {
                             className="w-full h-full object-cover rounded-lg"
                           />
                         ) : (
-                          <ImageIcon size={20} className="text-brand" />
+                          <ImageIcon size={20} className="text-brand-text" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -368,7 +400,7 @@ function AdminMenuContent() {
               className="bg-white rounded-2xl p-6 w-full max-w-md space-y-3 shadow-2xl"
             >
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center shadow-md">
                   {editingItem.id ? (
                     <Edit2 className="w-5 h-5 text-white" />
                   ) : (
@@ -448,7 +480,7 @@ function AdminMenuContent() {
                 <Button
                   onClick={saveItem}
                   disabled={!editingItem.name || !editingItem.price}
-                  className="bg-gradient-to-r from-brand to-accent hover:from-brand-dark hover:to-accent-dark shadow-md shadow-brand/30"
+                  className="bg-gradient-to-r from-brand to-accent-deep hover:from-brand-dark hover:to-accent-deep shadow-md shadow-brand/30"
                 >
                   <Save size={14} className="mr-1" /> บันทึก
                 </Button>

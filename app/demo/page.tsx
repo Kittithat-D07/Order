@@ -21,8 +21,8 @@ import Link from "next/link";
 ============================================================ */
 
 const STATUS_CONFIG = {
-  pending: { color: COLORS.primary, label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์", emoji: "🌿" },
-  preparing: { color: COLORS.primary, label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ", emoji: "🍳" },
+  pending: { color: COLORS.primaryText, label: "รอยืนยัน", desc: "ร้านกำลังตรวจสอบออร์เดอร์", emoji: "🌿" },
+  preparing: { color: COLORS.primaryText, label: "กำลังทำ", desc: "เชฟกำลังทำอาหารให้คุณ", emoji: "🍳" },
   served: { color: COLORS.success, label: "เสิร์ฟแล้ว", desc: "อาหารถูกเสิร์ฟแล้ว 🍽️", emoji: "✨" },
   cancelled: { color: COLORS.textMuted, label: "ยกเลิก", desc: "ออร์เดอร์ถูกยกเลิก", emoji: "🍂" },
 };
@@ -103,11 +103,11 @@ export default function DemoPage() {
           transition={{ delay: 0.1 }}
           className="text-center mb-8"
         >
-          <p className="text-xs uppercase tracking-[0.3em] mb-2 font-semibold" style={{ color: COLORS.accent }}>
+          <p className="text-xs uppercase tracking-[0.3em] mb-2 font-semibold" style={{ color: COLORS.accentText }}>
             ✨ Welcome to
           </p>
           <h1
-            className="text-6xl text-brand leading-none mb-1"
+            className="text-6xl text-brand-text leading-none mb-1"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}
           >
             Aura
@@ -175,7 +175,7 @@ export default function DemoPage() {
           }}
         >
           <h3 className="font-bold mb-4 flex items-center gap-2 text-base" style={{ color: COLORS.text }}>
-            <Utensils size={18} style={{ color: COLORS.primary }} />
+            <Utensils size={18} style={{ color: COLORS.primaryText }} />
             รายการอาหาร
           </h3>
           <div className="space-y-3">
@@ -196,7 +196,7 @@ export default function DemoPage() {
                   <p className="font-semibold" style={{ color: COLORS.text }}>{item.menu_items.name}</p>
                   <p className="text-sm" style={{ color: COLORS.textMuted }}>×{item.quantity}</p>
                 </div>
-                <p className="font-bold text-lg" style={{ color: COLORS.primary, fontFamily: "'Playfair Display', serif" }}>
+                <p className="font-bold text-lg" style={{ color: COLORS.primaryText, fontFamily: "'Playfair Display', serif" }}>
                   ฿{(item.menu_items.price * item.quantity).toLocaleString()}
                 </p>
               </motion.div>

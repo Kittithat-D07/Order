@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChefHat, Utensils, Settings, ArrowRight, Lock, X } from "lucide-react";
-import { useStaffSession, StaffRole } from "@/hooks/useStaffSession";
+import { useStaffSession, StaffRole, ROLE_LABELS } from "@/hooks/useStaffSession";
 import { useRouter } from "next/navigation";
 import { COLORS } from "@/lib/theme";
 
@@ -26,7 +26,7 @@ const roleOptions: RoleOption[] = [
     role: "kitchen",
     icon: ChefHat,
     title: "พนักงานครัว",
-    subtitle: "ดูออร์เดอร์ที่เข้าครัว ทำอาหาร",
+    subtitle: "ดูออร์เดอร์ที่เข้าครัว ทำอาหาร (ต้องใส่ PIN)",
     gradient: COLORS.primary,
     emoji: "👨‍🍳",
     bgGradient: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${COLORS.accentLight} 100%)`,
@@ -35,7 +35,7 @@ const roleOptions: RoleOption[] = [
     role: "server",
     icon: Utensils,
     title: "พนักงานเสิร์ฟ",
-    subtitle: "รับออร์เดอร์ เสิร์ฟอาหาร",
+    subtitle: "รับออร์เดอร์ เสิร์ฟอาหาร (ต้องใส่ PIN)",
     gradient: COLORS.secondary,
     emoji: "🍽️",
     bgGradient: `linear-gradient(135deg, ${COLORS.secondaryLight} 0%, ${COLORS.primaryLight} 100%)`,
@@ -45,7 +45,7 @@ const roleOptions: RoleOption[] = [
     icon: Settings,
     title: "ผู้จัดการ",
     subtitle: "จัดการเมนู โต๊ะ รายงาน (ต้องใส่ PIN)",
-    gradient: COLORS.accent,
+    gradient: COLORS.accentDeep,
     emoji: "👔",
     bgGradient: `linear-gradient(135deg, ${COLORS.accentLight} 0%, ${COLORS.secondaryLight} 100%)`,
   },
@@ -53,9 +53,10 @@ const roleOptions: RoleOption[] = [
 
 export default function HomePage() {
   const router = useRouter();
-  const { quickLogin, login, session, hydrated } = useStaffSession();
+  const { login, session, hydrated } = useStaffSession();
   const [loading, setLoading] = useState<StaffRole | null>(null);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [pinRole, setPinRole] = useState<StaffRole>("admin");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [pinLoading, setPinLoading] = useState(false);
@@ -75,24 +76,13 @@ export default function HomePage() {
   }, [hydrated, session, router]);
 
   const handleSelectRole = async (role: StaffRole) => {
-    if (role === "admin") {
-      setShowPinModal(true);
-      setPin("");
-      setPinError("");
-      return;
-    }
-
-    setLoading(role);
-    quickLogin(role);
-
-    setTimeout(() => {
-      const roleMap: Record<StaffRole, string> = {
-        kitchen: "/kitchen",
-        server: "/server",
-        admin: "/admin",
-      };
-      router.push(roleMap[role]);
-    }, 300);
+    // Every role needs a PIN. The kitchen and server used to sign in with
+    // one tap and no secret at all, which meant anyone who found a phone on
+    // the counter could change the menu and close bills.
+    setPinRole(role);
+    setShowPinModal(true);
+    setPin("");
+    setPinError("");
   };
 
   const handlePinSubmit = async () => {
@@ -102,7 +92,7 @@ export default function HomePage() {
     }
     setPinLoading(true);
     setPinError("");
-    const result = await login("admin", pin);
+    const result = await login(pinRole, pin);
     if (!result.ok) {
       setPinError(result.error || "PIN ไม่ถูกต้อง");
       setPin("");
@@ -111,12 +101,21 @@ export default function HomePage() {
     }
     setShowPinModal(false);
     setPinLoading(false);
-    router.push("/admin");
+
+    const roleMap: Record<StaffRole, string> = {
+      kitchen: "/kitchen",
+      server: "/server",
+      admin: "/admin",
+    };
+    router.push(roleMap[pinRole]);
   };
 
   const handlePinKeyPress = (digit: string) => {
-    if (pin.length >= 6) return;
-    setPin((prev) => prev + digit);
+    // The length check lives inside the updater so it always sees the
+    // latest value. Reading `pin.length` from the render closure would go
+    // stale when two keypad presses land before React re-renders, and the
+    // PIN could grow past six digits.
+    setPin((prev) => (prev.length >= 6 ? prev : prev + digit));
     setPinError("");
   };
 
@@ -134,12 +133,21 @@ export default function HomePage() {
         setShowPinModal(false);
         return;
       }
+      if (e.key === "Enter") {
+        handlePinSubmit();
+        return;
+      }
+
+      // Digits typed into the field are already handled by the input's own
+      // onChange. Handling them here as well would count every keystroke
+      // twice — typing "0" would enter "00" and the PIN would never match.
+      const target = e.target as HTMLElement | null;
+      if (target && target.id === "pin-input") return;
+
       if (/^[0-9]$/.test(e.key)) {
         handlePinKeyPress(e.key);
       } else if (e.key === "Backspace") {
         handlePinDelete();
-      } else if (e.key === "Enter") {
-        handlePinSubmit();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -209,17 +217,17 @@ export default function HomePage() {
             transition={{ type: "spring", duration: 0.8, stiffness: 200 }}
             className="w-24 h-24 mx-auto mb-5 rounded-full flex items-center justify-center text-6xl"
             style={{ 
-              background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.accent} 50%, ${COLORS.secondary} 100%)`,
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.accentDeep} 50%, ${COLORS.secondary} 100%)`,
               boxShadow: "0 20px 60px -10px rgba(184, 92, 56, 0.4)"
             }}
           >
             🍜
           </motion.div>
-          <p className="text-xs uppercase tracking-[0.3em] font-bold mb-2" style={{ color: COLORS.accent }}>
+          <p className="text-xs uppercase tracking-[0.3em] font-bold mb-2" style={{ color: COLORS.accentText }}>
             ✨ Welcome to
           </p>
           <h1
-            className="text-5xl text-brand mb-1"
+            className="text-5xl text-brand-text mb-1"
             style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontStyle: "italic" }}
           >
             Aura Bistro
@@ -279,7 +287,7 @@ export default function HomePage() {
                         {option.title}
                       </h3>
                       {option.role === "admin" && (
-                        <Lock size={14} style={{ color: COLORS.accent }} />
+                        <Lock size={14} style={{ color: COLORS.accentText }} />
                       )}
                     </div>
                     <p className="text-sm" style={{ color: COLORS.textMuted }}>
@@ -333,7 +341,7 @@ export default function HomePage() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)` }}
+                    style={{ background: `linear-gradient(135deg, ${COLORS.accentDeep} 0%, ${COLORS.primary} 100%)` }}
                   >
                     <Lock size={20} className="text-white" aria-hidden="true" />
                   </div>
@@ -342,7 +350,7 @@ export default function HomePage() {
                     className="text-xl font-bold"
                     style={{ color: COLORS.text, fontFamily: "'Playfair Display', serif" }}
                   >
-                    ใส่ PIN ผู้จัดการ
+                    ใส่ PIN {ROLE_LABELS[pinRole]}
                   </h2>
                 </div>
                 <motion.button
@@ -358,7 +366,7 @@ export default function HomePage() {
               </div>
 
               <p id="pin-modal-desc" className="text-sm text-center mb-4" style={{ color: COLORS.textMuted }}>
-                กรอก PIN 4-6 หลักของผู้จัดการ
+                กรอก PIN 4-6 หลักของ{ROLE_LABELS[pinRole]}
               </p>
 
               {/* PIN dots — hidden from AT, the text field below carries the value */}
@@ -368,7 +376,7 @@ export default function HomePage() {
                     key={i}
                     animate={{
                       scale: pin.length > i ? 1.3 : 1,
-                      backgroundColor: pin.length > i ? COLORS.accent : "#e8dfd0",
+                      backgroundColor: pin.length > i ? COLORS.accentDeep : COLORS.surface3,
                     }}
                     className="w-4 h-4 rounded-full"
                     transition={{ type: "spring", stiffness: 400 }}
@@ -378,7 +386,7 @@ export default function HomePage() {
 
               {/* Real input so the PIN is announced, masked, and pasteable */}
               <label htmlFor="pin-input" className="sr-only">
-                PIN ผู้จัดการ
+                PIN {ROLE_LABELS[pinRole]}
               </label>
               <input
                 id="pin-input"
@@ -404,7 +412,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center text-sm mb-3 outline-none"
-                  style={{ color: "#A03826" }}
+                  style={{ color: COLORS.dangerText }}
                   role="alert"
                 >
                   {pinError}
@@ -470,10 +478,10 @@ export default function HomePage() {
                 className="w-full py-4 min-h-[56px] rounded-2xl text-white font-semibold text-lg disabled:opacity-50"
                 style={{
                   background: pin.length >= 4
-                    ? `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`
+                    ? `linear-gradient(135deg, ${COLORS.accentDeep} 0%, ${COLORS.primary} 100%)`
                     : COLORS.textMuted,
                   boxShadow: pin.length >= 4
-                    ? "0 12px 28px -6px rgba(200, 147, 47, 0.5)"
+                    ? "0 12px 28px -6px rgba(102, 72, 16, 0.5)"
                     : "none"
                 }}
               >
@@ -481,7 +489,7 @@ export default function HomePage() {
               </motion.button>
 
               <p className="text-center text-xs mt-3" style={{ color: COLORS.textMuted }}>
-                🔒 เฉพาะผู้จัดการเท่านั้น
+                🔒 เฉพาะพนักงาน{ROLE_LABELS[pinRole]}เท่านั้น
               </p>
             </motion.div>
           </motion.div>

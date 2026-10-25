@@ -111,18 +111,26 @@ function MenuContent() {
     const supabase = createClient();
     (async () => {
       try {
-        const { data: tableData, error: tableErr } = await supabase
-          .from("tables")
-          .select("*")
-          .eq("qr_token", token)
-          .single();
-        if (tableErr || !tableData) {
+        // The table is resolved on the server: the QR token is what scopes
+        // the customer's order to their table, so the browser does not need
+        // to read the tables table itself.
+        const tableRes = await fetch(
+          `/api/customer/table?token=${encodeURIComponent(token)}`,
+          { cache: "no-store" }
+        );
+        const tableData = await tableRes.json().catch(() => ({}));
+
+        if (!tableRes.ok || !tableData.ok) {
           setError("QR Code ไม่ถูกต้องหรือโต๊ะนี้ถูกลบไปแล้ว");
           setLoading(false);
           return;
         }
-        setTable(tableData);
-        setTableInCart(tableData.id, tableData.table_number);
+
+        const table = tableData.table as Table;
+        setTable(table);
+        // The token is kept in the cart: it is the customer's proof of being
+        // at this table, and the order page needs it to read the order back.
+        setTableInCart(table.id, table.table_number, token);
 
         const [catRes, itemRes] = await Promise.all([
           supabase
@@ -216,115 +224,47 @@ function MenuContent() {
     // orders and the customer is charged twice.
     if (submitting) return;
     setSubmitting(true);
-    const supabase = createClient();
-    const total = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
-    const { data: lastOrder } = await supabase
-      .from("orders")
-      .select("id, paid_at, session_number, status")
-      .eq("table_id", table.id)
-      .order("session_number", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // The order goes through the server. It reads the real prices, checks
+    // stock, and calculates the total — the browser never sends a price and
+    // never decides what the order costs.
+    //
+    // The table's QR token identifies the table. The server resolves it to
+    // the table id itself, so an order can only ever land on the table the
+    // customer is actually sitting at.
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: token,
+          items: cartItems.map((i) => ({
+            menu_item_id: i.menu_item_id,
+            quantity: i.quantity,
+            note: i.note || null,
+          })),
+        }),
+      });
 
-    // Adding to an open order — tell the customer exactly what is already there
-    if (lastOrder && !lastOrder.paid_at && lastOrder.status !== "cancelled") {
-      const { data: existingItems } = await supabase
-        .from("order_items")
-        .select("quantity, menu_items:menu_item_id(name)")
-        .eq("order_id", lastOrder.id);
+      const data = await res.json();
 
-      const existingSummary =
-        existingItems && existingItems.length > 0
-          ? existingItems
-              .map((it: any) => {
-                const name = it.menu_items?.name ?? "เมนู";
-                return `${it.quantity}× ${name}`;
-              })
-              .join(", ")
-          : "ยังไม่มีรายการ";
-
-      const confirmed = window.confirm(
-        `โต๊ะนี้มีออร์เดอร์ค้างอยู่ (รอบที่ ${lastOrder.session_number})\n\n` +
-          `รายการที่สั่งไว้แล้ว: ${existingSummary}\n\n` +
-          `กด "ตกลง" เพื่อเพิ่มรายการใหม่เข้าไปในออร์เดอร์เดิม\n` +
-          `กด "ยกเลิก" เพื่อยกเลิกออร์เดอร์เก่าแล้วเริ่มรอบใหม่`
-      );
-
-      if (confirmed) {
-        const orderItemsRows = cartItems.map((i) => ({
-          order_id: lastOrder.id,
-          menu_item_id: i.menu_item_id,
-          quantity: i.quantity,
-          unit_price: i.price,
-          note: i.note || null,
-          subtotal: i.price * i.quantity,
-        }));
-        const { error: itemsErr } = await supabase.from("order_items").insert(orderItemsRows);
-        if (itemsErr) {
-          pushToast("เพิ่มรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
-          setSubmitting(false);
-          return;
-        }
-        const { data: currentTotal } = await supabase
-          .from("order_items")
-          .select("subtotal")
-          .eq("order_id", lastOrder.id);
-        const existingSum = (currentTotal ?? []).reduce((s, i) => s + Number(i.subtotal), 0);
-
-        await supabase
-          .from("orders")
-          .update({ total_amount: existingSum })
-          .eq("id", lastOrder.id);
-
-        clearCart();
-        router.push(`/order/${lastOrder.id}`);
+      if (!res.ok || !data.ok) {
+        const message =
+          data?.message ||
+          (data?.error === "out_of_stock"
+            ? "บางเมนูหมดแล้ว กรุณาปรับจำนวน"
+            : "สั่งอาหารไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        pushToast(message, "bad");
+        setSubmitting(false);
         return;
       }
 
-      await supabase
-        .from("orders")
-        .update({ status: "cancelled", paid_at: new Date().toISOString() })
-        .eq("id", lastOrder.id);
-    }
-
-    const nextSession = (lastOrder?.session_number ?? 0) + 1;
-    const { data: order, error: orderErr } = await supabase
-      .from("orders")
-      .insert({
-        table_id: table.id,
-        status: "pending",
-        total_amount: total,
-        session_number: nextSession,
-      })
-      .select()
-      .single();
-
-    if (orderErr || !order) {
+      clearCart();
+      router.push(`/order/${data.orderId}`);
+    } catch {
       pushToast("สั่งอาหารไม่สำเร็จ กรุณาตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่", "bad");
       setSubmitting(false);
-      return;
     }
-
-    const orderItemsRows = cartItems.map((i) => ({
-      order_id: order.id,
-      menu_item_id: i.menu_item_id,
-      quantity: i.quantity,
-      unit_price: i.price,
-      note: i.note || null,
-      subtotal: i.price * i.quantity,
-    }));
-
-    const { error: itemsErr } = await supabase.from("order_items").insert(orderItemsRows);
-    if (itemsErr) {
-      pushToast("สั่งอาหารไม่สำเร็จ กรุณาลองใหม่อีกครั้ง", "bad");
-      setSubmitting(false);
-      return;
-    }
-
-    clearCart();
-    router.push(`/order/${order.id}`);
   };
 
   if (loading) return <LoadingScreen />;
@@ -460,7 +400,7 @@ function MenuContent() {
                 fontFamily: "'Cormorant Garamond', serif",
                 fontWeight: 600,
                 fontStyle: "italic",
-                color: COLORS.primary,
+                color: COLORS.primaryText,
               }}
             >
               Aura Bistro
@@ -528,7 +468,7 @@ function MenuContent() {
               <div className="absolute bottom-0 left-0 right-0 p-6">
                 <span
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold mb-2"
-                  style={{ background: COLORS.onPrimary, color: COLORS.primary }}
+                  style={{ background: COLORS.onPrimary, color: COLORS.primaryDark }}
                 >
                   <Star size={11} className="fill-current" /> เมนูแนะนำ
                 </span>
@@ -750,7 +690,7 @@ function MenuContent() {
                     </div>
                     <span
                       className="absolute -top-1 -right-1 min-w-[22px] h-6 px-1.5 rounded-full text-sm font-bold flex items-center justify-center"
-                      style={{ background: COLORS.onPrimary, color: COLORS.primary }}
+                      style={{ background: COLORS.onPrimary, color: COLORS.primaryDark }}
                       aria-hidden="true"
                     >
                       {totalCount}
@@ -849,7 +789,7 @@ function MenuContent() {
             </motion.div>
             <p
               className="text-xl font-bold"
-              style={{ fontFamily: "'Playfair Display', serif", color: COLORS.primary }}
+              style={{ fontFamily: "'Playfair Display', serif", color: COLORS.primaryText }}
             >
               กำลังส่งออร์เดอร์...
             </p>
@@ -918,7 +858,7 @@ function FeaturedCard({
           <Heart
             size={16}
             className={isFav ? "fill-current" : ""}
-            style={{ color: isFav ? COLORS.primary : "#A79C93" }}
+            style={{ color: isFav ? COLORS.primaryText : COLORS.textSoft }}
             aria-hidden="true"
           />
         </button>
@@ -934,7 +874,7 @@ function FeaturedCard({
           </h3>
         </button>
         <div className="flex items-center justify-between mt-3">
-          <p className="text-lg font-bold" style={{ color: COLORS.primary }}>
+          <p className="text-lg font-bold" style={{ color: COLORS.primaryText }}>
             ฿{baht(item.price)}
           </p>
           <button
@@ -1105,7 +1045,7 @@ function ListItem({
             {item.description}
           </p>
         )}
-        <p className="text-lg font-bold mt-1.5" style={{ color: COLORS.primary }}>
+        <p className="text-lg font-bold mt-1.5" style={{ color: COLORS.primaryText }}>
           ฿{baht(item.price)}
         </p>
       </button>
@@ -1121,7 +1061,7 @@ function ListItem({
           <Heart
             size={18}
             className={isFav ? "fill-current" : ""}
-            style={{ color: isFav ? COLORS.primary : "#A79C93" }}
+            style={{ color: isFav ? COLORS.primaryText : COLORS.textSoft }}
           />
         </button>
         <button
@@ -1182,7 +1122,7 @@ function SearchResults({
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
       <p className="text-sm mb-4" style={{ color: COLORS.textMuted }}>
-        พบ <span className="font-bold" style={{ color: COLORS.primary }}>{items.length}</span>{" "}
+        พบ <span className="font-bold" style={{ color: COLORS.primaryText }}>{items.length}</span>{" "}
         รายการสำหรับ “{query}”
       </p>
       <div className="space-y-2.5">

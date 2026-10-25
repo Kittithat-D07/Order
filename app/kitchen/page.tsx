@@ -28,7 +28,7 @@ function KitchenContent() {
   }, []);
 
   return (
-      <div className="min-h-screen relative overflow-x-hidden" style={{ background: KITCHEN_COLORS.bg }}>
+      <div className="min-h-screen relative overflow-x-clip" style={{ background: KITCHEN_COLORS.bg }}>
       {/* Background blobs */}
       <GradientBlob className="top-[-150px] left-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-brand/10" />
       <GradientBlob className="top-[30%] right-[-100px] w-72 h-72 sm:w-96 sm:h-96" color="bg-accent/10" delay={2} />
@@ -46,7 +46,7 @@ function KitchenContent() {
       <header
         className={cn(
           "sticky top-0 z-40 text-white",
-          "bg-gradient-to-r from-brand/95 via-accent/95 to-brand/95",
+          "bg-gradient-to-r from-brand/95 via-accent-deep/95 to-brand/95",
           "transition-all duration-300 ease-out",
           scrolled
             ? "shadow-2xl shadow-brand/30 backdrop-blur-xl border-b border-white/10"
@@ -90,8 +90,11 @@ function KitchenContent() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              // Await the logout so the server clears the session cookie
+              // before we navigate — otherwise the middleware would still
+              // see a valid session and bounce the user straight back.
+              await logout();
               router.push("/");
             }}
             className={cn(

@@ -26,7 +26,7 @@ function AdminContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-stone-50 overflow-x-hidden">
+    <div className="min-h-screen bg-stone-50 overflow-x-clip">
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-stone-100" />
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div
@@ -62,7 +62,7 @@ function AdminContent() {
             : "shadow-lg backdrop-blur-md"
         )}
         style={{ 
-          background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accent} 100%)`,
+          background: `linear-gradient(135deg, ${ADMIN_COLORS.primary} 0%, ${ADMIN_COLORS.accentDeep} 100%)`,
           borderColor: "rgba(255,255,255,0.1)"
         }}
       >
@@ -106,8 +106,11 @@ function AdminContent() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              // Await the logout so the server clears the session cookie
+              // before we navigate — otherwise the middleware would still
+              // see a valid session and bounce the user straight back.
+              await logout();
               router.push("/");
             }}
             className={cn(

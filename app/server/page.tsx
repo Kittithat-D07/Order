@@ -38,7 +38,7 @@ function ServerContent() {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden" style={{ background: COLORS.bg }}>
+    <div className="min-h-screen relative overflow-x-clip" style={{ background: COLORS.bg }}>
       {/* Decorative leaves */}
       <motion.div
         animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
@@ -100,8 +100,11 @@ function ServerContent() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              // Await the logout so the server clears the session cookie
+              // before we navigate — otherwise the middleware would still
+              // see a valid session and bounce the user straight back.
+              await logout();
               router.push("/");
             }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0"

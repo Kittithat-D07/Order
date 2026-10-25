@@ -76,17 +76,18 @@ function AdminTablesContent() {
   };
 
   const load = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("tables")
-      .select("*")
-      .order("table_number");
-    setTables(data ?? []);
-    setLoading(false);
+    // Tables carry the QR token, so they are staff-only and come through
+    // the server.
+    try {
+      const res = await fetch("/api/staff/tables", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      const rows = res.ok && Array.isArray(data.tables) ? data.tables : [];
 
-    if (data) {
+      setTables(rows);
+      setLoading(false);
+
       const qrMap: Record<string, string> = {};
-      for (const t of data) {
+      for (const t of rows) {
         const url = `${baseUrl}/menu?table=${t.qr_token}`;
         qrMap[t.id] = await QRCode.toDataURL(url, {
           width: 400,
@@ -95,6 +96,8 @@ function AdminTablesContent() {
         });
       }
       setQrImages(qrMap);
+    } catch {
+      setLoading(false);
     }
   };
 
@@ -118,66 +121,105 @@ function AdminTablesContent() {
       return;
     }
 
-    // เช็คซ้ำ
-    if (tables.some((t) => t.table_number === newTableNumber.trim())) {
-      showToast("มีโต๊ะนี้อยู่แล้ว", "error");
+    // The QR token is generated on the server, so the browser never holds
+    // the material that decides what a scan can reach.
+    const res = await fetch("/api/staff/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table_number: newTableNumber.trim() }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      showToast(data?.message || "เพิ่มโต๊ะไม่สำเร็จ", "error");
       return;
     }
 
-    const supabase = createClient();
-    const token = generateQrToken();
-    const { error } = await supabase.from("tables").insert({
-      table_number: newTableNumber.trim(),
-      qr_token: token,
-    });
-    if (error) {
-      showToast("เพิ่มโต๊ะไม่สำเร็จ: " + error.message, "error");
-    } else {
-      setNewTableNumber("");
-      showToast(`เพิ่มโต๊ะ ${newTableNumber} สำเร็จ`, "success");
-      load();
-    }
+    setNewTableNumber("");
+    showToast(`เพิ่มโต๊ะ ${newTableNumber} สำเร็จ`, "success");
+    load();
   };
 
   const deleteTable = async (id: string) => {
     const table = tables.find((t) => t.id === id);
-    if (!confirm(`ลบโต๊ะ ${table?.table_number}?`)) return;
-    const supabase = createClient();
+    if (!table) return;
 
-    await supabase.from("orders").delete().eq("table_id", id);
-    const { error } = await supabase.from("tables").delete().eq("id", id);
-    if (error) {
-      showToast("ลบไม่สำเร็จ: " + error.message, "error");
-    } else {
-      showToast(`ลบโต๊ะ ${table?.table_number} แล้ว`, "success");
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      load();
+    // Closing is the default: the table stops taking orders and the QR
+    // code stops working, but the order history survives.
+    const hasOrders = (table as any).order_count > 0;
+    const action = hasOrders ? "ปิดโต๊ะ" : "ลบโต๊ะ";
+
+    if (
+      !confirm(
+        hasOrders
+          ? `โต๊ะ ${table.table_number} มีออร์เดอร์แล้ว\n\n` +
+            "กด OK เพื่อปิดโต๊ะ (ลูกค้าสั่งไม่ได้แล้ว แต่ประวัติยอดขายยังอยู่)\n" +
+            "กด Cancel เพื่อลบโต๊ะและออร์เดอร์ทั้งหมด (ประวัติจะหายถาวร)"
+          : `ลบโต๊ะ ${table.table_number}?`
+      )
+    ) {
+      return;
     }
+
+    const hardDelete = hasOrders
+      ? confirm(
+          `ยืนยันการลบออร์เดอร์ทั้งหมดของโต๊ะ ${table.table_number}?\n\n` +
+            "การกระทำนี้ย้อนกลับไม่ได้ — ประวัติยอดขายของโต๊ะนี้จะหายถาวร"
+        )
+      : true;
+
+    const res = await fetch(
+      `/api/staff/tables?id=${id}&mode=${hardDelete ? "delete" : "close"}` +
+        (hardDelete ? "&withOrders=true" : ""),
+      { method: "DELETE" }
+    );
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      showToast(data?.message || "ลบไม่สำเร็จ", "error");
+      return;
+    }
+
+    showToast(
+      data.closed
+        ? `ปิดโต๊ะ ${table.table_number} แล้ว`
+        : `ลบโต๊ะ ${table.table_number} แล้ว`,
+      "success"
+    );
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    load();
   };
 
   const deleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`ลบโต๊ะ ${selectedIds.size} โต๊ะ?`)) return;
 
-    const supabase = createClient();
+    // Closing several tables at once is safe — no history is touched.
+    if (!confirm(`ปิดโต๊ะ ${selectedIds.size} โต๊ะ?`)) return;
+
     const ids = Array.from(selectedIds);
+    let failed = 0;
 
-    // ลบ orders ที่เกี่ยวข้อง
-    await supabase.from("orders").delete().in("table_id", ids);
-    // ลบโต๊ะ
-    const { error } = await supabase.from("tables").delete().in("id", ids);
-
-    if (error) {
-      showToast("ลบไม่สำเร็จ: " + error.message, "error");
-    } else {
-      showToast(`ลบ ${ids.length} โต๊ะสำเร็จ`, "success");
-      setSelectedIds(new Set());
-      load();
+    for (const id of ids) {
+      const res = await fetch(
+        `/api/staff/tables?id=${id}&mode=close`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) failed++;
     }
+
+    if (failed > 0) {
+      showToast(`ปิดไม่สำเร็จ ${failed} โต๊ะ`, "error");
+    } else {
+      showToast(`ปิด ${ids.length} โต๊ะสำเร็จ`, "success");
+    }
+
+    setSelectedIds(new Set());
+    load();
   };
 
   const downloadQR = (table: Table) => {
@@ -228,24 +270,22 @@ function AdminTablesContent() {
       return;
     }
 
-    if (tables.some((t) => t.id !== id && t.table_number === editingName.trim())) {
-      showToast("มีชื่อโต๊ะนี้อยู่แล้ว", "error");
+    const res = await fetch("/api/staff/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, table_number: editingName.trim() }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      showToast(data?.message || "แก้ไขไม่สำเร็จ", "error");
       return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("tables")
-      .update({ table_number: editingName.trim() })
-      .eq("id", id);
-
-    if (error) {
-      showToast("แก้ไขไม่สำเร็จ: " + error.message, "error");
-    } else {
-      showToast("แก้ไขสำเร็จ", "success");
-      setEditingId(null);
-      load();
-    }
+    showToast("แก้ไขสำเร็จ", "success");
+    setEditingId(null);
+    load();
   };
 
   const printQR = (table: Table) => {
@@ -301,7 +341,7 @@ function AdminTablesContent() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-2xl shadow-brand/30"
+          className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center shadow-2xl shadow-brand/30"
         >
           <QrCodeIcon className="text-white" size={28} />
         </motion.div>
@@ -314,7 +354,7 @@ function AdminTablesContent() {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-canvas relative overflow-hidden">
+    <div className="min-h-screen pb-24 bg-canvas relative overflow-x-clip">
       {/* Background blobs */}
       <GradientBlob className="top-[-100px] right-[-100px]" color="bg-brand/10" />
       <GradientBlob className="top-[40%] left-[-100px]" color="bg-accent/10" delay={3} />
@@ -338,7 +378,7 @@ function AdminTablesContent() {
             <ArrowLeft size={18} />
           </Link>
           <div className="flex items-center gap-2.5 flex-1">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent flex items-center justify-center shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center shadow-md">
               <QrCodeIcon size={18} className="text-white" />
             </div>
             <div>
@@ -364,7 +404,7 @@ function AdminTablesContent() {
         {/* Add Table */}
         <div className="card p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand to-accent flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand to-accent-deep flex items-center justify-center">
               <Plus size={14} className="text-white" />
             </div>
             <h2 className="font-bold text-sm">เพิ่มโต๊ะใหม่</h2>
@@ -432,7 +472,7 @@ function AdminTablesContent() {
         {tables.length === 0 ? (
           <div className="card p-10 text-center">
             <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-brand-light flex items-center justify-center">
-              <QrCodeIcon size={28} className="text-brand" />
+              <QrCodeIcon size={28} className="text-brand-text" />
             </div>
             <p className="font-semibold text-stone-700">ยังไม่มีโต๊ะ</p>
             <p className="text-sm text-stone-500 mt-1">เพิ่มโต๊ะแรกเพื่อสร้าง QR Code</p>
@@ -469,7 +509,7 @@ function AdminTablesContent() {
                   }`}
                 >
                   {/* Header */}
-                  <div className="bg-gradient-to-br from-brand to-accent p-3 text-white flex items-center justify-between">
+                  <div className="bg-gradient-to-br from-brand to-accent-deep p-3 text-white flex items-center justify-between">
                     <div className="flex-1">
                       <p className="text-[10px] uppercase tracking-wider opacity-80 font-semibold">
                         Table
@@ -504,7 +544,7 @@ function AdminTablesContent() {
                       }`}
                     >
                       {isSelected && (
-                        <Check size={14} className="text-brand" strokeWidth={3} />
+                        <Check size={14} className="text-brand-text" strokeWidth={3} />
                       )}
                     </button>
                   </div>

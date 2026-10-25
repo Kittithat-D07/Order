@@ -11,3 +11,6 @@ out
 .env*
 .impeccable/
 tsconfig.tsbuildinfo
+
+# Supabase CLI scratch dir — machine-local, never belongs in the repo
+supabase/.temp/

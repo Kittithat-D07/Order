@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
+import { useCart } from "@/lib/store/cart";
 import { OrderWithItems, OrderStatus, Bill } from "@/lib/types";
 import { formatPrice, formatDateTime, ORDER_STATUS_LABELS } from "@/lib/utils";
 import { COLORS, alpha } from "@/lib/theme";
@@ -45,8 +45,8 @@ const STATUS_CONFIG: Record<
   }
 > = {
   pending: {
-    gradient: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`,
-    color: COLORS.primary,
+    gradient: `linear-gradient(135deg, ${COLORS.accentDeep} 0%, ${COLORS.primary} 100%)`,
+    color: COLORS.primaryText,
     label: "รอยืนยัน",
     title: "รับออร์เดอร์แล้ว",
     desc: "ร้านกำลังตรวจสอบออร์เดอร์ของคุณ",
@@ -54,7 +54,7 @@ const STATUS_CONFIG: Record<
   },
   preparing: {
     gradient: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.danger} 100%)`,
-    color: COLORS.primary,
+    color: COLORS.primaryText,
     label: "กำลังทำ",
     title: "กำลังทำอาหารให้คุณ",
     desc: "เชฟกำลังทำอาหารให้คุณ รอสักครู่นะคะ",
@@ -105,7 +105,7 @@ const ITEM_STATUS_CONFIG: Record<
     sublabel: "เชฟกำลังปรุงอยู่",
     bg: `linear-gradient(135deg, ${COLORS.primaryLight} 0%, ${COLORS.accentLight} 100%)`,
     ring: "ring-brand/30",
-    color: COLORS.primary,
+    color: COLORS.primaryText,
     dot: COLORS.primary,
     emoji: "🔥",
   },
@@ -114,7 +114,7 @@ const ITEM_STATUS_CONFIG: Record<
     sublabel: "รอเสริฟ์นำไปเสิร์ฟ",
     bg: `linear-gradient(135deg, ${COLORS.accentLight} 0%, ${COLORS.warningLight} 100%)`,
     ring: "ring-accent/40",
-    color: COLORS.accent,
+    color: COLORS.accentText,
     dot: COLORS.accent,
     emoji: "✨",
   },
@@ -230,7 +230,6 @@ export default function OrderStatusPage() {
   const orderId = params.orderId;
 
   const [order, setOrder] = useState<OrderWithItems | null>(null);
-  const [tableToken, setTableToken] = useState<string | null>(null);
   const [bill, setBill] = useState<Bill | null>(null);
   const [requestingBill, setRequestingBill] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -238,94 +237,76 @@ export default function OrderStatusPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const channelRef = useRef<any>(null);
-  const billChannelRef = useRef<any>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const orderStatusRef = useRef<string | null>(null);
 
   const fetchOrder = async (silent = false) => {
     if (!silent) setIsRefreshing(true);
-    const supabase = createClient();
-    const { data, error: fetchErr } = await supabase
-      .from("orders")
-      .select("*, order_items(*, menu_items(*)), tables(*)")
-      .eq("id", orderId)
-      .single();
 
-    if (fetchErr || !data) {
-      if (!silent) setError("ไม่พบออร์เดอร์");
-    } else {
-      const newOrder = data as OrderWithItems;
+    // The customer reads their order through the server. The table token is
+    // the proof that they are at that table, so the server checks it before
+    // returning anything. The browser no longer reads the orders table
+    // directly with the public key.
+    const token = useCart.getState().tableToken;
+    if (!token) {
+      if (!silent) setError("ไม่พบข้อมูลโต๊ะ กรุณาสแกน QR Code อีกครั้ง");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/customer/order/${orderId}?table=${encodeURIComponent(token)}`,
+        { cache: "no-store" }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        if (!silent) {
+          setError(
+            data?.error === "forbidden"
+              ? "ไม่สามารถเปิดออร์เดอร์นี้ได้"
+              : "ไม่พบออร์เดอร์"
+          );
+        }
+        setLoading(false);
+        return;
+      }
+
+      const newOrder = data.order as OrderWithItems;
       setOrder(newOrder);
-      setTableToken(newOrder.tables?.qr_token ?? null);
+      if (data.bill) setBill(data.bill as Bill);
       setLastUpdate(new Date());
       if (orderStatusRef.current && orderStatusRef.current !== newOrder.status) {
         // No vibration: this phone is lying face-up on the customer's table,
         // and a buzz that nobody can explain reads as a malfunction.
         orderStatusRef.current = newOrder.status;
       }
+    } catch {
+      if (!silent) setError("ไม่สามารถโหลดข้อมูลออร์เดอร์ได้");
     }
+
     if (!silent) setIsRefreshing(false);
   };
 
   const setupRealtime = useCallback(() => {
-    const supabase = createClient();
-    if (channelRef.current) supabase.removeChannel(channelRef.current);
-    if (billChannelRef.current) supabase.removeChannel(billChannelRef.current);
-
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` },
-        (payload) => {
-          const newRow = payload.new as Partial<OrderWithItems>;
-          setOrder((prev) => prev ? ({ ...prev, ...newRow } as OrderWithItems) : prev);
-          setLastUpdate(new Date());
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "order_items" },
-        () => { fetchOrder(true); }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") setIsConnected(true);
-        else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-          setIsConnected(false);
-          setTimeout(() => { setupRealtime(); }, 3000);
-        }
-      });
-
-    const billChannel = supabase
-      .channel(`order-bill-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bills", filter: `order_id=eq.${orderId}` },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            setBill(payload.new as Bill);
-            setLastUpdate(new Date());
-          }
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
-    billChannelRef.current = billChannel;
-  }, [orderId]);
+    // The customer polls the server instead of subscribing to Postgres
+    // changes directly.
+    //
+    // Realtime evaluates RLS with the connection's JWT, not with a
+    // per-request header, so a customer channel would either see nothing
+    // (after the lockdown) or — worse, before it — see every order in the
+    // restaurant. Polling through /api/customer/order/[id], which verifies
+    // the table token, is both safe and simple.
+    setIsConnected(true);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
+      // The server route returns the order and its bill together, so the
+      // browser never reads the bills table directly.
       await fetchOrder(true);
-      const supabase = createClient();
-      try {
-        const { data: billData } = await supabase
-          .from("bills").select("*").eq("order_id", orderId).maybeSingle();
-        if (billData) setBill(billData as Bill);
-      } catch (e) {
-        console.warn("bills table not ready:", e);
-      }
       setLoading(false);
     };
 
@@ -339,9 +320,6 @@ export default function OrderStatusPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      const supabase = createClient();
-      if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
-      if (billChannelRef.current) { supabase.removeChannel(billChannelRef.current); billChannelRef.current = null; }
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -367,10 +345,19 @@ export default function OrderStatusPage() {
     if (!order) return;
     setCancelling(true);
     try {
+      // The table token proves the request comes from the customer sitting
+      // at that table, so knowing an order id is not enough to cancel
+      // someone else's order.
+      const token = useCart.getState().tableToken;
+      if (!token) {
+        toast("ไม่พบข้อมูลโต๊ะ กรุณาสแกน QR Code อีกครั้ง", "bad");
+        return;
+      }
+
       const res = await fetch(`/api/orders/${order.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "ลูกค้ายกเลิก" }),
+        body: JSON.stringify({ reason: "ลูกค้ายกเลิก", table: token }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -392,13 +379,42 @@ export default function OrderStatusPage() {
     if (!order || bill) return;
     setRequestingBill(true);
     try {
-      const supabase = createClient();
-      const { error: billErr } = await supabase.from("bills").insert({
-        order_id: order.id,
-        total_amount: order.total_amount,
+      // The server builds the bill from the order, so the amount on the
+      // bill always matches what the customer actually owes.
+      //
+      // The table token goes with the request: it proves the request comes
+      // from the customer sitting at that table, so knowing an order id is
+      // not enough to pull someone else's bill.
+      const token = useCart.getState().tableToken;
+      if (!token) {
+        toast("ไม่พบข้อมูลโต๊ะ กรุณาสแกน QR Code อีกครั้ง", "bad");
+        return;
+      }
+
+      const res = await fetch("/api/bills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, table: token }),
       });
-      if (billErr) throw billErr;
-      toast("ส่งคำขอบิลแล้ว พนักงานจะนำบิลมาให้", "ok");
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        toast(
+          data?.error === "already_paid"
+            ? "ออร์เดอร์นี้ชำระเงินแล้ว"
+            : "ไม่สามารถส่งคำขอบิลได้ กรุณาแจ้งพนักงานที่โต๊ะ",
+          "bad"
+        );
+        return;
+      }
+
+      toast(
+        data.alreadyRequested
+          ? "บิลถูกเรียกไปแล้ว พนักงานจะนำบิลมาให้"
+          : "ส่งคำขอบิลแล้ว พนักงานจะนำบิลมาให้",
+        "ok"
+      );
     } catch {
       toast("ไม่สามารถส่งคำขอบิลได้ กรุณาแจ้งพนักงานที่โต๊ะ", "bad");
     } finally {
@@ -417,7 +433,7 @@ export default function OrderStatusPage() {
           🍳
         </motion.div>
         <div className="text-center">
-          <p className="text-2xl text-brand font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand-text font-display" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             Aura Bistro
           </p>
           <p className="text-base" style={{ color: COLORS.textMuted, marginTop: "0.5rem" }}>
@@ -442,11 +458,11 @@ export default function OrderStatusPage() {
           }}
         >
           <div className="text-7xl mb-4 animate-sway">🌿</div>
-          <p className="text-2xl text-brand font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
+          <p className="text-2xl text-brand-text font-bold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic" }}>
             เกิดข้อผิดพลาด
           </p>
           <p className="text-sm" style={{ color: COLORS.textMuted }}>{error ?? "ไม่พบออร์เดอร์"}</p>
-          <Link href={tableToken ? `/menu?table=${tableToken}` : "/menu"}>
+          <Link href={order?.tables?.qr_token ? `/menu?table=${order.tables.qr_token}` : "/menu"}>
             <motion.button
               whileTap={{ scale: 0.95 }}
               className="mt-6 btn-primary"
@@ -696,12 +712,12 @@ export default function OrderStatusPage() {
                       <span className="font-normal ml-1" style={{ color: COLORS.textMuted }}>× {it.quantity}</span>
                     </p>
                     {it.note && (
-                      <p className="text-xs mt-0.5 italic" style={{ color: COLORS.accent }}>
+                      <p className="text-xs mt-0.5 italic" style={{ color: COLORS.accentText }}>
                         💬 {it.note}
                       </p>
                     )}
                   </div>
-                  <span className="font-semibold text-sm shrink-0" style={{ color: COLORS.primary }}>
+                  <span className="font-semibold text-sm shrink-0" style={{ color: COLORS.primaryText }}>
                     ฿{formatPrice(it.subtotal)}
                   </span>
                 </motion.div>
@@ -710,7 +726,7 @@ export default function OrderStatusPage() {
           </div>
           <div className="flex justify-between items-baseline mt-4 pt-3">
             <span className="text-sm" style={{ color: COLORS.textMuted }}>รวมทั้งหมด</span>
-            <span className="text-2xl font-bold text-brand" style={{ fontFamily: "'Playfair Display', serif" }}>
+            <span className="text-2xl font-bold text-brand-text" style={{ fontFamily: "'Playfair Display', serif" }}>
               ฿{formatPrice(order.total_amount)}
             </span>
           </div>
@@ -763,8 +779,8 @@ export default function OrderStatusPage() {
               disabled={requestingBill}
               className="w-full py-4 rounded-full text-white text-lg font-semibold"
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.primary} 100%)`,
-                boxShadow: "0 12px 28px -6px rgba(200, 147, 47, 0.5)"
+                background: `linear-gradient(135deg, ${COLORS.accentDeep} 0%, ${COLORS.primary} 100%)`,
+                boxShadow: "0 12px 28px -6px rgba(102, 72, 16, 0.5)"
               }}
             >
               {requestingBill ? (

@@ -2,7 +2,6 @@
 
 import { OrderWithItems, OrderItemStatus } from "@/lib/types";
 import { formatPrice, formatDateTime } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 import { X, Check, ChefHat, Bell, Utensils } from "lucide-react";
 import { useServerName } from "@/hooks/useServerName";
@@ -49,7 +48,6 @@ const OVERALL_STATUS_LABEL: Record<string, { label: string; color: string }> = {
 
 export function OrderCard({ order }: { order: OrderWithItems }) {
   const [updating, setUpdating] = useState<string | null>(null);
-  const supabase = createClient();
   const { name: serverName } = useServerName();
 
   // คำนวณ overall status จาก items
@@ -66,22 +64,25 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
 
   const updateItemStatus = async (itemId: string, newStatus: OrderItemStatus) => {
     setUpdating(itemId);
-    await supabase
-      .from("order_items")
-      .update({
-        status: newStatus,
-        served_by: newStatus === "served" ? serverName : null,
-        served_at: newStatus === "served" ? new Date().toISOString() : null,
-      })
-      .eq("id", itemId);
+
+    // The server checks the staff session and derives the order's overall
+    // status itself, so the admin screen can never disagree with the kitchen.
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId, status: newStatus }),
+    });
+
     setUpdating(null);
+    return res.ok;
   };
 
   const claimOrder = async () => {
-    await supabase
-      .from("orders")
-      .update({ server_name: serverName, claimed_at: new Date().toISOString() })
-      .eq("id", order.id);
+    await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: order.id, serverName }),
+    });
   };
 
   const isClaimed = !!order.server_name;
@@ -170,11 +171,11 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
                   <div className="flex items-start justify-between gap-2 mb-1.5">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-ink">
-                        <span className="text-brand font-semibold">{it.quantity}×</span>{" "}
+                        <span className="text-brand-text font-semibold">{it.quantity}×</span>{" "}
                         {it.menu_items?.name ?? "(เมนูถูกลบ)"}
                       </p>
                       {it.note && (
-                        <p className="text-[11px] text-accent italic pl-3 mt-0.5">
+                        <p className="text-[11px] text-accent-text italic pl-3 mt-0.5">
                           💬 {it.note}
                         </p>
                       )}
@@ -246,7 +247,7 @@ export function OrderCard({ order }: { order: OrderWithItems }) {
             <p className="text-[11px] text-ink-muted">
               {servedCount}/{totalItems} เสร็จ • {readyCount} พร้อมเสิร์ฟ
             </p>
-            <p className="font-bold text-base text-brand">
+            <p className="font-bold text-base text-brand-text">
               ฿{formatPrice(order.total_amount)}
             </p>
           </div>

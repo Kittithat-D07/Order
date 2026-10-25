@@ -97,6 +97,20 @@ DROP POLICY IF EXISTS "Allow public write staff_sessions" ON public.staff_sessio
 -- ----------------------------------------------------------------------------
 
 -- pgcrypto gives us digest() for the SHA-256 hash.
+--
+-- On Supabase, pgcrypto lives in the `extensions` schema, NOT in `public`.
+-- A function that pins `SET search_path = public` therefore cannot resolve
+-- `digest(...)` — it fails with:
+--
+--   42883: function digest(text, unknown) does not exist
+--
+-- which then breaks every policy that calls current_staff_role(), because
+-- the policy expression is evaluated on every row access.
+--
+-- The CREATE EXTENSION is left without a schema clause on purpose: if the
+-- extension is already present, IF NOT EXISTS makes this a no-op and it
+-- stays wherever it was installed. The search_path below then lists both
+-- schemas, so digest() resolves either way.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Pull the session token out of the request headers.
@@ -104,7 +118,7 @@ CREATE OR REPLACE FUNCTION public.staff_token_from_request()
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_headers TEXT := current_setting('request.headers', true);
@@ -150,7 +164,7 @@ CREATE OR REPLACE FUNCTION public.current_staff_role()
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_token TEXT := public.staff_token_from_request();
@@ -176,7 +190,7 @@ CREATE OR REPLACE FUNCTION public.current_staff_identity()
 RETURNS TABLE(role TEXT, display_name TEXT)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_token TEXT := public.staff_token_from_request();
@@ -415,7 +429,7 @@ CREATE OR REPLACE FUNCTION public.cleanup_expired_sessions()
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_count INTEGER;

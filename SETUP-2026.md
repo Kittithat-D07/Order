@@ -96,16 +96,21 @@ SESSION_SECRET=<ค่าสุ่มยาว ๆ>
 > ⚠️ **อย่าใส่ `NEXT_PUBLIC_` นำหน้า service role key**
 > เพราะจะถูก bundle เข้า JavaScript ที่มือถือลูกค้าดาวน์โหลด
 
-### ขั้นที่ 2 — รัน Migration (3 ไฟล์)
+### ขั้นที่ 2 — รัน Migration (4 ไฟล์)
 
 **ทางเลือก A — ผ่าน Supabase Dashboard (แนะนำ)**
 
 1. เปิด https://supabase.com/dashboard → เลือกโปรเจกต์ → **SQL Editor**
-2. เปิดไฟล์ `supabase/migrations/2026-10-24-production-hardening.sql` → คัดลอกทั้งไฟล์ → วาง → **Run**
-3. ทำซ้ำกับ `2026-10-24-access-control.sql`
-4. ทำซ้ำกับ `2026-10-24-lockdown.sql`
+2. รันไฟล์ตามลำดับนี้ (คัดลอกทั้งไฟล์ → วาง → **Run**):
 
-> ทั้ง 3 ไฟล์เป็น **idempotent** — รันซ้ำได้ไม่พัง
+| # | ไฟล์ | ทำอะไร |
+|---|---|---|
+| 1 | `2026-10-24-production-hardening.sql` | คอลัมน์, trigger, atomic stock RPC |
+| 2 | `2026-10-24-access-control.sql` | ตาราง `staff_sessions` + RLS policies |
+| 3 | `2026-10-24b-fix-search-path.sql` | แก้ `search_path` ให้ `digest()` resolve ได้ |
+| 4 | `2026-10-24-lockdown.sql` | ปิด policy ที่เปิดกว้าง + ฟังก์ชันตรวจสอบ |
+
+> ทุกไฟล์เป็น **idempotent** — รันซ้ำได้ไม่พัง
 
 > ⚠️ **ลำดับสำคัญมาก** — ถ้ารันผิดลำดับจะได้ error
 > `42883: function public.current_staff_role() does not exist`
@@ -115,10 +120,22 @@ SESSION_SECRET=<ค่าสุ่มยาว ๆ>
 > **มีอยู่ก่อน** ที่จะสร้าง policy ที่เรียกใช้มัน
 >
 > ไฟล์ `access-control.sql` แก้ให้สร้างฟังก์ชันไว้ที่หัวข้อ 1b
-> (ก่อน policy ทุกตัว) แล้ว ดังนั้นแค่รันตามลำดับ 1 → 2 → 3 ก็พอ
+> (ก่อน policy ทุกตัว) แล้ว ดังนั้นแค่รันตามลำดับข้างบนก็พอ
 >
 > ถ้าเคยรันผิดลำดับแล้ว รันซ้ำตามลำดับถูกต้องได้เลย
 > เพราะทุกไฟล์ idempotent
+
+> 🔧 **ไฟล์ที่ 3 (`24b-fix-search-path`) จำเป็นมาก**
+>
+> บน Supabase `pgcrypto` อยู่ใน schema `extensions` ไม่ใช่ `public`
+> ถ้าฟังก์ชัน pin `search_path = public` จะเรียก `digest()` ไม่ได้
+> และ policy ทุกตัวที่ใช้ `current_staff_role()` จะพังหมด
+> (ขึ้น 400 ตอนอ่าน `tables` / `orders` / `bills`)
+>
+> ตรวจว่าแก้แล้ว:
+> ```sql
+> SELECT public.current_staff_role();  -- ต้องคืนค่า NULL ไม่ใช่ error
+> ```
 
 **ทางเลือก B — ผ่าน CLI**
 

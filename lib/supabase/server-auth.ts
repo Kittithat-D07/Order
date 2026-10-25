@@ -61,6 +61,17 @@ export function createServerClientWithServiceRole() {
   });
 }
 
+/**
+ * Is the service role key configured?
+ *
+ * This matters because the staff session table has no INSERT policy for the
+ * anon key — by design, so a browser cannot mint itself an admin session.
+ * Writing the session row therefore *requires* the service role key.
+ */
+export function hasServiceRoleKey(): boolean {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 /** A regular server-side client that honours RLS (anon key). */
 export function createServerClientAnon() {
   return createServerClient(
@@ -117,7 +128,16 @@ export async function createStaffSession(
   const supabase = createServerClientWithServiceRole();
   const caps = await getSchemaCaps(supabase);
 
-  if (caps.staffSessions) {
+  // The session row can only be written with the service role key: the
+  // table deliberately has no INSERT policy for the anon key, so that a
+  // browser cannot mint itself an admin session.
+  //
+  // Without the service role key we cannot write the row, so we fall back
+  // to a stateless signed token. It is still signed, still HttpOnly, still
+  // expires — it just cannot be revoked individually until the key is set.
+  const canPersist = caps.staffSessions && hasServiceRoleKey();
+
+  if (canPersist) {
     const { error } = await supabase.from("staff_sessions").insert({
       role,
       display_name: displayName,
@@ -131,10 +151,15 @@ export async function createStaffSession(
       console.error("[STAFF SESSION] insert failed:", error.message);
       throw new Error("ไม่สามารถสร้างเซสชันได้");
     }
-  } else {
+  } else if (!caps.staffSessions) {
     console.warn(
       "[STAFF SESSION] staff_sessions table not found — using a stateless session. " +
         "Run supabase/migrations/2026-10-24-access-control.sql to enable revocation."
+    );
+  } else {
+    console.warn(
+      "[STAFF SESSION] SUPABASE_SERVICE_ROLE_KEY is not set — using a stateless session. " +
+        "Sessions cannot be revoked until the key is added to .env.local."
     );
   }
 
@@ -167,7 +192,11 @@ export async function getStaffSession(): Promise<StaffIdentity | null> {
   const supabase = createServerClientWithServiceRole();
   const caps = await getSchemaCaps(supabase);
 
-  if (!caps.staffSessions) {
+  // The session row is only written when the service role key is present.
+  // Without it there is no row to look up, and the lookup would fail for a
+  // reason that has nothing to do with the session being invalid. Treat a
+  // missing key as "stateless" rather than "signed out".
+  if (!caps.staffSessions || !hasServiceRoleKey()) {
     return {
       role: parsed.role,
       displayName: parsed.role,
@@ -202,7 +231,7 @@ export async function revokeStaffSession(): Promise<void> {
   const supabase = createServerClientWithServiceRole();
   const caps = await getSchemaCaps(supabase);
 
-  if (caps.staffSessions) {
+  if (caps.staffSessions && hasServiceRoleKey()) {
     await supabase
       .from("staff_sessions")
       .update({ revoked_at: new Date().toISOString() })

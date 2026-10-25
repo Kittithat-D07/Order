@@ -35,8 +35,9 @@
 -- directly. Everything else goes through the server, which connects with
 -- the service role key and checks a signed, HttpOnly staff session.
 --
--- Run order: after 2026-10-24-production-hardening.sql and
--- 2026-10-24-access-control.sql. This file is idempotent.
+-- Run order: after 2026-10-24-production-hardening.sql,
+-- 2026-10-24-access-control.sql and 2026-10-24b-fix-search-path.sql.
+-- This file is idempotent.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -241,7 +242,7 @@ CREATE OR REPLACE FUNCTION public.public_access_report()
 RETURNS TABLE(table_name TEXT, policy_name TEXT, command TEXT)
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions, pg_temp
 AS $$
   SELECT
     p.schemaname::TEXT,
